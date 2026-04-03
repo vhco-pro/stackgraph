@@ -1,0 +1,116 @@
+{
+  "format_version": "1.0",
+  "terraform_version": "1.9.0",
+  "values": {
+    "root_module": {
+      "resources": [
+        {
+          "address": "aws_vpc.main",
+          "mode": "managed",
+          "type": "aws_vpc",
+          "name": "main",
+          "provider_name": "registry.terraform.io/hashicorp/aws",
+          "schema_version": 1,
+          "values": {
+            "id": "vpc-count123",
+            "cidr_block": "10.0.0.0/16"
+          },
+          "depends_on": []
+        },
+        {
+          "address": "aws_subnet.main[0]",
+          "mode": "managed",
+          "type": "aws_subnet",
+          "name": "main",
+          "index": 0,
+          "provider_name": "registry.terraform.io/hashicorp/aws",
+          "schema_version": 1,
+          "values": {
+            "id": "subnet-count-0",
+            "vpc_id": "vpc-count123",
+            "cidr_block": "10.0.1.0/24",
+            "availability_zone": "us-east-1a"
+          },
+          "depends_on": ["aws_vpc.main"]
+        },
+        {
+          "address": "aws_subnet.main[1]",
+          "mode": "managed",
+          "type": "aws_subnet",
+          "name": "main",
+          "index": 1,
+          "provider_name": "registry.terraform.io/hashicorp/aws",
+          "schema_version": 1,
+          "values": {
+            "id": "subnet-count-1",
+            "vpc_id": "vpc-count123",
+            "cidr_block": "10.0.2.0/24",
+            "availability_zone": "us-east-1b"
+          },
+          "depends_on": ["aws_vpc.main"]
+        },
+        {
+          "address": "aws_subnet.main[2]",
+          "mode": "managed",
+          "type": "aws_subnet",
+          "name": "main",
+          "index": 2,
+          "provider_name": "registry.terraform.io/hashicorp/aws",
+          "schema_version": 1,
+          "values": {
+            "id": "subnet-count-2",
+            "vpc_id": "vpc-count123",
+            "cidr_block": "10.0.3.0/24",
+            "availability_zone": "us-east-1c"
+          },
+          "depends_on": ["aws_vpc.main"]
+        },
+        {
+          "address": "aws_instance.web[0]",
+          "mode": "managed",
+          "type": "aws_instance",
+          "name": "web",
+          "index": 0,
+          "provider_name": "registry.terraform.io/hashicorp/aws",
+          "schema_version": 1,
+          "values": {
+            "id": "i-count-0",
+            "instance_type": "t3.micro",
+            "subnet_id": "subnet-count-0"
+          },
+          "depends_on": ["aws_subnet.main"]
+        },
+        {
+          "address": "aws_instance.web[1]",
+          "mode": "managed",
+          "type": "aws_instance",
+          "name": "web",
+          "index": 1,
+          "provider_name": "registry.terraform.io/hashicorp/aws",
+          "schema_version": 1,
+          "values": {
+            "id": "i-count-1",
+            "instance_type": "t3.micro",
+            "subnet_id": "subnet-count-1"
+          },
+          "depends_on": ["aws_subnet.main"]
+        },
+        {
+          "address": "aws_instance.web[2]",
+          "mode": "managed",
+          "type": "aws_instance",
+          "name": "web",
+          "index": 2,
+          "provider_name": "registry.terraform.io/hashicorp/aws",
+          "schema_version": 1,
+          "values": {
+            "id": "i-count-2",
+            "instance_type": "t3.micro",
+            "subnet_id": "subnet-count-2"
+          },
+          "depends_on": ["aws_subnet.main"]
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,36 @@
+digraph infrastructure {
+  rankdir=TB;
+  node [shape=box, style=rounded, fontname="Helvetica"];
+  edge [fontname="Helvetica", fontsize=10];
+
+  subgraph "cluster_aws_security_group.web" {
+    label="Security Group\\nweb";
+    style=dashed;
+    color=gray;
+  }
+  subgraph "cluster_aws_vpc.main" {
+    label="VPC\\nmain";
+    style=dashed;
+    color=gray;
+    subgraph "cluster_aws_subnet.public" {
+      label="Subnet\\npublic";
+      style=dashed;
+      color=gray;
+      "aws_instance.web_a" [label="EC2\\nweb_a", shape=box];
+      "aws_instance.web_b" [label="EC2\\nweb_b", shape=box];
+    }
+    subgraph "cluster_aws_subnet.private" {
+      label="Subnet\\nprivate";
+      style=dashed;
+      color=gray;
+    }
+  }
+
+  "aws_subnet.public" -> "aws_vpc.main";
+  "aws_subnet.private" -> "aws_vpc.main";
+  "aws_security_group.web" -> "aws_vpc.main";
+  "aws_instance.web_a" -> "aws_subnet.public";
+  "aws_instance.web_a" -> "aws_security_group.web";
+  "aws_instance.web_b" -> "aws_subnet.public";
+  "aws_instance.web_b" -> "aws_security_group.web";
+}

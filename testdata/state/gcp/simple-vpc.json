@@ -1,0 +1,56 @@
+{
+  "format_version": "1.0",
+  "terraform_version": "1.9.0",
+  "values": {
+    "root_module": {
+      "resources": [
+        {
+          "address": "google_compute_network.main",
+          "mode": "managed",
+          "type": "google_compute_network",
+          "name": "main",
+          "provider_name": "registry.terraform.io/hashicorp/google",
+          "schema_version": 0,
+          "values": {
+            "id": "projects/my-project/global/networks/main-vpc",
+            "name": "main-vpc",
+            "auto_create_subnetworks": false,
+            "project": "my-project"
+          },
+          "depends_on": []
+        },
+        {
+          "address": "google_compute_subnetwork.main",
+          "mode": "managed",
+          "type": "google_compute_subnetwork",
+          "name": "main",
+          "provider_name": "registry.terraform.io/hashicorp/google",
+          "schema_version": 0,
+          "values": {
+            "id": "projects/my-project/regions/us-central1/subnetworks/main-subnet",
+            "name": "main-subnet",
+            "ip_cidr_range": "10.0.1.0/24",
+            "region": "us-central1",
+            "network": "projects/my-project/global/networks/main-vpc"
+          },
+          "depends_on": ["google_compute_network.main"]
+        },
+        {
+          "address": "google_compute_instance.web",
+          "mode": "managed",
+          "type": "google_compute_instance",
+          "name": "web",
+          "provider_name": "registry.terraform.io/hashicorp/google",
+          "schema_version": 0,
+          "values": {
+            "id": "projects/my-project/zones/us-central1-a/instances/web-instance",
+            "name": "web-instance",
+            "machine_type": "e2-medium",
+            "zone": "us-central1-a"
+          },
+          "depends_on": ["google_compute_subnetwork.main"]
+        }
+      ]
+    }
+  }
+}

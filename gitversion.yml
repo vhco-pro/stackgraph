@@ -1,0 +1,41 @@
+# https://gitversion.net/docs/reference/configuration
+# manually verify with `gitversion (/showconfig)`
+workflow: GitHubFlow/v1
+tag-prefix: '' # No prefix on tags (tags are like 0.0.1, not v0.0.1)
+semantic-version-format: Loose # Allow non-strict semver tags
+# Custom version bump messages
+major-version-bump-message: '(BREAKING CHANGE|^.+!:)'
+minor-version-bump-message: '^feat(\([^)]+\))?:\s'
+patch-version-bump-message: '^(fix|perf|refactor|revert)(\([^)]+\))?:\s'
+no-bump-message: '^(chore|docs|style|test|ci)(\([^)]+\))?:\s'
+commit-message-incrementing: Enabled # Evaluate all commit messages, not just merge commits
+# Custom strategies - this differs from default
+strategies:
+  - Fallback                    # Returns 0.0.0 when no base versions found, increments to 0.0.1 on first commit
+  - MergeMessage
+  - TaggedCommit
+  - TrackReleaseBranches # this ensures that commits from release branches are tracked and included in the versioning process.
+  - VersionInBranchName
+branches:
+  main:
+    regex: ^master$|^main$
+    increment: Patch
+    prevent-increment:
+      of-merged-branch: true
+    track-merge-target: false
+    track-merge-message: true
+    is-main-branch: true
+    mode: ContinuousDeployment
+  release:
+    regex: ^release/(?<BranchName>[0-9]+\.[0-9]+\.[0-9]+)$
+    label: ''
+    increment: None
+    prevent-increment:
+      when-current-commit-tagged: true
+      of-merged-branch: true
+    is-release-branch: true
+    mode: ContinuousDeployment
+    source-branches:
+      - main
+assembly-versioning-scheme: MajorMinorPatch
+assembly-informational-format: '{SemVer}'

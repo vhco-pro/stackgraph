@@ -1,0 +1,309 @@
+resources:
+  # Compute
+  aws_instance:
+    service: EC2
+    category: Compute
+    icon: aws/compute/ec2-instance.svg
+    group_parent: aws_subnet
+  aws_launch_template:
+    service: EC2
+    category: Compute
+    icon: aws/compute/ec2-instance.svg
+  aws_autoscaling_group:
+    service: Auto Scaling
+    category: Compute
+    icon: aws/compute/auto-scaling.svg
+    is_group: true
+    group_level: 4
+    group_parent: aws_subnet
+  aws_lambda_function:
+    service: Lambda
+    category: Compute
+    icon: aws/compute/lambda.svg
+  aws_lambda_layer_version:
+    service: Lambda Layer
+    category: Compute
+    icon: aws/compute/lambda.svg
+
+  # Containers
+  aws_ecs_cluster:
+    service: ECS
+    category: Containers
+    icon: aws/containers/ecs.svg
+    is_group: true
+    group_level: 4
+    group_parent: aws_subnet
+  aws_ecs_service:
+    service: ECS
+    category: Containers
+    icon: aws/containers/ecs-service.svg
+    variants:
+      - match: { attribute: launch_type, value: FARGATE }
+        icon: aws/containers/fargate.svg
+        service: Fargate
+  aws_ecs_task_definition:
+    service: ECS Task
+    category: Containers
+    icon: aws/containers/ecs.svg
+  aws_ecr_repository:
+    service: ECR
+    category: Containers
+    icon: aws/containers/ecr.svg
+  aws_eks_cluster:
+    service: EKS
+    category: Containers
+    icon: aws/containers/eks.svg
+    is_group: true
+    group_level: 4
+  aws_eks_node_group:
+    service: EKS Node Group
+    category: Containers
+    icon: aws/containers/eks.svg
+
+  # Networking
+  aws_vpc:
+    service: VPC
+    category: Networking
+    icon: aws/networking/vpc.svg
+    is_group: true
+    group_level: 1
+  aws_subnet:
+    service: Subnet
+    category: Networking
+    icon: aws/networking/subnet.svg
+    is_group: true
+    group_parent: aws_vpc
+    group_level: 2
+  aws_security_group:
+    service: Security Group
+    category: Security
+    icon: aws/security/security-group.svg
+    is_group: true
+    group_parent: aws_subnet
+    group_level: 3
+  aws_security_group_rule:
+    service: SG Rule
+    category: Security
+    icon: aws/security/security-group.svg
+  aws_internet_gateway:
+    service: Internet Gateway
+    category: Networking
+    icon: aws/networking/internet-gateway.svg
+  aws_nat_gateway:
+    service: NAT Gateway
+    category: Networking
+    icon: aws/networking/nat-gateway.svg
+  aws_eip:
+    service: Elastic IP
+    category: Networking
+    icon: aws/networking/elastic-ip.svg
+  aws_route_table:
+    service: Route Table
+    category: Networking
+    icon: aws/networking/route-table.svg
+  aws_route_table_association:
+    service: Route Association
+    category: Networking
+    icon: aws/networking/route-table.svg
+  aws_route:
+    service: Route
+    category: Networking
+    icon: aws/networking/route-table.svg
+  aws_network_interface:
+    service: ENI
+    category: Networking
+    icon: aws/networking/elastic-network-interface.svg
+  aws_vpc_peering_connection:
+    service: VPC Peering
+    category: Networking
+    icon: aws/networking/peering.svg
+  aws_vpc_endpoint:
+    service: VPC Endpoint
+    category: Networking
+    icon: aws/networking/endpoint.svg
+
+  # Load Balancing
+  aws_lb:
+    service: ALB
+    category: Networking
+    icon: aws/networking/alb.svg
+    variants:
+      - match: { attribute: load_balancer_type, value: network }
+        icon: aws/networking/nlb.svg
+        service: NLB
+  aws_lb_target_group:
+    service: Target Group
+    category: Networking
+    icon: aws/networking/alb.svg
+  aws_lb_listener:
+    service: LB Listener
+    category: Networking
+    icon: aws/networking/alb.svg
+
+  # Storage
+  aws_s3_bucket:
+    service: S3
+    category: Storage
+    icon: aws/storage/s3.svg
+  aws_s3_bucket_policy:
+    service: S3 Policy
+    category: Storage
+    icon: aws/storage/s3.svg
+  aws_s3_bucket_versioning:
+    service: S3 Versioning
+    category: Storage
+    icon: aws/storage/s3.svg
+  aws_ebs_volume:
+    service: EBS
+    category: Storage
+    icon: aws/storage/ebs.svg
+  aws_efs_file_system:
+    service: EFS
+    category: Storage
+    icon: aws/storage/efs.svg
+
+  # Database
+  aws_db_instance:
+    service: RDS
+    category: Database
+    icon: aws/database/rds.svg
+  aws_db_subnet_group:
+    service: DB Subnet Group
+    category: Database
+    icon: aws/database/rds.svg
+  aws_rds_cluster:
+    service: Aurora
+    category: Database
+    icon: aws/database/aurora.svg
+  aws_dynamodb_table:
+    service: DynamoDB
+    category: Database
+    icon: aws/database/dynamodb.svg
+  aws_elasticache_cluster:
+    service: ElastiCache
+    category: Database
+    icon: aws/database/elasticache.svg
+  aws_elasticache_replication_group:
+    service: ElastiCache
+    category: Database
+    icon: aws/database/elasticache.svg
+
+  # DNS & CDN
+  aws_route53_zone:
+    service: Route 53
+    category: Networking
+    icon: aws/networking/route53.svg
+  aws_route53_record:
+    service: Route 53
+    category: Networking
+    icon: aws/networking/route53.svg
+  aws_cloudfront_distribution:
+    service: CloudFront
+    category: Networking
+    icon: aws/networking/cloudfront.svg
+  aws_cloudfront_origin_access_identity:
+    service: CloudFront OAI
+    category: Networking
+    icon: aws/networking/cloudfront.svg
+  aws_acm_certificate:
+    service: ACM
+    category: Security
+    icon: aws/security/acm.svg
+
+  # IAM
+  aws_iam_role:
+    service: IAM Role
+    category: Security
+    icon: aws/security/iam-role.svg
+  aws_iam_policy:
+    service: IAM Policy
+    category: Security
+    icon: aws/security/iam-policy.svg
+  aws_iam_role_policy_attachment:
+    service: IAM Attachment
+    category: Security
+    icon: aws/security/iam-policy.svg
+  aws_iam_user:
+    service: IAM User
+    category: Security
+    icon: aws/security/iam-user.svg
+  aws_iam_group:
+    service: IAM Group
+    category: Security
+    icon: aws/security/iam-group.svg
+  aws_iam_instance_profile:
+    service: Instance Profile
+    category: Security
+    icon: aws/security/iam-role.svg
+
+  # Messaging
+  aws_sqs_queue:
+    service: SQS
+    category: Messaging
+    icon: aws/messaging/sqs.svg
+  aws_sns_topic:
+    service: SNS
+    category: Messaging
+    icon: aws/messaging/sns.svg
+  aws_sns_topic_subscription:
+    service: SNS Subscription
+    category: Messaging
+    icon: aws/messaging/sns.svg
+
+  # Monitoring
+  aws_cloudwatch_log_group:
+    service: CloudWatch Logs
+    category: Monitoring
+    icon: aws/monitoring/cloudwatch.svg
+  aws_cloudwatch_metric_alarm:
+    service: CloudWatch Alarm
+    category: Monitoring
+    icon: aws/monitoring/cloudwatch.svg
+
+  # Secrets & Config
+  aws_secretsmanager_secret:
+    service: Secrets Manager
+    category: Security
+    icon: aws/security/secrets-manager.svg
+  aws_ssm_parameter:
+    service: SSM Parameter
+    category: Management
+    icon: aws/management/systems-manager.svg
+  aws_kms_key:
+    service: KMS
+    category: Security
+    icon: aws/security/kms.svg
+
+  # API Gateway
+  aws_api_gateway_rest_api:
+    service: API Gateway
+    category: Networking
+    icon: aws/networking/api-gateway.svg
+  aws_apigatewayv2_api:
+    service: API Gateway v2
+    category: Networking
+    icon: aws/networking/api-gateway.svg
+
+  # Step Functions
+  aws_sfn_state_machine:
+    service: Step Functions
+    category: Compute
+    icon: aws/compute/step-functions.svg
+
+  # CodePipeline
+  aws_codebuild_project:
+    service: CodeBuild
+    category: Developer Tools
+    icon: aws/developer-tools/codebuild.svg
+  aws_codepipeline:
+    service: CodePipeline
+    category: Developer Tools
+    icon: aws/developer-tools/codepipeline.svg
+
+consolidate:
+  - target: aws_route53_record
+    sources: [aws_route53_zone, aws_route53_record, aws_route53_health_check]
+    label: Route 53
+  - target: aws_s3_bucket
+    sources: [aws_s3_bucket, aws_s3_bucket_policy, aws_s3_bucket_versioning, aws_s3_bucket_acl, aws_s3_bucket_lifecycle_configuration]
+    label: S3 Bucket

@@ -1,0 +1,40 @@
+{
+  "nodes": [
+    {
+      "id": "proxmox_vm_qemu.web",
+      "type": "resource",
+      "resource_type": "proxmox_vm_qemu",
+      "label": "web",
+      "provider": "proxmox",
+      "attributes": {
+        "cores": 4,
+        "disk_size": "50G",
+        "id": "pve/qemu/100",
+        "memory": 8192,
+        "name": "web-server",
+        "target_node": "pve1"
+      }
+    },
+    {
+      "id": "proxmox_lxc.database",
+      "type": "resource",
+      "resource_type": "proxmox_lxc",
+      "label": "database",
+      "provider": "proxmox",
+      "attributes": {
+        "cores": 2,
+        "id": "pve/lxc/101",
+        "memory": 4096,
+        "rootfs_size": "20G",
+        "target_node": "pve1"
+      }
+    }
+  ],
+  "edges": [],
+  "metadata": {
+    "provider": "proxmox",
+    "resource_count": 2,
+    "generator_version": "0.1.0",
+    "input_mode": "state"
+  }
+}

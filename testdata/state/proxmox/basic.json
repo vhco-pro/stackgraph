@@ -1,0 +1,44 @@
+{
+  "format_version": "1.0",
+  "terraform_version": "1.9.0",
+  "values": {
+    "root_module": {
+      "resources": [
+        {
+          "address": "proxmox_vm_qemu.web",
+          "mode": "managed",
+          "type": "proxmox_vm_qemu",
+          "name": "web",
+          "provider_name": "registry.terraform.io/telmate/proxmox",
+          "schema_version": 0,
+          "values": {
+            "id": "pve/qemu/100",
+            "name": "web-server",
+            "target_node": "pve1",
+            "cores": 4,
+            "memory": 8192,
+            "disk_size": "50G"
+          },
+          "depends_on": []
+        },
+        {
+          "address": "proxmox_lxc.database",
+          "mode": "managed",
+          "type": "proxmox_lxc",
+          "name": "database",
+          "provider_name": "registry.terraform.io/telmate/proxmox",
+          "schema_version": 0,
+          "values": {
+            "id": "pve/lxc/101",
+            "hostname": "db-container",
+            "target_node": "pve1",
+            "cores": 2,
+            "memory": 4096,
+            "rootfs_size": "20G"
+          },
+          "depends_on": []
+        }
+      ]
+    }
+  }
+}

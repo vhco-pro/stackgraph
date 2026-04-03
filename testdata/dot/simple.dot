@@ -1,0 +1,16 @@
+digraph {
+	compound = "true"
+	newrank = "true"
+	subgraph "root" {
+		"[root] aws_instance.web (expand)" [label = "aws_instance.web", shape = "box"]
+		"[root] aws_vpc.main (expand)" [label = "aws_vpc.main", shape = "box"]
+		"[root] aws_subnet.public (expand)" [label = "aws_subnet.public", shape = "box"]
+		"[root] aws_security_group.web (expand)" [label = "aws_security_group.web", shape = "box"]
+		"[root] provider[\"registry.terraform.io/hashicorp/aws\"]" [label = "provider[\"registry.terraform.io/hashicorp/aws\"]", shape = "diamond"]
+		"[root] aws_instance.web (expand)" -> "[root] aws_subnet.public (expand)"
+		"[root] aws_instance.web (expand)" -> "[root] aws_security_group.web (expand)"
+		"[root] aws_subnet.public (expand)" -> "[root] aws_vpc.main (expand)"
+		"[root] aws_security_group.web (expand)" -> "[root] aws_vpc.main (expand)"
+		"[root] aws_vpc.main (expand)" -> "[root] provider[\"registry.terraform.io/hashicorp/aws\"]"
+	}
+}

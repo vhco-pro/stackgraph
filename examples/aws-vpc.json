@@ -1,0 +1,180 @@
+{
+  "nodes": [
+    {
+      "id": "aws_vpc.main",
+      "type": "group",
+      "resource_type": "aws_vpc",
+      "label": "main",
+      "provider": "aws",
+      "service": "VPC",
+      "category": "Networking",
+      "icon": "aws/networking/vpc.svg",
+      "children": [
+        "aws_subnet.public",
+        "aws_subnet.private"
+      ],
+      "attributes": {
+        "cidr_block": "10.0.0.0/16",
+        "enable_dns_hostnames": true,
+        "enable_dns_support": true,
+        "id": "vpc-0abc123def456",
+        "tags": {
+          "Name": "main-vpc"
+        }
+      }
+    },
+    {
+      "id": "aws_subnet.public",
+      "type": "group",
+      "resource_type": "aws_subnet",
+      "label": "public",
+      "provider": "aws",
+      "service": "Subnet",
+      "category": "Networking",
+      "icon": "aws/networking/subnet.svg",
+      "parent": "aws_vpc.main",
+      "children": [
+        "aws_instance.web_a",
+        "aws_instance.web_b"
+      ],
+      "attributes": {
+        "availability_zone": "us-east-1a",
+        "cidr_block": "10.0.1.0/24",
+        "id": "subnet-0pub123",
+        "map_public_ip_on_launch": true,
+        "tags": {
+          "Name": "public-subnet"
+        },
+        "vpc_id": "vpc-0abc123def456"
+      }
+    },
+    {
+      "id": "aws_subnet.private",
+      "type": "group",
+      "resource_type": "aws_subnet",
+      "label": "private",
+      "provider": "aws",
+      "service": "Subnet",
+      "category": "Networking",
+      "icon": "aws/networking/subnet.svg",
+      "parent": "aws_vpc.main",
+      "attributes": {
+        "availability_zone": "us-east-1b",
+        "cidr_block": "10.0.2.0/24",
+        "id": "subnet-0priv456",
+        "map_public_ip_on_launch": false,
+        "tags": {
+          "Name": "private-subnet"
+        },
+        "vpc_id": "vpc-0abc123def456"
+      }
+    },
+    {
+      "id": "aws_security_group.web",
+      "type": "group",
+      "resource_type": "aws_security_group",
+      "label": "web",
+      "provider": "aws",
+      "service": "Security Group",
+      "category": "Security",
+      "icon": "aws/security/security-group.svg",
+      "attributes": {
+        "description": "Allow HTTP/HTTPS traffic",
+        "id": "sg-0web789",
+        "name": "web-sg",
+        "vpc_id": "vpc-0abc123def456"
+      }
+    },
+    {
+      "id": "aws_instance.web_a",
+      "type": "resource",
+      "resource_type": "aws_instance",
+      "label": "web_a",
+      "provider": "aws",
+      "service": "EC2",
+      "category": "Compute",
+      "icon": "aws/compute/ec2-instance.svg",
+      "parent": "aws_subnet.public",
+      "attributes": {
+        "ami": "ami-0abcdef1234567890",
+        "availability_zone": "us-east-1a",
+        "id": "i-0web_a_123",
+        "instance_type": "t3.medium",
+        "subnet_id": "subnet-0pub123",
+        "tags": {
+          "Name": "web-server-a"
+        },
+        "vpc_security_group_ids": [
+          "sg-0web789"
+        ]
+      }
+    },
+    {
+      "id": "aws_instance.web_b",
+      "type": "resource",
+      "resource_type": "aws_instance",
+      "label": "web_b",
+      "provider": "aws",
+      "service": "EC2",
+      "category": "Compute",
+      "icon": "aws/compute/ec2-instance.svg",
+      "parent": "aws_subnet.public",
+      "attributes": {
+        "ami": "ami-0abcdef1234567890",
+        "availability_zone": "us-east-1a",
+        "id": "i-0web_b_456",
+        "instance_type": "t3.medium",
+        "subnet_id": "subnet-0pub123",
+        "tags": {
+          "Name": "web-server-b"
+        },
+        "vpc_security_group_ids": [
+          "sg-0web789"
+        ]
+      }
+    }
+  ],
+  "edges": [
+    {
+      "source": "aws_subnet.public",
+      "target": "aws_vpc.main",
+      "type": "depends_on"
+    },
+    {
+      "source": "aws_subnet.private",
+      "target": "aws_vpc.main",
+      "type": "depends_on"
+    },
+    {
+      "source": "aws_security_group.web",
+      "target": "aws_vpc.main",
+      "type": "depends_on"
+    },
+    {
+      "source": "aws_instance.web_a",
+      "target": "aws_subnet.public",
+      "type": "depends_on"
+    },
+    {
+      "source": "aws_instance.web_a",
+      "target": "aws_security_group.web",
+      "type": "depends_on"
+    },
+    {
+      "source": "aws_instance.web_b",
+      "target": "aws_subnet.public",
+      "type": "depends_on"
+    },
+    {
+      "source": "aws_instance.web_b",
+      "target": "aws_security_group.web",
+      "type": "depends_on"
+    }
+  ],
+  "metadata": {
+    "provider": "aws",
+    "resource_count": 6,
+    "generator_version": "0.1.0",
+    "input_mode": "state"
+  }
+}

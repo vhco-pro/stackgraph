@@ -1,0 +1,111 @@
+{
+  "format_version": "1.0",
+  "terraform_version": "1.9.0",
+  "values": {
+    "root_module": {
+      "resources": [
+        {
+          "address": "aws_vpc.main",
+          "mode": "managed",
+          "type": "aws_vpc",
+          "name": "main",
+          "provider_name": "registry.terraform.io/hashicorp/aws",
+          "schema_version": 1,
+          "values": {
+            "id": "vpc-0abc123def456",
+            "cidr_block": "10.0.0.0/16",
+            "enable_dns_support": true,
+            "enable_dns_hostnames": true,
+            "tags": { "Name": "main-vpc" }
+          },
+          "depends_on": []
+        },
+        {
+          "address": "aws_subnet.public",
+          "mode": "managed",
+          "type": "aws_subnet",
+          "name": "public",
+          "provider_name": "registry.terraform.io/hashicorp/aws",
+          "schema_version": 1,
+          "values": {
+            "id": "subnet-0pub123",
+            "vpc_id": "vpc-0abc123def456",
+            "cidr_block": "10.0.1.0/24",
+            "availability_zone": "us-east-1a",
+            "map_public_ip_on_launch": true,
+            "tags": { "Name": "public-subnet" }
+          },
+          "depends_on": ["aws_vpc.main"]
+        },
+        {
+          "address": "aws_subnet.private",
+          "mode": "managed",
+          "type": "aws_subnet",
+          "name": "private",
+          "provider_name": "registry.terraform.io/hashicorp/aws",
+          "schema_version": 1,
+          "values": {
+            "id": "subnet-0priv456",
+            "vpc_id": "vpc-0abc123def456",
+            "cidr_block": "10.0.2.0/24",
+            "availability_zone": "us-east-1b",
+            "map_public_ip_on_launch": false,
+            "tags": { "Name": "private-subnet" }
+          },
+          "depends_on": ["aws_vpc.main"]
+        },
+        {
+          "address": "aws_security_group.web",
+          "mode": "managed",
+          "type": "aws_security_group",
+          "name": "web",
+          "provider_name": "registry.terraform.io/hashicorp/aws",
+          "schema_version": 1,
+          "values": {
+            "id": "sg-0web789",
+            "vpc_id": "vpc-0abc123def456",
+            "name": "web-sg",
+            "description": "Allow HTTP/HTTPS traffic"
+          },
+          "depends_on": ["aws_vpc.main"]
+        },
+        {
+          "address": "aws_instance.web_a",
+          "mode": "managed",
+          "type": "aws_instance",
+          "name": "web_a",
+          "provider_name": "registry.terraform.io/hashicorp/aws",
+          "schema_version": 1,
+          "values": {
+            "id": "i-0web_a_123",
+            "instance_type": "t3.medium",
+            "ami": "ami-0abcdef1234567890",
+            "subnet_id": "subnet-0pub123",
+            "vpc_security_group_ids": ["sg-0web789"],
+            "availability_zone": "us-east-1a",
+            "tags": { "Name": "web-server-a" }
+          },
+          "depends_on": ["aws_subnet.public", "aws_security_group.web"]
+        },
+        {
+          "address": "aws_instance.web_b",
+          "mode": "managed",
+          "type": "aws_instance",
+          "name": "web_b",
+          "provider_name": "registry.terraform.io/hashicorp/aws",
+          "schema_version": 1,
+          "values": {
+            "id": "i-0web_b_456",
+            "instance_type": "t3.medium",
+            "ami": "ami-0abcdef1234567890",
+            "subnet_id": "subnet-0pub123",
+            "vpc_security_group_ids": ["sg-0web789"],
+            "availability_zone": "us-east-1a",
+            "tags": { "Name": "web-server-b" }
+          },
+          "depends_on": ["aws_subnet.public", "aws_security_group.web"]
+        }
+      ]
+    }
+  }
+}

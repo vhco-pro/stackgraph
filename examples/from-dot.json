@@ -1,0 +1,80 @@
+{
+  "nodes": [
+    {
+      "id": "aws_instance.web",
+      "type": "resource",
+      "resource_type": "aws_instance",
+      "label": "web",
+      "provider": "aws",
+      "service": "EC2",
+      "category": "Compute",
+      "icon": "aws/compute/ec2-instance.svg",
+      "parent": "aws_subnet.public"
+    },
+    {
+      "id": "aws_vpc.main",
+      "type": "group",
+      "resource_type": "aws_vpc",
+      "label": "main",
+      "provider": "aws",
+      "service": "VPC",
+      "category": "Networking",
+      "icon": "aws/networking/vpc.svg",
+      "children": [
+        "provider[\\\"registry.terraform.io/hashicorp/aws\\\"]",
+        "aws_subnet.public"
+      ]
+    },
+    {
+      "id": "aws_subnet.public",
+      "type": "group",
+      "resource_type": "aws_subnet",
+      "label": "public",
+      "provider": "aws",
+      "service": "Subnet",
+      "category": "Networking",
+      "icon": "aws/networking/subnet.svg",
+      "parent": "aws_vpc.main",
+      "children": [
+        "aws_instance.web"
+      ]
+    },
+    {
+      "id": "aws_security_group.web",
+      "type": "group",
+      "resource_type": "aws_security_group",
+      "label": "web",
+      "provider": "aws",
+      "service": "Security Group",
+      "category": "Security",
+      "icon": "aws/security/security-group.svg"
+    }
+  ],
+  "edges": [
+    {
+      "source": "aws_instance.web",
+      "target": "aws_subnet.public",
+      "type": "dependency"
+    },
+    {
+      "source": "aws_instance.web",
+      "target": "aws_security_group.web",
+      "type": "dependency"
+    },
+    {
+      "source": "aws_subnet.public",
+      "target": "aws_vpc.main",
+      "type": "dependency"
+    },
+    {
+      "source": "aws_security_group.web",
+      "target": "aws_vpc.main",
+      "type": "dependency"
+    }
+  ],
+  "metadata": {
+    "resource_count": 4,
+    "generator_version": "0.1.0",
+    "input_mode": "dot"
+  }
+}

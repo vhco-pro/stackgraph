@@ -1,0 +1,73 @@
+{
+  "format_version": "1.0",
+  "terraform_version": "1.9.0",
+  "values": {
+    "root_module": {
+      "resources": [
+        {
+          "address": "azurerm_resource_group.main",
+          "mode": "managed",
+          "type": "azurerm_resource_group",
+          "name": "main",
+          "provider_name": "registry.terraform.io/hashicorp/azurerm",
+          "schema_version": 0,
+          "values": {
+            "id": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/main-rg",
+            "name": "main-rg",
+            "location": "westeurope",
+            "tags": { "environment": "dev" }
+          },
+          "depends_on": []
+        },
+        {
+          "address": "azurerm_virtual_network.main",
+          "mode": "managed",
+          "type": "azurerm_virtual_network",
+          "name": "main",
+          "provider_name": "registry.terraform.io/hashicorp/azurerm",
+          "schema_version": 0,
+          "values": {
+            "id": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/main-rg/providers/Microsoft.Network/virtualNetworks/main-vnet",
+            "name": "main-vnet",
+            "resource_group_name": "main-rg",
+            "location": "westeurope",
+            "address_space": ["10.0.0.0/16"]
+          },
+          "depends_on": ["azurerm_resource_group.main"]
+        },
+        {
+          "address": "azurerm_subnet.internal",
+          "mode": "managed",
+          "type": "azurerm_subnet",
+          "name": "internal",
+          "provider_name": "registry.terraform.io/hashicorp/azurerm",
+          "schema_version": 0,
+          "values": {
+            "id": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/main-rg/providers/Microsoft.Network/virtualNetworks/main-vnet/subnets/internal",
+            "name": "internal",
+            "virtual_network_name": "main-vnet",
+            "address_prefixes": ["10.0.1.0/24"],
+            "resource_group_id": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/main-rg"
+          },
+          "depends_on": ["azurerm_virtual_network.main"]
+        },
+        {
+          "address": "azurerm_virtual_machine.web",
+          "mode": "managed",
+          "type": "azurerm_virtual_machine",
+          "name": "web",
+          "provider_name": "registry.terraform.io/hashicorp/azurerm",
+          "schema_version": 0,
+          "values": {
+            "id": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/main-rg/providers/Microsoft.Compute/virtualMachines/web-vm",
+            "name": "web-vm",
+            "vm_size": "Standard_B2s",
+            "location": "westeurope",
+            "resource_group_id": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/main-rg"
+          },
+          "depends_on": ["azurerm_subnet.internal"]
+        }
+      ]
+    }
+  }
+}

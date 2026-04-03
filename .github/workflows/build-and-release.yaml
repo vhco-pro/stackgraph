@@ -1,0 +1,55 @@
+name: Binary & Container Release
+
+permissions:
+  id-token: write
+  contents: write
+  packages: write
+
+on:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - 'README.md'
+      - '.gitignore'
+  workflow_dispatch:
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1: Checkout code (required before using the action)
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0  # Fetch all the history for GitVersion
+          persist-credentials: true
+
+      # TODO: add lint / test / scanning steps here
+
+      # 2: Call our custom `GitVersion action` to tag the repo
+      - name: Tag with GitVersion
+        id: gitversion
+        uses: michielvha/gitversion-tag-action@main
+        with:
+          configFilePath: gitversion.yml
+
+      # 3: Use the custom build-release action
+      - name: Build and Release Go Binary
+        uses: michielvha/goreleaser-action@main
+        with:
+          github-token: ${{ github.token }}
+          pgp-private-key: ${{ secrets.PGP_PRIVATE_KEY }}
+
+      # 4: Build and Push Docker image
+      - name: Build and Push Docker Image
+        uses: michielvha/docker-release-action@main
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+          project: ${{ github.event.repository.name }}
+          version: ${{ steps.gitversion.outputs.semVer }}
+          platforms: 'linux/amd64,linux/arm64'
+          context: '.'

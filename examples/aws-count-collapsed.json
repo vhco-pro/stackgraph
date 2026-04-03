@@ -1,0 +1,81 @@
+{
+  "nodes": [
+    {
+      "id": "aws_vpc.main",
+      "type": "group",
+      "resource_type": "aws_vpc",
+      "label": "main",
+      "provider": "aws",
+      "service": "VPC",
+      "category": "Networking",
+      "icon": "aws/networking/vpc.svg",
+      "children": [
+        "aws_subnet.main[0]",
+        "aws_subnet.main[1]",
+        "aws_subnet.main[2]"
+      ],
+      "attributes": {
+        "cidr_block": "10.0.0.0/16",
+        "id": "vpc-count123"
+      }
+    },
+    {
+      "id": "aws_subnet.main",
+      "type": "group",
+      "resource_type": "aws_subnet",
+      "label": "main",
+      "provider": "aws",
+      "service": "Subnet",
+      "category": "Networking",
+      "icon": "aws/networking/subnet.svg",
+      "parent": "aws_vpc.main",
+      "attributes": {
+        "availability_zone": "us-east-1a",
+        "cidr_block": "10.0.1.0/24",
+        "id": "subnet-count-0",
+        "vpc_id": "vpc-count123"
+      },
+      "count": 3
+    },
+    {
+      "id": "aws_instance.web",
+      "type": "resource",
+      "resource_type": "aws_instance",
+      "label": "web",
+      "provider": "aws",
+      "service": "EC2",
+      "category": "Compute",
+      "icon": "aws/compute/ec2-instance.svg",
+      "attributes": {
+        "id": "i-count-0",
+        "instance_type": "t3.micro",
+        "subnet_id": "subnet-count-0"
+      },
+      "count": 3
+    }
+  ],
+  "edges": [
+    {
+      "source": "aws_subnet.main",
+      "target": "aws_vpc.main",
+      "type": "depends_on"
+    },
+    {
+      "source": "aws_instance.web",
+      "target": "aws_subnet.main",
+      "type": "depends_on"
+    },
+    {
+      "source": "aws_instance.web",
+      "target": "aws_subnet.main",
+      "type": "subnet_id",
+      "label": "subnet"
+    }
+  ],
+  "metadata": {
+    "provider": "aws",
+    "resource_count": 3,
+    "generator_version": "0.1.0",
+    "input_mode": "state"
+  }
+}
