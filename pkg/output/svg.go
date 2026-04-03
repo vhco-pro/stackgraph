@@ -84,6 +84,30 @@ func graphToD2(g *graph.Graph, iconTempFiles map[string]string) string {
 		}
 	}
 
+	// Build D2 path map: original node ID -> full D2 container path
+	// e.g., "aws_instance.web_a" (parent: aws_subnet.public, grandparent: aws_vpc.main)
+	// -> "aws_vpc_main.aws_subnet_public.aws_instance_web_a"
+	d2Paths := make(map[string]string)
+	var buildPath func(id string) string
+	buildPath = func(id string) string {
+		if cached, ok := d2Paths[id]; ok {
+			return cached
+		}
+		safeID := d2SafeID(id)
+		n := nodeIdx[id]
+		if n == nil || n.Parent == "" {
+			d2Paths[id] = safeID
+			return safeID
+		}
+		parentPath := buildPath(n.Parent)
+		fullPath := parentPath + "." + safeID
+		d2Paths[id] = fullPath
+		return fullPath
+	}
+	for _, n := range g.Nodes {
+		buildPath(n.ID)
+	}
+
 	// Find root nodes
 	var roots []string
 	for _, n := range g.Nodes {
@@ -99,18 +123,29 @@ func graphToD2(g *graph.Graph, iconTempFiles map[string]string) string {
 
 	b.WriteString("\n")
 
-	// Render edges
+	// Render edges using full D2 container paths (prevents duplicate nodes)
 	for _, e := range g.Edges {
-		src := d2ID(e.Source)
-		tgt := d2ID(e.Target)
+		srcPath, srcOK := d2Paths[e.Source]
+		tgtPath, tgtOK := d2Paths[e.Target]
+		if !srcOK || !tgtOK {
+			continue
+		}
 		if e.Label != "" {
-			b.WriteString(fmt.Sprintf("%s -> %s: %s\n", src, tgt, e.Label))
+			b.WriteString(fmt.Sprintf("%s -> %s: %s\n", srcPath, tgtPath, e.Label))
 		} else {
-			b.WriteString(fmt.Sprintf("%s -> %s\n", src, tgt))
+			b.WriteString(fmt.Sprintf("%s -> %s\n", srcPath, tgtPath))
 		}
 	}
 
 	return b.String()
+}
+
+// d2SafeID converts a resource address to a D2-safe identifier (no dots — D2 uses dots as hierarchy separators).
+func d2SafeID(id string) string {
+	safe := strings.ReplaceAll(id, ".", "_")
+	safe = strings.ReplaceAll(safe, "[", "_")
+	safe = strings.ReplaceAll(safe, "]", "")
+	return safe
 }
 
 func writeD2Node(b *strings.Builder, id string, nodeIdx map[string]*graph.Node, childMap map[string][]string, depth int, iconTempFiles map[string]string) {
@@ -120,7 +155,7 @@ func writeD2Node(b *strings.Builder, id string, nodeIdx map[string]*graph.Node, 
 	}
 
 	indent := strings.Repeat("  ", depth)
-	d2id := d2ID(id)
+	d2id := d2SafeID(id)
 	label := nodeLabel(n)
 
 	kids := childMap[id]

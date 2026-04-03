@@ -15,38 +15,58 @@ import (
 )
 
 // RenderGraphvizSVG produces a Terravision-style infrastructure diagram using go-graphviz.
+// Strategy: generate a DOT string with full styling, then render it via go-graphviz's WASM engine.
 func RenderGraphvizSVG(g *sgraph.Graph) ([]byte, error) {
 	if len(g.Nodes) == 0 {
 		return []byte(`<svg xmlns="http://www.w3.org/2000/svg" width="400" height="80">` +
 			`<text x="200" y="40" text-anchor="middle" font-family="sans-serif" font-size="14" fill="#6c757d">No resources found</text></svg>`), nil
 	}
 
+	// Write embedded icons to temp files (Graphviz needs file paths)
+	iconTempFiles := make(map[string]string)
+	defer func() {
+		for _, f := range iconTempFiles {
+			os.Remove(f)
+		}
+	}()
+
+	// Generate DOT with full Terravision-style attributes
+	dot := generateStyledDOT(g, iconTempFiles)
+
+	// Parse and render via go-graphviz
 	ctx := context.Background()
 	gv, err := graphviz.New(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create graphviz: %w", err)
 	}
 
-	graph, err := gv.Graph()
+	graph, err := cgraph.ParseBytes([]byte(dot))
 	if err != nil {
-		return nil, fmt.Errorf("failed to create graph: %w", err)
+		return nil, fmt.Errorf("failed to parse DOT: %w", err)
 	}
 	defer graph.Close()
 
-	// Global graph attributes (Terravision-style)
-	graph.SetRankDir(cgraph.TBRank)
-	graph.Set("nodesep", "1.5")
-	graph.Set("ranksep", "2.0")
-	graph.Set("pad", "1.0")
-	graph.Set("splines", "ortho")
+	var buf bytes.Buffer
+	if err := gv.Render(ctx, graph, graphviz.SVG, &buf); err != nil {
+		return nil, fmt.Errorf("failed to render SVG: %w", err)
+	}
 
-	// Default node/edge attributes via graph-level Attr
-	graph.Attr(int(cgraph.NODE), "fontname", "Sans-Serif")
-	graph.Attr(int(cgraph.NODE), "fontsize", "12")
-	graph.Attr(int(cgraph.NODE), "fontcolor", "#2D3436")
-	graph.Attr(int(cgraph.EDGE), "color", "#7B8894")
-	graph.Attr(int(cgraph.EDGE), "fontname", "Sans-Serif")
-	graph.Attr(int(cgraph.EDGE), "fontsize", "10")
+	return buf.Bytes(), nil
+}
+
+// generateStyledDOT creates a DOT string with Terravision-style visual parameters.
+func generateStyledDOT(g *sgraph.Graph, iconTempFiles map[string]string) string {
+	var b strings.Builder
+
+	b.WriteString("digraph infrastructure {\n")
+	b.WriteString("  rankdir=TB;\n")
+	b.WriteString("  compound=true;\n")
+	b.WriteString("  nodesep=1.0;\n")
+	b.WriteString("  ranksep=1.5;\n")
+	b.WriteString("  pad=0.5;\n")
+	b.WriteString("  fontname=\"Sans-Serif\";\n")
+	b.WriteString("  node [fontname=\"Sans-Serif\", fontsize=11, fontcolor=\"#2D3436\"];\n")
+	b.WriteString("  edge [color=\"#7B8894\", fontname=\"Sans-Serif\", fontsize=9, arrowhead=normal];\n\n")
 
 	// Build parent→children index
 	childMap := make(map[string][]string)
@@ -58,16 +78,8 @@ func RenderGraphvizSVG(g *sgraph.Graph) ([]byte, error) {
 		}
 	}
 
-	// Write temp icon files (go-graphviz needs file paths)
-	iconTempFiles := make(map[string]string)
-	defer func() {
-		for _, f := range iconTempFiles {
-			os.Remove(f)
-		}
-	}()
-
-	// Track graphviz nodes for edge creation
-	gvNodes := make(map[string]*cgraph.Node)
+	// Track which nodes were written inside subgraphs
+	written := make(map[string]bool)
 
 	// Find root nodes
 	var roots []string
@@ -77,91 +89,77 @@ func RenderGraphvizSVG(g *sgraph.Graph) ([]byte, error) {
 		}
 	}
 
-	// Create nodes recursively
+	// Write nodes recursively
 	for _, rid := range roots {
-		createGvNodes(graph, graph, rid, nodeIdx, childMap, gvNodes, iconTempFiles)
+		writeGvNode(&b, rid, nodeIdx, childMap, written, iconTempFiles, 1)
 	}
 
-	// Create edges
+	b.WriteString("\n")
+
+	// Write edges
 	for _, e := range g.Edges {
-		srcNode := gvNodes[e.Source]
-		tgtNode := gvNodes[e.Target]
-		if srcNode == nil || tgtNode == nil {
-			continue
-		}
-		edge, edgeErr := graph.CreateEdgeByName(e.Source+"->"+e.Target, srcNode, tgtNode)
-		if edgeErr != nil {
-			continue
-		}
-		edge.SetColor("#7B8894")
+		src := gvSanitize(e.Source)
+		tgt := gvSanitize(e.Target)
+		attrs := ""
 		if e.Label != "" {
-			edge.SafeSet("xlabel", e.Label, "")
+			attrs = fmt.Sprintf(" [xlabel=%q]", e.Label)
 		}
+		b.WriteString(fmt.Sprintf("  %q -> %q%s;\n", src, tgt, attrs))
 	}
 
-	// Render to SVG
-	var buf bytes.Buffer
-	if err := gv.Render(ctx, graph, graphviz.SVG, &buf); err != nil {
-		return nil, fmt.Errorf("failed to render graphviz SVG: %w", err)
-	}
-
-	return buf.Bytes(), nil
+	b.WriteString("}\n")
+	return b.String()
 }
 
-func createGvNodes(
-	root *cgraph.Graph,
-	parent *cgraph.Graph,
-	id string,
-	nodeIdx map[string]*sgraph.Node,
-	childMap map[string][]string,
-	gvNodes map[string]*cgraph.Node,
-	iconTempFiles map[string]string,
-) {
+func writeGvNode(b *strings.Builder, id string, nodeIdx map[string]*sgraph.Node, childMap map[string][]string, written map[string]bool, iconTempFiles map[string]string, depth int) {
 	n := nodeIdx[id]
 	if n == nil {
 		return
 	}
 
+	indent := strings.Repeat("  ", depth)
 	kids := childMap[id]
+	sanitized := gvSanitize(id)
 
 	if n.Type == sgraph.NodeTypeGroup || len(kids) > 0 {
-		// Create subgraph cluster
-		clusterName := "cluster_" + gvSanitize(id)
-		sub, err := parent.CreateSubGraphByName(clusterName)
-		if err != nil {
-			return
-		}
+		// Subgraph cluster
+		b.WriteString(fmt.Sprintf("%ssubgraph %q {\n", indent, "cluster_"+sanitized))
 
-		// Container label
+		// Label
 		label := n.Label
 		if n.Service != "" {
 			label = n.Service + "\\n" + n.Label
 		}
-		sub.Set("label", label)
-		sub.Set("labeljust", "l")
-		sub.Set("fontname", "Sans-Serif")
-		sub.Set("fontsize", "14")
-		sub.Set("margin", "20")
+		b.WriteString(fmt.Sprintf("%s  label=%q;\n", indent, label))
+		b.WriteString(fmt.Sprintf("%s  labeljust=l;\n", indent))
+		b.WriteString(fmt.Sprintf("%s  fontname=\"Sans-Serif\";\n", indent))
+		b.WriteString(fmt.Sprintf("%s  fontsize=13;\n", indent))
+		b.WriteString(fmt.Sprintf("%s  penwidth=2;\n", indent))
+		b.WriteString(fmt.Sprintf("%s  margin=16;\n", indent))
 
 		// Container styling
 		fill, stroke, style, fontcolor := gvClusterStyle(n)
-		sub.Set("style", style)
-		sub.Set("color", stroke)
-		sub.Set("bgcolor", fill)
-		sub.Set("fontcolor", fontcolor)
-		sub.Set("penwidth", "2")
+		b.WriteString(fmt.Sprintf("%s  style=%q;\n", indent, style))
+		b.WriteString(fmt.Sprintf("%s  color=%q;\n", indent, stroke))
+		b.WriteString(fmt.Sprintf("%s  bgcolor=%q;\n", indent, fill))
+		b.WriteString(fmt.Sprintf("%s  fontcolor=%q;\n", indent, fontcolor))
+
+		written[id] = true
+
+		// If no children, add an invisible anchor node so the cluster renders
+		if len(kids) == 0 {
+			b.WriteString(fmt.Sprintf("%s  %q [shape=none, label=\"\", width=0.5, height=0.3];\n", indent, sanitized+"_anchor"))
+		}
 
 		// Recurse into children
 		for _, kid := range kids {
-			createGvNodes(root, sub, kid, nodeIdx, childMap, gvNodes, iconTempFiles)
+			writeGvNode(b, kid, nodeIdx, childMap, written, iconTempFiles, depth+1)
 		}
+
+		b.WriteString(fmt.Sprintf("%s}\n", indent))
 	} else {
 		// Leaf resource node
-		gvNode, err := parent.CreateNodeByName(gvSanitize(id))
-		if err != nil {
-			return
-		}
-		gvNodes[id] = gvNode
+		written[id] = true
 
 		// Try to get an icon
 		iconPath := gvGetIconPath(n)
@@ -170,6 +168,7 @@ func createGvNodes(
 			if cached, ok := iconTempFiles[iconPath]; ok {
 				tmpPath = cached
 			} else {
+				var err error
 				tmpPath, err = icons.WriteIconToTemp(iconPath)
 				if err == nil {
 					iconTempFiles[iconPath] = tmpPath
@@ -179,24 +178,6 @@ func createGvNodes(
 			}
 		}
 
-		if tmpPath != "" {
-			// Terravision-style: icon IS the node
-			gvNode.SetShape("none")
-			gvNode.SetImage(tmpPath)
-			gvNode.SetImageScale(cgraph.ImageScaleTrue)
-			gvNode.SetFixedSize(true)
-			gvNode.SetWidth(1.4)
-			gvNode.SetHeight(1.4)
-		} else {
-			// Generic fallback — styled box
-			gvNode.SetShape(cgraph.BoxShape)
-			gvNode.SetStyle(cgraph.RoundedNodeStyle)
-			gvNode.SetFillColor("#FFFFFF")
-			gvNode.SetColor("#DEE2E6")
-			gvNode.SafeSet("penwidth", "1.5", "")
-		}
-
-		// Label below icon
 		label := n.Label
 		if n.Service != "" {
 			label = n.Service + "\\n" + n.Label
@@ -204,11 +185,30 @@ func createGvNodes(
 		if n.Count > 1 {
 			label += fmt.Sprintf("\\n(x%d)", n.Count)
 		}
-		gvNode.SetLabel(label)
-		gvNode.SafeSet("labelloc", "b", "")
-		gvNode.SetFontName("Sans-Serif")
-		gvNode.SetFontSize(12)
-		gvNode.SetFontColor("#2D3436")
+
+		if tmpPath != "" {
+			// Icon-as-node: shape=none, image is the node visual
+			b.WriteString(fmt.Sprintf("%s%q [shape=none, label=%q, labelloc=b, image=%q, imagescale=true, fixedsize=true, width=1.2, height=1.2];\n",
+				indent, sanitized, label, tmpPath))
+		} else {
+			// Generic fallback — styled box
+			style := "\"rounded,filled\""
+			fill := "#FFFFFF"
+			stroke := "#DEE2E6"
+			switch n.Action {
+			case sgraph.ActionCreate:
+				fill = "#E8F5E9"
+				stroke = "#43A047"
+			case sgraph.ActionDelete:
+				fill = "#FFEBEE"
+				stroke = "#E53935"
+			case sgraph.ActionUpdate:
+				fill = "#FFF8E1"
+				stroke = "#FB8C00"
+			}
+			b.WriteString(fmt.Sprintf("%s%q [shape=box, style=%s, fillcolor=%q, color=%q, penwidth=1.5, label=%q];\n",
+				indent, sanitized, style, fill, stroke, label))
+		}
 	}
 }
 
@@ -223,27 +223,25 @@ func gvSanitize(id string) string {
 func gvClusterStyle(n *sgraph.Node) (fill, stroke, style, fontcolor string) {
 	switch n.ResourceType {
 	case "aws_vpc":
-		return "#F8F4FF", "#8C4FFF", "solid", "#6B21A8"
+		return "#F8F4FF", "#8C4FFF", "filled", "#6B21A8"
 	case "aws_subnet":
-		return "#F2F7EE", "#7CB342", "solid", "#558B2F"
+		return "#F2F7EE", "#7CB342", "filled", "#558B2F"
 	case "aws_security_group":
-		return "#FFF5F5", "#E53935", "dashed", "#C62828"
+		return "#FFF5F5", "#E53935", "filled,dashed", "#C62828"
 	case "aws_ecs_cluster", "aws_eks_cluster":
-		return "#FFF8E1", "#FF9900", "dashed", "#E65100"
-	case "aws_autoscaling_group":
-		return "#DEEBF7", "#FF69B4", "dashed", "#C2185B"
+		return "#FFF8E1", "#FF9900", "filled,dashed", "#E65100"
 	case "azurerm_resource_group":
-		return "#F0F8FF", "#0078D4", "dashed", "#0078D4"
+		return "#F0F8FF", "#0078D4", "filled,dashed", "#0078D4"
 	case "azurerm_virtual_network":
-		return "#E8F4FC", "#0078D4", "solid", "#0078D4"
+		return "#E8F4FC", "#0078D4", "filled", "#0078D4"
 	case "azurerm_subnet":
-		return "#FFFFFF", "#CCCCCC", "solid", "#666666"
+		return "#FFFFFF", "#CCCCCC", "filled", "#666666"
 	case "google_compute_network":
-		return "#E3F2FD", "#4285F4", "solid", "#1565C0"
+		return "#E3F2FD", "#4285F4", "filled", "#1565C0"
 	case "google_compute_subnetwork":
-		return "#EDE7F6", "#7C4DFF", "solid", "#4527A0"
+		return "#EDE7F6", "#7C4DFF", "filled", "#4527A0"
 	default:
-		return "#F8F9FA", "#ADB5BD", "dashed", "#495057"
+		return "#F8F9FA", "#ADB5BD", "filled,dashed", "#495057"
 	}
 }
 
