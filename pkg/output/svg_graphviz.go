@@ -15,14 +15,14 @@ import (
 )
 
 // RenderGraphvizSVG produces a Terravision-style infrastructure diagram using go-graphviz.
-// Strategy: generate a DOT string with full styling, then render it via go-graphviz's WASM engine.
+// Uses exact Graphviz parameters extracted from Terravision's source code.
 func RenderGraphvizSVG(g *sgraph.Graph) ([]byte, error) {
 	if len(g.Nodes) == 0 {
 		return []byte(`<svg xmlns="http://www.w3.org/2000/svg" width="400" height="80">` +
 			`<text x="200" y="40" text-anchor="middle" font-family="sans-serif" font-size="14" fill="#6c757d">No resources found</text></svg>`), nil
 	}
 
-	// Write embedded icons to temp files (Graphviz needs file paths)
+	// Write embedded icons to temp files (Graphviz needs absolute file paths)
 	iconTempFiles := make(map[string]string)
 	defer func() {
 		for _, f := range iconTempFiles {
@@ -30,8 +30,8 @@ func RenderGraphvizSVG(g *sgraph.Graph) ([]byte, error) {
 		}
 	}()
 
-	// Generate DOT with full Terravision-style attributes
-	dot := generateStyledDOT(g, iconTempFiles)
+	// Generate DOT with exact Terravision parameters
+	dot := generateTerravisionDOT(g, iconTempFiles)
 
 	// Parse and render via go-graphviz
 	ctx := context.Background()
@@ -40,33 +40,62 @@ func RenderGraphvizSVG(g *sgraph.Graph) ([]byte, error) {
 		return nil, fmt.Errorf("failed to create graphviz: %w", err)
 	}
 
-	graph, err := cgraph.ParseBytes([]byte(dot))
+	parsed, err := cgraph.ParseBytes([]byte(dot))
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse DOT: %w", err)
 	}
-	defer graph.Close()
+	defer parsed.Close()
 
 	var buf bytes.Buffer
-	if err := gv.Render(ctx, graph, graphviz.SVG, &buf); err != nil {
+	if err := gv.Render(ctx, parsed, graphviz.SVG, &buf); err != nil {
 		return nil, fmt.Errorf("failed to render SVG: %w", err)
 	}
 
 	return buf.Bytes(), nil
 }
 
-// generateStyledDOT creates a DOT string with Terravision-style visual parameters.
-func generateStyledDOT(g *sgraph.Graph, iconTempFiles map[string]string) string {
+// generateTerravisionDOT creates DOT with exact Terravision visual parameters.
+func generateTerravisionDOT(g *sgraph.Graph, iconTempFiles map[string]string) string {
 	var b strings.Builder
 
+	// === Graph-level attributes (exact Terravision Canvas._default_graph_attrs) ===
 	b.WriteString("digraph infrastructure {\n")
 	b.WriteString("  rankdir=TB;\n")
-	b.WriteString("  compound=true;\n")
-	b.WriteString("  nodesep=1.0;\n")
-	b.WriteString("  ranksep=1.5;\n")
-	b.WriteString("  pad=0.5;\n")
+	b.WriteString("  splines=ortho;\n")
+	b.WriteString("  overlap=false;\n")
+	b.WriteString("  nodesep=3;\n")
+	b.WriteString("  ranksep=5;\n")
+	b.WriteString("  pad=1.5;\n")
 	b.WriteString("  fontname=\"Sans-Serif\";\n")
-	b.WriteString("  node [fontname=\"Sans-Serif\", fontsize=11, fontcolor=\"#2D3436\"];\n")
-	b.WriteString("  edge [color=\"#7B8894\", fontname=\"Sans-Serif\", fontsize=9, arrowhead=normal];\n\n")
+	b.WriteString("  fontsize=30;\n")
+	b.WriteString("  fontcolor=\"#2D3436\";\n")
+	b.WriteString("  labelloc=t;\n")
+	b.WriteString("  concentrate=false;\n")
+	b.WriteString("  center=true;\n")
+	b.WriteString("\n")
+
+	// === Default node attributes (exact Terravision Canvas._default_node_attrs) ===
+	b.WriteString("  node [\n")
+	b.WriteString("    shape=box,\n")
+	b.WriteString("    style=rounded,\n")
+	b.WriteString("    fixedsize=true,\n")
+	b.WriteString("    width=1.4,\n")
+	b.WriteString("    height=1.4,\n")
+	b.WriteString("    labelloc=b,\n")
+	b.WriteString("    imagepos=c,\n")
+	b.WriteString("    imagescale=true,\n")
+	b.WriteString("    fontname=\"Sans-Serif\",\n")
+	b.WriteString("    fontsize=14,\n")
+	b.WriteString("    fontcolor=\"#2D3436\"\n")
+	b.WriteString("  ];\n\n")
+
+	// === Default edge attributes ===
+	b.WriteString("  edge [\n")
+	b.WriteString("    color=\"#7B8894\",\n")
+	b.WriteString("    fontcolor=\"#2D3436\",\n")
+	b.WriteString("    fontname=\"Sans-Serif\",\n")
+	b.WriteString("    fontsize=13\n")
+	b.WriteString("  ];\n\n")
 
 	// Build parent→children index
 	childMap := make(map[string][]string)
@@ -78,8 +107,14 @@ func generateStyledDOT(g *sgraph.Graph, iconTempFiles map[string]string) string 
 		}
 	}
 
-	// Track which nodes were written inside subgraphs
-	written := make(map[string]bool)
+	// Build set of edges that are parent→child containment (suppress these visually)
+	containmentEdges := make(map[string]bool)
+	for _, n := range g.Nodes {
+		if n.Parent != "" {
+			containmentEdges[n.ID+"->"+n.Parent] = true
+			containmentEdges[n.Parent+"->"+n.ID] = true
+		}
+	}
 
 	// Find root nodes
 	var roots []string
@@ -89,29 +124,32 @@ func generateStyledDOT(g *sgraph.Graph, iconTempFiles map[string]string) string 
 		}
 	}
 
-	// Write nodes recursively
+	// Write nodes recursively (groups as subgraphs, resources as nodes)
 	for _, rid := range roots {
-		writeGvNode(&b, rid, nodeIdx, childMap, written, iconTempFiles, 1)
+		writeTvNode(&b, rid, nodeIdx, childMap, iconTempFiles, 1)
 	}
 
 	b.WriteString("\n")
 
-	// Write edges
+	// Write edges (skip containment edges — they're shown via nesting)
 	for _, e := range g.Edges {
+		if containmentEdges[e.Source+"->"+e.Target] {
+			continue
+		}
 		src := gvSanitize(e.Source)
 		tgt := gvSanitize(e.Target)
-		attrs := ""
+		attrs := "dir=forward"
 		if e.Label != "" {
-			attrs = fmt.Sprintf(" [xlabel=%q]", e.Label)
+			attrs += fmt.Sprintf(", xlabel=\"  %s  \"", e.Label)
 		}
-		b.WriteString(fmt.Sprintf("  %q -> %q%s;\n", src, tgt, attrs))
+		b.WriteString(fmt.Sprintf("  %q -> %q [%s];\n", src, tgt, attrs))
 	}
 
 	b.WriteString("}\n")
 	return b.String()
 }
 
-func writeGvNode(b *strings.Builder, id string, nodeIdx map[string]*sgraph.Node, childMap map[string][]string, written map[string]bool, iconTempFiles map[string]string, depth int) {
+func writeTvNode(b *strings.Builder, id string, nodeIdx map[string]*sgraph.Node, childMap map[string][]string, iconTempFiles map[string]string, depth int) {
 	n := nodeIdx[id]
 	if n == nil {
 		return
@@ -122,61 +160,50 @@ func writeGvNode(b *strings.Builder, id string, nodeIdx map[string]*sgraph.Node,
 	sanitized := gvSanitize(id)
 
 	if n.Type == sgraph.NodeTypeGroup || len(kids) > 0 {
-		// Subgraph cluster
+		// === Subgraph cluster (Terravision Cluster style) ===
 		b.WriteString(fmt.Sprintf("%ssubgraph %q {\n", indent, "cluster_"+sanitized))
 
-		// Label
-		label := n.Label
-		if n.Service != "" {
-			label = n.Service + "\\n" + n.Label
+		// Container styling (Terravision-exact per resource type)
+		style, pencolor, bgcolor, margin, fontcolor := tvClusterAttrs(n)
+		b.WriteString(fmt.Sprintf("%s  style=%q;\n", indent, style))
+		if pencolor != "" {
+			b.WriteString(fmt.Sprintf("%s  pencolor=%q;\n", indent, pencolor))
+		} else {
+			b.WriteString(fmt.Sprintf("%s  pencolor=\"\";\n", indent))
 		}
-		b.WriteString(fmt.Sprintf("%s  label=%q;\n", indent, label))
+		if bgcolor != "" {
+			b.WriteString(fmt.Sprintf("%s  color=%q;\n", indent, bgcolor))
+		}
+		b.WriteString(fmt.Sprintf("%s  margin=%q;\n", indent, margin))
 		b.WriteString(fmt.Sprintf("%s  labeljust=l;\n", indent))
 		b.WriteString(fmt.Sprintf("%s  fontname=\"Sans-Serif\";\n", indent))
-		b.WriteString(fmt.Sprintf("%s  fontsize=13;\n", indent))
-		b.WriteString(fmt.Sprintf("%s  penwidth=2;\n", indent))
-		b.WriteString(fmt.Sprintf("%s  margin=16;\n", indent))
+		b.WriteString(fmt.Sprintf("%s  fontsize=14;\n", indent))
 
-		// Container styling
-		fill, stroke, style, fontcolor := gvClusterStyle(n)
-		b.WriteString(fmt.Sprintf("%s  style=%q;\n", indent, style))
-		b.WriteString(fmt.Sprintf("%s  color=%q;\n", indent, stroke))
-		b.WriteString(fmt.Sprintf("%s  bgcolor=%q;\n", indent, fill))
-		b.WriteString(fmt.Sprintf("%s  fontcolor=%q;\n", indent, fontcolor))
+		// Label — use HTML table format like Terravision for rich labels
+		label := n.Label
+		if n.Service != "" {
+			label = n.Service + " — " + n.Label
+		}
+		// HTML label with colored font matching the container's theme
+		b.WriteString(fmt.Sprintf("%s  label=<<TABLE BORDER=\"0\" CELLBORDER=\"0\" CELLSPACING=\"0\"><TR><TD><FONT color=%q>%s</FONT></TD></TR></TABLE>>;\n",
+			indent, fontcolor, escapeHTML(label)))
 
-		written[id] = true
-
-		// If no children, add an invisible anchor node so the cluster renders
+		// Invisible anchor for empty clusters
 		if len(kids) == 0 {
-			b.WriteString(fmt.Sprintf("%s  %q [shape=none, label=\"\", width=0.5, height=0.3];\n", indent, sanitized+"_anchor"))
+			b.WriteString(fmt.Sprintf("%s  %q [shape=none, label=\"\", width=0.5, height=0.3, fixedsize=true];\n",
+				indent, sanitized+"_anchor"))
 		}
 
-		// Recurse into children
 		for _, kid := range kids {
-			writeGvNode(b, kid, nodeIdx, childMap, written, iconTempFiles, depth+1)
+			writeTvNode(b, kid, nodeIdx, childMap, iconTempFiles, depth+1)
 		}
 
 		b.WriteString(fmt.Sprintf("%s}\n", indent))
 	} else {
-		// Leaf resource node
-		written[id] = true
-
-		// Try to get an icon
+		// === Resource node ===
+		// Try to resolve icon
 		iconPath := gvGetIconPath(n)
-		tmpPath := ""
-		if iconPath != "" {
-			if cached, ok := iconTempFiles[iconPath]; ok {
-				tmpPath = cached
-			} else {
-				var err error
-				tmpPath, err = icons.WriteIconToTemp(iconPath)
-				if err == nil {
-					iconTempFiles[iconPath] = tmpPath
-				} else {
-					tmpPath = ""
-				}
-			}
-		}
+		tmpPath := resolveIconTemp(iconPath, iconTempFiles)
 
 		label := n.Label
 		if n.Service != "" {
@@ -186,30 +213,97 @@ func writeGvNode(b *strings.Builder, id string, nodeIdx map[string]*sgraph.Node,
 			label += fmt.Sprintf("\\n(x%d)", n.Count)
 		}
 
+		// Calculate height based on label lines (Terravision: 1.9 + 0.4 per newline)
+		lineCount := strings.Count(label, "\\n")
+		height := 1.9 + float64(lineCount)*0.4
+
 		if tmpPath != "" {
-			// Icon-as-node: shape=none, image is the node visual
-			b.WriteString(fmt.Sprintf("%s%q [shape=none, label=%q, labelloc=b, image=%q, imagescale=true, fixedsize=true, width=1.2, height=1.2];\n",
-				indent, sanitized, label, tmpPath))
+			// Terravision icon-as-node: shape=none, icon is the visual, label below
+			b.WriteString(fmt.Sprintf("%s%q [shape=none, label=%q, labelloc=b, image=%q, imagescale=true, fixedsize=true, width=1.4, height=%.1f];\n",
+				indent, sanitized, label, tmpPath, height))
 		} else {
-			// Generic fallback — styled box
-			style := "\"rounded,filled\""
-			fill := "#FFFFFF"
-			stroke := "#DEE2E6"
+			// Generic fallback — styled rounded box (Terravision default node style)
+			style := "rounded"
+			fill := ""
+			color := ""
 			switch n.Action {
 			case sgraph.ActionCreate:
+				style = "\"rounded,filled\""
 				fill = "#E8F5E9"
-				stroke = "#43A047"
+				color = "#43A047"
 			case sgraph.ActionDelete:
+				style = "\"rounded,filled\""
 				fill = "#FFEBEE"
-				stroke = "#E53935"
+				color = "#E53935"
 			case sgraph.ActionUpdate:
+				style = "\"rounded,filled\""
 				fill = "#FFF8E1"
-				stroke = "#FB8C00"
+				color = "#FB8C00"
 			}
-			b.WriteString(fmt.Sprintf("%s%q [shape=box, style=%s, fillcolor=%q, color=%q, penwidth=1.5, label=%q];\n",
-				indent, sanitized, style, fill, stroke, label))
+			attrs := fmt.Sprintf("label=%q, fixedsize=true, width=1.4, height=1.4", label)
+			if fill != "" {
+				attrs += fmt.Sprintf(", style=%s, fillcolor=%q, color=%q", style, fill, color)
+			}
+			b.WriteString(fmt.Sprintf("%s%q [%s];\n", indent, sanitized, attrs))
 		}
 	}
+}
+
+func resolveIconTemp(iconPath string, iconTempFiles map[string]string) string {
+	if iconPath == "" {
+		return ""
+	}
+	if cached, ok := iconTempFiles[iconPath]; ok {
+		return cached
+	}
+	tmpPath, err := icons.WriteIconToTemp(iconPath)
+	if err != nil {
+		return ""
+	}
+	iconTempFiles[iconPath] = tmpPath
+	return tmpPath
+}
+
+// tvClusterAttrs returns Terravision-exact subgraph attributes per resource type.
+func tvClusterAttrs(n *sgraph.Node) (style, pencolor, bgcolor, margin, fontcolor string) {
+	switch n.ResourceType {
+	case "aws_vpc":
+		return "solid", "#8C4FFF", "", "50", "#8C4FFF"
+	case "aws_subnet":
+		// Public subnet: filled green, no border
+		// TODO: distinguish public vs private by checking map_public_ip_on_launch attr
+		return "filled", "", "#F2F7EE", "50", "#558B2F"
+	case "aws_security_group":
+		return "solid", "red", "", "50", "red"
+	case "aws_autoscaling_group":
+		return "dashed", "pink", "#DEEBF7", "50", "#C2185B"
+	case "aws_ecs_cluster", "aws_eks_cluster":
+		return "dashed", "#FF9900", "", "50", "#E65100"
+
+	// Azure
+	case "azurerm_resource_group":
+		return "dashed", "#0078D4", "", "30", "#0078D4"
+	case "azurerm_virtual_network":
+		return "filled,dashed", "#0078D4", "#E8F4FC", "40", "#0078D4"
+	case "azurerm_subnet":
+		return "filled", "#CCCCCC", "#FFFFFF", "20", "#666666"
+
+	// GCP
+	case "google_compute_network":
+		return "filled", "", "#E3F2FD", "70", "#1565C0"
+	case "google_compute_subnetwork":
+		return "filled", "", "#EDE7F6", "70", "#4527A0"
+
+	default:
+		return "dashed", "#ADB5BD", "", "50", "#495057"
+	}
+}
+
+func escapeHTML(s string) string {
+	s = strings.ReplaceAll(s, "&", "&amp;")
+	s = strings.ReplaceAll(s, "<", "&lt;")
+	s = strings.ReplaceAll(s, ">", "&gt;")
+	return s
 }
 
 func gvSanitize(id string) string {
@@ -218,31 +312,6 @@ func gvSanitize(id string) string {
 	r = strings.ReplaceAll(r, "]", "")
 	r = strings.ReplaceAll(r, "\"", "")
 	return r
-}
-
-func gvClusterStyle(n *sgraph.Node) (fill, stroke, style, fontcolor string) {
-	switch n.ResourceType {
-	case "aws_vpc":
-		return "#F8F4FF", "#8C4FFF", "filled", "#6B21A8"
-	case "aws_subnet":
-		return "#F2F7EE", "#7CB342", "filled", "#558B2F"
-	case "aws_security_group":
-		return "#FFF5F5", "#E53935", "filled,dashed", "#C62828"
-	case "aws_ecs_cluster", "aws_eks_cluster":
-		return "#FFF8E1", "#FF9900", "filled,dashed", "#E65100"
-	case "azurerm_resource_group":
-		return "#F0F8FF", "#0078D4", "filled,dashed", "#0078D4"
-	case "azurerm_virtual_network":
-		return "#E8F4FC", "#0078D4", "filled", "#0078D4"
-	case "azurerm_subnet":
-		return "#FFFFFF", "#CCCCCC", "filled", "#666666"
-	case "google_compute_network":
-		return "#E3F2FD", "#4285F4", "filled", "#1565C0"
-	case "google_compute_subnetwork":
-		return "#EDE7F6", "#7C4DFF", "filled", "#4527A0"
-	default:
-		return "#F8F9FA", "#ADB5BD", "filled,dashed", "#495057"
-	}
 }
 
 func gvGetIconPath(n *sgraph.Node) string {

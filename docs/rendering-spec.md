@@ -1,110 +1,191 @@
 ---
-description: "Spec for fixing and polishing both SVG renderers (D2 and Graphviz) to produce production-quality infrastructure diagrams"
+description: "Spec for achieving Terravision-quality static SVG output from both D2 and Graphviz renderers"
 status: in-progress
-status_description: "Phase A+B complete — D2 duplicate-node fix and Graphviz cluster styling done. Phase C (real icons) and D (polish) remaining."
+status_description: "Phase A+B complete (structural fixes). Phase C (Terravision-exact Graphviz params + real icons) in progress."
 author: Michiel VH
+goal: "Production-quality static infrastructure diagrams matching Terravision's visual output"
+priority: high
 created: 2026-04-03
 ---
 
-# Rendering Quality Spec
+# Plan: Rendering Quality — Terravision-Equivalent Output
+
+stackgraph must produce production-quality static infrastructure diagrams. The visual benchmark is Terravision — proper cloud service icons as nodes, nested VPC/subnet containers with colored borders, clean edge routing, professional typography.
 
 ## Context
 
-stackgraph has two SVG renderers — D2 (default) and Graphviz (`--renderer graphviz`). Both currently produce subpar output due to specific bugs. This spec tracks the fixes needed to reach production quality.
+stackgraph has two SVG renderers sharing the same graph JSON:
+- **D2** (default) — general-purpose diagram engine, good for containers and labels
+- **Graphviz** (`--renderer graphviz`) — same engine Terravision uses, can reproduce their exact output
 
-The goal is Terravision-quality static diagrams: cloud service icons as nodes, nested VPC/subnet containers with colored borders, clean edge routing, professional typography.
+Both have been structurally fixed (Phase A/B) but need visual polish with correct parameters and real icon assets.
 
-## Current Issues
+The exact Graphviz configuration used by Terravision has been extracted from their codebase and is documented in this spec.
 
-### D2 Renderer Issues
+## Scope
 
-| # | Issue | Root Cause | Fix |
-|---|-------|------------|-----|
-| D1 | Duplicate nodes — resources appear both inside containers AND as flat nodes outside | D2 edge syntax `"aws_subnet.public" -> "aws_vpc.main"` creates top-level nodes because D2 interprets dots as hierarchy separators. The same nodes also exist inside their container. | Use D2's container-scoped edge references: edges between nested nodes must use their full container path (e.g., `"aws_vpc.main"."aws_subnet.public"`) |
-| D2 | Broken icon placeholders | CDN URLs fail at render time — FIXED: switched to local embedded icons via temp files | Verify icons render correctly with local paths |
-| D3 | Container label shows raw resource address | Label format not matching Terravision style | Use "Service — Name" format for labels |
-| D4 | No visual distinction between public/private subnets | Both use same green color | Use different fill colors (green for public, blue for private) |
+**In scope:**
+- Graphviz renderer matching Terravision's exact visual parameters
+- D2 renderer polished to best possible quality
+- Real AWS Architecture Icon assets (PNG for Graphviz, SVG for D2)
+- Side-by-side comparison for final renderer selection
 
-### Graphviz Renderer Issues
+**Out of scope:**
+- Azure/GCP/Proxmox icon sets (future work after renderer is finalized)
+- Interactive frontend rendering (@xyflow/react — separate plan)
+- HTML output format
 
-| # | Issue | Root Cause | Fix |
-|---|-------|------------|-----|
-| G1 | Cluster containers have no color or label | `sub.Set("bgcolor", ...)` and `sub.Set("label", ...)` not applying — go-graphviz's SubGraph `Set()` may need `SafeSet()` or attribute pre-declaration | Debug go-graphviz SubGraph attribute API |
-| G2 | Icons not rendering — nodes are just text | `SetImage()` with temp SVG files — go-graphviz WASM may not support SVG images (Graphviz image support is format-dependent) | Try PNG icons instead of SVG, or use HTML labels with embedded images |
-| G3 | Edges not rendering | Edge source/target node lookup uses original IDs (`aws_instance.web_a`) but gvNodes map uses sanitized IDs (`aws_instance_web_a`) | Fix ID mapping: store gvNodes by original ID, not sanitized |
-| G4 | Security group and private subnet not visible | They are group-only nodes with no children and no leaf representation | Create invisible anchor nodes inside empty clusters so they render |
-| G5 | No edge arrows | Default Graphviz arrows may be disabled | Explicitly set `arrowhead=normal` on edges |
+## Design
+
+### Terravision's Exact Graphviz Configuration (extracted from source)
+
+#### Graph Attributes
+
+```
+rankdir     = TB
+splines     = ortho
+overlap     = false
+nodesep     = 3          (inches, horizontal)
+ranksep     = 5          (inches, vertical)
+pad         = 1.5        (inches)
+fontname    = Sans-Serif
+fontsize    = 30
+fontcolor   = #2D3436
+labelloc    = t
+concentrate = false
+center      = true
+```
+
+#### Default Node Attributes
+
+```
+shape      = box
+style      = rounded
+fixedsize  = true
+width      = 1.4         (inches)
+height     = 1.4         (inches)
+labelloc   = b
+imagepos   = c
+imagescale = true
+fontname   = Sans-Serif
+fontsize   = 14
+fontcolor  = #2D3436
+```
+
+When a node has an icon, these per-node overrides apply:
+
+```
+shape    = none           (icon becomes the node visual)
+height   = 1.9            (+ 0.4 per newline in label)
+image    = /abs/path/icon.png
+labelloc = b              (label below icon)
+```
+
+#### Default Edge Attributes
+
+```
+color     = #7B8894
+fontcolor = #2D3436
+fontname  = Sans-Serif
+fontsize  = 13
+```
+
+Labels use `xlabel` (external) with padding: `"  " + label + "  "`
+
+#### AWS Container Attributes
+
+| Container | style | border color | fill/bgcolor | margin | label |
+|-----------|-------|-------------|-------------|--------|-------|
+| AWS Cloud | solid, penwidth=2 | black | none | 100 | HTML table with AWS logo |
+| VPC | solid | #8C4FFF | none | 50 | HTML table with VPC icon |
+| Subnet (public) | filled | none (pencolor="") | #F2F7EE | 50 | HTML with subnet icon |
+| Subnet (private) | filled | none (pencolor="") | #DEEBF7 | 50 | HTML with subnet icon |
+| Security Group | solid | red | none | 50 | HTML with red font |
+| Availability Zone | dashed | #3399FF | none | 100 | HTML blue font, size 30 |
+| AutoScaling | dashed | pink | #DEEBF7 | 50 | HTML with ASG icon |
+
+#### Rendering Pipeline (two-pass)
+
+Terravision uses a two-pass process:
+1. `dot` engine generates DOT with node positions
+2. `gvpr` script adjusts label positions
+3. `neato -n2` re-renders with preserved positions + ortho edge routing
+
+**go-graphviz simplification:** We skip the gvpr step (label positioning) and use `dot` engine directly with `splines=ortho`. The two-pass neato approach is for cosmetic label placement — we can add it later if needed.
+
+### Icon Strategy
+
+Icons are referenced as **absolute file paths** to temp files written from `go:embed`.
+
+| Provider | Format | Source |
+|----------|--------|--------|
+| AWS | PNG (64x64) | Official AWS Architecture Icons |
+| Generic | PNG (64x64) | Simple labeled squares |
+
+For MVP, use the placeholder SVG icons (already created) — go-graphviz's WASM engine may or may not render SVG images. If SVG fails, convert to PNG at build time.
 
 ## Acceptance Criteria
 
-### D2 Renderer
+- [ ] Graphviz renderer uses Terravision's exact graph/node/edge attributes from the table above
+- [ ] VPC containers have purple border (#8C4FFF), no fill, margin 50, HTML label with icon
+- [ ] Public subnet containers are filled #F2F7EE with no border
+- [ ] Private subnet containers are filled #DEEBF7 with no border
+- [ ] Security group containers have red border
+- [ ] Resource nodes with icons render as `shape=none` with icon image and label below
+- [ ] Resource nodes without icons render as `shape=box, style=rounded`
+- [ ] Edges use #7B8894 color with arrowheads
+- [ ] Edge labels use `xlabel` attribute
+- [ ] D2 renderer produces clean output with no duplicate nodes (Phase A — done)
+- [ ] Generated SVGs are self-contained (no external file references)
+- [ ] Side-by-side comparison examples generated for both renderers
 
-- [ ] No duplicate nodes — each resource appears exactly once (inside its container if parented, or at root level if not)
-- [ ] Edges between nested nodes route correctly through container boundaries
-- [ ] Icons render inline (base64-embedded SVG) for all mapped resource types
-- [ ] Container labels show "Service — Name" format
-- [ ] VPC container has purple border (#8C4FFF)
-- [ ] Subnet containers have green fill for public, blue fill for private
-- [ ] Security group has red dashed border
-- [ ] Resource nodes show icon + service name + resource name
-- [ ] Count badge (x3) visible on collapsed count/for_each nodes
-- [ ] Generic/unmapped resources render as clean labeled boxes
+## Implementation Phases
 
-### Graphviz Renderer
+### Phase A: D2 Structural Fix (complete)
 
-- [ ] Cluster containers have colored backgrounds and labeled headers
-- [ ] Resource nodes display icons (PNG format if SVG unsupported)
-- [ ] All edges render with arrowheads
-- [ ] Empty containers (private subnet with no children) render as visible boxes
-- [ ] Edge routing works through cluster boundaries
-- [ ] Node labels positioned below icons (labelloc=b)
-- [ ] Font: Sans-Serif, #2D3436
+- [x] Rewrite edge path resolution to use container-scoped D2 paths
+- [x] Replace dot-separated IDs with underscore-safe IDs
+- [x] Verify 6 nodes, 7 edges in test output
 
-### Both Renderers
+### Phase B: Graphviz Structural Fix (complete)
 
-- [ ] AWS simple-vpc test case produces clean, readable diagram
-- [ ] Count-foreach test case shows collapsed nodes with badges
-- [ ] Proxmox test case renders generic nodes without crashes
-- [ ] SVG output is self-contained (no external file references)
+- [x] Switch to DOT string generation + `cgraph.ParseBytes()`
+- [x] Clusters render with colored backgrounds and labels
+- [x] Edge ID sanitization matches node creation
 
-## Implementation Tasks
+### Phase C: Graphviz Terravision Parameters (current)
 
-### Phase A — Fix D2 duplicate-node bug (complete)
+- [ ] Apply exact graph attributes: `splines=ortho`, `nodesep=3`, `ranksep=5`, `pad=1.5`, `overlap=false`
+- [ ] Apply exact node defaults: `fixedsize=true`, `width=1.4`, `height=1.4`, `labelloc=b`, `imagescale=true`
+- [ ] Apply per-node icon overrides: `shape=none`, `height=1.9`, `image=<path>`
+- [ ] Apply exact edge defaults: `color=#7B8894`, `fontcolor=#2D3436`, `fontsize=13`
+- [ ] Fix container attributes: VPC margin=50, pencolor=#8C4FFF; Subnet filled with no border; SG red border
+- [ ] Use HTML table labels for containers (icon + name)
+- [ ] Edge labels use `xlabel` instead of `label`
+- [ ] Suppress edges between parent and child nodes that are already visually nested (reduces clutter)
 
-- [x] Rewrite `graphToD2()` to use D2's container-scoped node paths for edges
-- [x] Build a node-path resolver that maps node IDs to their full D2 container path (`d2Paths` map)
-- [x] Replace dot-separated IDs with underscore-safe IDs (`d2SafeID()`)
-- [x] Edges between nested and root nodes now use correct D2 paths
-- [x] Regenerate examples and verify no duplicates — confirmed 6 nodes, 7 edges
+### Phase D: Icon Assets
 
-### Phase B — Fix Graphviz cluster attributes (complete)
+- [ ] Download 10 core AWS Architecture Icons (PNG 64x64): EC2, VPC, Subnet, SG, S3, RDS, Lambda, ALB, Route53, IAM
+- [ ] Embed as PNG in `icons/aws/` via `go:embed`
+- [ ] Test icon rendering in both Graphviz and D2
+- [ ] If Graphviz WASM doesn't render images, use HTML label approach with base64-encoded PNGs
 
-- [x] Switched from programmatic API to DOT string generation + `cgraph.ParseBytes()` — go-graphviz's SubGraph API didn't apply attributes correctly
-- [x] Clusters now have colored backgrounds, borders, labels, and font colors
-- [x] Invisible anchor nodes added to empty clusters (e.g., private subnet with no children)
-- [x] Edge IDs correctly sanitized and matched
-- [x] Edges render with `#7B8894` color and arrowheads
+### Phase E: Final Comparison
 
-### Phase C — Icon rendering
-
-- [ ] Test go-graphviz with PNG icons (convert placeholder SVGs to PNGs)
-- [ ] If Graphviz WASM doesn't support images, use HTML label approach: `<TABLE><TR><TD><IMG SRC="icon.png"/></TD></TR><TR><TD>label</TD></TR></TABLE>`
-- [ ] For D2: verify local icon temp files are read and base64-embedded correctly
-- [ ] Download 10 real AWS Architecture Icons (PNG) for visual testing
-
-### Phase D — Polish both renderers
-
-- [ ] Tune D2 theme and container styles for Terravision-like output
-- [ ] Tune Graphviz node/edge spacing, fonts, colors
-- [ ] Generate final side-by-side comparison examples
-- [ ] Update rendering-analysis.md with results and final recommendation
+- [ ] Generate aws-vpc example with both renderers
+- [ ] Generate count-foreach example with both renderers
+- [ ] Generate proxmox generic-fallback example with both renderers
+- [ ] Document visual comparison in rendering-analysis.md
+- [ ] Make recommendation on default renderer
 
 ## Test Plan
 
-| Criterion | Test File |
-|-----------|-----------|
-| D2: no duplicate nodes in SVG output | `pkg/output/svg_test.go` |
-| D2: icons embedded as base64 | `pkg/output/svg_test.go` |
-| Graphviz: clusters have bgcolor | `pkg/output/svg_graphviz_test.go` |
-| Graphviz: edges render | `pkg/output/svg_graphviz_test.go` |
-| Both: empty graph renders placeholder | `pkg/output/svg_test.go` (existing) |
+| Criterion | Test Type | Test Location |
+|-----------|-----------|---------------|
+| Graphviz uses exact Terravision attrs | Unit | `pkg/output/svg_graphviz_test.go` |
+| D2 no duplicate nodes | Unit | `pkg/output/svg_test.go` (existing) |
+| Empty graph renders placeholder | Unit | `pkg/output/svg_test.go` (existing) |
+| SVG is self-contained (no external refs) | Unit | `pkg/output/svg_test.go` |
+| Icons render in Graphviz SVG | Integration | Manual visual inspection |
+| Icons render in D2 SVG | Integration | Manual visual inspection |
