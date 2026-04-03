@@ -242,36 +242,11 @@ func resolveD2Icon(n *graph.Node, iconTempFiles map[string]string) string {
 	return tmpPath
 }
 
-// d2IconPath maps resource types to embedded icon paths (shared with Graphviz renderer).
+// d2IconPath maps resource types to embedded icon paths.
+// Uses the shared getIconPath() from svg_graphviz.go.
 func d2IconPath(n *graph.Node) string {
-	switch n.ResourceType {
-	case "aws_instance":
-		return "aws/compute/ec2.svg"
-	case "aws_lambda_function":
-		return "aws/compute/lambda.svg"
-	case "aws_vpc":
-		return "aws/networking/vpc.svg"
-	case "aws_subnet":
-		return "aws/networking/subnet.svg"
-	case "aws_security_group":
-		return "aws/security/sg.svg"
-	case "aws_lb":
-		return "aws/networking/alb.svg"
-	case "aws_internet_gateway":
-		return "aws/networking/igw.svg"
-	case "aws_s3_bucket":
-		return "aws/storage/s3.svg"
-	case "aws_db_instance", "aws_rds_cluster":
-		return "aws/database/rds.svg"
-	case "aws_ecs_cluster", "aws_ecs_service":
-		return "aws/containers/ecs.svg"
-	case "aws_route53_zone", "aws_route53_record":
-		return "aws/networking/route53.svg"
-	case "aws_iam_role", "aws_iam_policy", "aws_iam_user":
-		return "aws/security/iam.svg"
-	default:
-		return ""
-	}
+	// Wrap the graph.Node in an sgraph.Node — they're the same type
+	return getIconPath(n)
 }
 
 func d2GroupColors(n *graph.Node) (fill, stroke string) {

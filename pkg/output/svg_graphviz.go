@@ -315,27 +315,83 @@ func gvSanitize(id string) string {
 }
 
 func gvGetIconPath(n *sgraph.Node) string {
+	return getIconPath(n)
+}
+
+// getIconPath maps resource types to embedded icon file paths (official AWS/Azure/GCP icons).
+// Shared by both Graphviz and D2 renderers.
+func getIconPath(n *sgraph.Node) string {
 	switch n.ResourceType {
+	// AWS Compute
 	case "aws_instance":
-		return "aws/compute/ec2.svg"
+		return "aws/Arch_Compute/Arch_Amazon-EC2_64.png"
 	case "aws_lambda_function":
-		return "aws/compute/lambda.svg"
+		return "aws/Arch_Compute/Arch_AWS-Lambda_64.png"
+	case "aws_autoscaling_group":
+		return "aws/Arch_Compute/Arch_Amazon-EC2-Auto-Scaling_64.png"
+
+	// AWS Containers
+	case "aws_ecs_cluster", "aws_ecs_service", "aws_ecs_task_definition":
+		return "aws/Arch_Containers/Arch_Amazon-Elastic-Container-Service_64.png"
+	case "aws_eks_cluster", "aws_eks_node_group":
+		return "aws/Arch_Containers/Arch_Amazon-Elastic-Kubernetes-Service_64.png"
+
+	// AWS Networking
 	case "aws_lb":
-		return "aws/networking/alb.svg"
-	case "aws_s3_bucket":
-		return "aws/storage/s3.svg"
-	case "aws_db_instance", "aws_rds_cluster":
-		return "aws/database/rds.svg"
-	case "aws_ecs_cluster", "aws_ecs_service":
-		return "aws/containers/ecs.svg"
+		return "aws/Arch_Networking-Content-Delivery/Arch_Elastic-Load-Balancing_64.png"
 	case "aws_route53_zone", "aws_route53_record":
-		return "aws/networking/route53.svg"
-	case "aws_iam_role", "aws_iam_policy", "aws_iam_user":
-		return "aws/security/iam.svg"
-	case "aws_internet_gateway":
-		return "aws/networking/igw.svg"
-	case "aws_security_group":
-		return "aws/security/sg.svg"
+		return "aws/Arch_Networking-Content-Delivery/Arch_Amazon-Route-53_64.png"
+	case "aws_cloudfront_distribution":
+		return "aws/Arch_Networking-Content-Delivery/Arch_Amazon-CloudFront_64.png"
+	case "aws_api_gateway_rest_api", "aws_apigatewayv2_api":
+		return "aws/Arch_Networking-Content-Delivery/Arch_Amazon-API-Gateway_64.png"
+
+	// AWS Storage
+	case "aws_s3_bucket":
+		return "aws/Arch_Storage/Arch_Amazon-Simple-Storage-Service_64.png"
+	case "aws_ebs_volume":
+		return "aws/Arch_Storage/Arch_Amazon-Elastic-Block-Store_64.png"
+
+	// AWS Database
+	case "aws_db_instance", "aws_rds_cluster":
+		return "aws/Arch_Databases/Arch_Amazon-RDS_64.png"
+	case "aws_dynamodb_table":
+		return "aws/Arch_Databases/Arch_Amazon-DynamoDB_64.png"
+	case "aws_elasticache_cluster", "aws_elasticache_replication_group":
+		return "aws/Arch_Databases/Arch_Amazon-ElastiCache_64.png"
+
+	// AWS Security
+	case "aws_iam_role", "aws_iam_policy", "aws_iam_user", "aws_iam_instance_profile":
+		return "aws/Arch_Security-Identity/Arch_AWS-Identity-and-Access-Management_64.png"
+	case "aws_kms_key":
+		return "aws/Arch_Security-Identity/Arch_AWS-Key-Management-Service_64.png"
+	case "aws_secretsmanager_secret":
+		return "aws/Arch_Security-Identity/Arch_AWS-Secrets-Manager_64.png"
+
+	// AWS Messaging
+	case "aws_sqs_queue":
+		return "aws/Arch_Application-Integration/Arch_Amazon-Simple-Queue-Service_64.png"
+	case "aws_sns_topic", "aws_sns_topic_subscription":
+		return "aws/Arch_Application-Integration/Arch_Amazon-Simple-Notification-Service_64.png"
+
+	// AWS Monitoring
+	case "aws_cloudwatch_log_group", "aws_cloudwatch_metric_alarm":
+		return "aws/Arch_Management-Tools/Arch_Amazon-CloudWatch_64.png"
+
+	// Azure
+	case "azurerm_virtual_machine":
+		return "azure/compute/10021-icon-service-Virtual-Machine.svg"
+	case "azurerm_virtual_network":
+		return "azure/networking/10061-icon-service-Virtual-Networks.svg"
+	case "azurerm_kubernetes_cluster":
+		return "azure/containers/10023-icon-service-Kubernetes-Services.svg"
+
+	// GCP
+	case "google_compute_instance":
+		return "gcp/compute_engine/compute_engine.svg"
+	case "google_container_cluster":
+		return "gcp/google_kubernetes_engine/google_kubernetes_engine.svg"
+
 	default:
 		return ""
 	}

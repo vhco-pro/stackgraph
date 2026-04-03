@@ -6,7 +6,8 @@ import (
 )
 
 // ApplyGrouping assigns parent-child relationships between group nodes (VPC, subnet, etc.)
-// and their contained resources based on mapping metadata and implicit edge detection.
+// and their contained resources based on mapping metadata, implicit edge detection,
+// and attribute-based containment (e.g., security group membership).
 func (g *Graph) ApplyGrouping() {
 	g.ensureIndex()
 
@@ -21,21 +22,7 @@ func (g *Graph) ApplyGrouping() {
 		return groupNodes[i].GroupLevel < groupNodes[j].GroupLevel
 	})
 
-	// For each non-group resource, find its closest group parent via edges
-	for _, n := range g.Nodes {
-		if n.IsGroupNode || n.Parent != "" {
-			continue
-		}
-
-		// Check if any edge connects this node to a group node
-		bestGroup := g.findBestGroup(n, groupNodes)
-		if bestGroup != nil {
-			n.Parent = bestGroup.ID
-			bestGroup.Children = appendUnique(bestGroup.Children, n.ID)
-		}
-	}
-
-	// Nest group nodes inside each other based on group_parent mapping
+	// Phase 1: Nest group nodes inside each other based on group_parent mapping
 	for _, gn := range groupNodes {
 		if gn.GroupParent == "" || gn.Parent != "" {
 			continue
@@ -47,7 +34,6 @@ func (g *Graph) ApplyGrouping() {
 				continue
 			}
 
-			// Check if there's an edge linking this group to the candidate parent
 			if g.hasEdgeBetween(gn.ID, candidate.ID) {
 				gn.Parent = candidate.ID
 				candidate.Children = appendUnique(candidate.Children, gn.ID)
@@ -56,9 +42,172 @@ func (g *Graph) ApplyGrouping() {
 		}
 	}
 
-	// Move resources that are inside a nested group up if their current parent
-	// is actually a child of a more specific group
+	// Phase 2: For non-group resources, find closest group parent via edges
+	for _, n := range g.Nodes {
+		if n.IsGroupNode || n.Parent != "" {
+			continue
+		}
+
+		bestGroup := g.findBestGroup(n, groupNodes)
+		if bestGroup != nil {
+			n.Parent = bestGroup.ID
+			bestGroup.Children = appendUnique(bestGroup.Children, n.ID)
+		}
+	}
+
+	// Phase 3: Resolve nested parents — push resources to most specific container
 	g.resolveNestedParents()
+
+	// Phase 4: Assign resources to security groups via attribute matching.
+	// This runs AFTER subnet assignment so SG inherits the subnet context.
+	// If a resource has vpc_security_group_ids referencing an SG, move the SG
+	// to the same parent as the resource and put the resource inside the SG.
+	g.assignSecurityGroupContainment()
+
+	// Phase 5: Add cloud provider boundary around all top-level provider resources
+	g.addCloudBoundary()
+}
+
+// assignSecurityGroupContainment moves resources inside their security groups.
+// Runs AFTER subnet assignment so we know where resources are placed.
+// The SG is moved to the same subnet as the resources it contains.
+func (g *Graph) assignSecurityGroupContainment() {
+	g.ensureIndex()
+
+	// Build SG ID value -> SG node index
+	sgByID := make(map[string]*Node)
+	for _, n := range g.Nodes {
+		if n.ResourceType != "aws_security_group" {
+			continue
+		}
+		if n.Attributes != nil {
+			if sgID, ok := n.Attributes["id"].(string); ok {
+				sgByID[sgID] = n
+			}
+		}
+	}
+
+	if len(sgByID) == 0 {
+		return
+	}
+
+	// For each resource with vpc_security_group_ids, move it inside the SG.
+	// Also move the SG to the resource's current parent (subnet) if not already placed.
+	for _, n := range g.Nodes {
+		if n.IsGroupNode {
+			continue
+		}
+		if n.Attributes == nil {
+			continue
+		}
+
+		sgIDs, ok := n.Attributes["vpc_security_group_ids"]
+		if !ok {
+			continue
+		}
+
+		sgList, ok := sgIDs.([]interface{})
+		if !ok {
+			continue
+		}
+
+		for _, sgIDRaw := range sgList {
+			sgIDStr, ok := sgIDRaw.(string)
+			if !ok {
+				continue
+			}
+			sgNode, found := sgByID[sgIDStr]
+			if !found {
+				continue
+			}
+
+			// Move the SG into the same subnet as the resource it contains.
+			// This ensures SG → Subnet → VPC nesting hierarchy.
+			resourceParent := n.Parent
+			if resourceParent != "" && resourceParent != sgNode.ID {
+				sgCurrentParent := g.NodeByID(sgNode.Parent)
+				resourceParentNode := g.NodeByID(resourceParent)
+
+				// Only move if the resource's parent is more specific (deeper) than the SG's
+				if resourceParentNode != nil && sgCurrentParent != nil &&
+					resourceParentNode.GroupLevel > sgCurrentParent.GroupLevel {
+					// Remove SG from its current parent
+					sgCurrentParent.Children = removeString(sgCurrentParent.Children, sgNode.ID)
+					// Place SG in the resource's parent (subnet)
+					sgNode.Parent = resourceParent
+					resourceParentNode.Children = appendUnique(resourceParentNode.Children, sgNode.ID)
+				}
+			}
+
+			// Remove resource from its current parent's children list
+			if oldParent := g.NodeByID(n.Parent); oldParent != nil {
+				oldParent.Children = removeString(oldParent.Children, n.ID)
+			}
+
+			// Place resource inside the SG
+			n.Parent = sgNode.ID
+			sgNode.Children = appendUnique(sgNode.Children, n.ID)
+			break // use first matching SG
+		}
+	}
+}
+
+// addCloudBoundary adds a synthetic cloud provider boundary node (e.g., "AWS Cloud")
+// wrapping all top-level resources of the same provider.
+func (g *Graph) addCloudBoundary() {
+	// Count providers among top-level nodes
+	providerCounts := make(map[string]int)
+	for _, n := range g.Nodes {
+		if n.Parent == "" {
+			providerCounts[n.Provider]++
+		}
+	}
+
+	for provider, count := range providerCounts {
+		if count < 1 || provider == "" {
+			continue
+		}
+
+		// Create cloud boundary node
+		boundaryType := ""
+		boundaryLabel := ""
+		switch provider {
+		case "aws":
+			boundaryType = "aws_cloud"
+			boundaryLabel = "AWS Cloud"
+		case "azurerm":
+			boundaryType = "azure_cloud"
+			boundaryLabel = "Azure"
+		case "google":
+			boundaryType = "gcp_cloud"
+			boundaryLabel = "Google Cloud"
+		default:
+			continue // only add boundaries for known cloud providers
+		}
+
+		boundaryID := boundaryType + ".boundary"
+		boundary := &Node{
+			ID:           boundaryID,
+			Type:         NodeTypeGroup,
+			ResourceType: boundaryType,
+			Label:        boundaryLabel,
+			Provider:     provider,
+			IsGroupNode:  true,
+			GroupLevel:   0, // outermost
+		}
+		g.AddNode(boundary)
+
+		// Re-parent all top-level nodes of this provider under the boundary
+		for _, n := range g.Nodes {
+			if n.ID == boundaryID {
+				continue
+			}
+			if n.Parent == "" && n.Provider == provider {
+				n.Parent = boundaryID
+				boundary.Children = appendUnique(boundary.Children, n.ID)
+			}
+		}
+	}
 }
 
 // findBestGroup finds the most specific (highest GroupLevel) group node

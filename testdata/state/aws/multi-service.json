@@ -1,0 +1,130 @@
+{
+  "format_version": "1.0",
+  "terraform_version": "1.9.0",
+  "values": {
+    "root_module": {
+      "resources": [
+        {
+          "address": "aws_vpc.main",
+          "mode": "managed",
+          "type": "aws_vpc",
+          "name": "main",
+          "provider_name": "registry.terraform.io/hashicorp/aws",
+          "schema_version": 1,
+          "values": { "id": "vpc-multi001", "cidr_block": "10.0.0.0/16" },
+          "depends_on": []
+        },
+        {
+          "address": "aws_subnet.public",
+          "mode": "managed",
+          "type": "aws_subnet",
+          "name": "public",
+          "provider_name": "registry.terraform.io/hashicorp/aws",
+          "schema_version": 1,
+          "values": { "id": "subnet-pub001", "vpc_id": "vpc-multi001", "cidr_block": "10.0.1.0/24", "availability_zone": "us-east-1a" },
+          "depends_on": ["aws_vpc.main"]
+        },
+        {
+          "address": "aws_subnet.private",
+          "mode": "managed",
+          "type": "aws_subnet",
+          "name": "private",
+          "provider_name": "registry.terraform.io/hashicorp/aws",
+          "schema_version": 1,
+          "values": { "id": "subnet-priv001", "vpc_id": "vpc-multi001", "cidr_block": "10.0.2.0/24", "availability_zone": "us-east-1b" },
+          "depends_on": ["aws_vpc.main"]
+        },
+        {
+          "address": "aws_internet_gateway.main",
+          "mode": "managed",
+          "type": "aws_internet_gateway",
+          "name": "main",
+          "provider_name": "registry.terraform.io/hashicorp/aws",
+          "schema_version": 0,
+          "values": { "id": "igw-001", "vpc_id": "vpc-multi001" },
+          "depends_on": ["aws_vpc.main"]
+        },
+        {
+          "address": "aws_lb.web",
+          "mode": "managed",
+          "type": "aws_lb",
+          "name": "web",
+          "provider_name": "registry.terraform.io/hashicorp/aws",
+          "schema_version": 0,
+          "values": { "id": "arn:aws:elasticloadbalancing:us-east-1:123456789:loadbalancer/app/web/abc", "name": "web-alb", "load_balancer_type": "application", "subnets": ["subnet-pub001"] },
+          "depends_on": ["aws_subnet.public"]
+        },
+        {
+          "address": "aws_security_group.web",
+          "mode": "managed",
+          "type": "aws_security_group",
+          "name": "web",
+          "provider_name": "registry.terraform.io/hashicorp/aws",
+          "schema_version": 1,
+          "values": { "id": "sg-web001", "vpc_id": "vpc-multi001", "name": "web-sg" },
+          "depends_on": ["aws_vpc.main"]
+        },
+        {
+          "address": "aws_instance.web",
+          "mode": "managed",
+          "type": "aws_instance",
+          "name": "web",
+          "provider_name": "registry.terraform.io/hashicorp/aws",
+          "schema_version": 1,
+          "values": { "id": "i-web001", "instance_type": "t3.medium", "ami": "ami-abc123", "subnet_id": "subnet-pub001", "vpc_security_group_ids": ["sg-web001"] },
+          "depends_on": ["aws_subnet.public", "aws_security_group.web"]
+        },
+        {
+          "address": "aws_db_instance.main",
+          "mode": "managed",
+          "type": "aws_db_instance",
+          "name": "main",
+          "provider_name": "registry.terraform.io/hashicorp/aws",
+          "schema_version": 2,
+          "values": { "id": "db-main001", "engine": "postgres", "engine_version": "15.4", "instance_class": "db.t3.medium", "allocated_storage": 50, "db_subnet_group_name": "main" },
+          "depends_on": ["aws_subnet.private"]
+        },
+        {
+          "address": "aws_s3_bucket.assets",
+          "mode": "managed",
+          "type": "aws_s3_bucket",
+          "name": "assets",
+          "provider_name": "registry.terraform.io/hashicorp/aws",
+          "schema_version": 0,
+          "values": { "id": "my-app-assets-bucket", "bucket": "my-app-assets" },
+          "depends_on": []
+        },
+        {
+          "address": "aws_route53_zone.main",
+          "mode": "managed",
+          "type": "aws_route53_zone",
+          "name": "main",
+          "provider_name": "registry.terraform.io/hashicorp/aws",
+          "schema_version": 0,
+          "values": { "id": "Z1234567890", "name": "example.com" },
+          "depends_on": []
+        },
+        {
+          "address": "aws_lambda_function.api",
+          "mode": "managed",
+          "type": "aws_lambda_function",
+          "name": "api",
+          "provider_name": "registry.terraform.io/hashicorp/aws",
+          "schema_version": 0,
+          "values": { "id": "arn:aws:lambda:us-east-1:123456789:function:api", "function_name": "api-handler", "runtime": "nodejs20.x", "handler": "index.handler", "memory_size": 256 },
+          "depends_on": []
+        },
+        {
+          "address": "aws_iam_role.lambda",
+          "mode": "managed",
+          "type": "aws_iam_role",
+          "name": "lambda",
+          "provider_name": "registry.terraform.io/hashicorp/aws",
+          "schema_version": 0,
+          "values": { "id": "arn:aws:iam::123456789:role/lambda-role", "name": "lambda-execution-role" },
+          "depends_on": []
+        }
+      ]
+    }
+  }
+}

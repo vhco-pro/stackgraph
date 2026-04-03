@@ -95,6 +95,8 @@ func newGenerateCmd() *cobra.Command {
 				switch renderer {
 				case "graphviz":
 					out, err = output.RenderGraphvizSVG(g)
+				case "dagre":
+					out, err = output.RenderDagreSVG(g)
 				default:
 					out, err = output.RenderSVG(g)
 				}

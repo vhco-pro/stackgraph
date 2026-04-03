@@ -1,4 +1,4 @@
-name: Binary & Container Release
+name: CI & Release
 
 permissions:
   id-token: write
@@ -15,41 +15,145 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-and-release:
+  # ---------------------------------------------------------------------------
+  # CI — lint, test, scan
+  # ---------------------------------------------------------------------------
+  ci:
+    name: CI
     runs-on: ubuntu-latest
-
     steps:
-      # 1: Checkout code (required before using the action)
+      # ── Checkout ────────────────────────────────────────────
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      # ── Go setup ────────────────────────────────────────────
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: '1.26'
+          cache: false
+
+      - name: Download Go modules
+        run: go mod download
+
+      # ── Lint ────────────────────────────────────────────────
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@v9.2.0
+        with:
+          version: latest
+
+      # ── Vulnerability scan ──────────────────────────────────
+      - name: Install govulncheck
+        run: go install golang.org/x/vuln/cmd/govulncheck@latest
+
+      - name: Run govulncheck
+        run: govulncheck ./...
+
+      # ── Tests ───────────────────────────────────────────────
+      - name: Run tests
+        run: go test ./...
+
+      # ── Security scan ──────────────────────────────────────
+      - name: Run Trivy security scan
+        uses: aquasecurity/trivy-action@v0.35.0
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          severity: 'HIGH,CRITICAL'
+          exit-code: '1'
+          ignore-unfixed: true
+
+  # ---------------------------------------------------------------------------
+  # Release Binary — tag + goreleaser
+  # ---------------------------------------------------------------------------
+  release-binary:
+    name: Release Binary
+    needs: ci
+    runs-on: ubuntu-latest
+    steps:
+      # ── Checkout ────────────────────────────────────────────
       - name: Checkout code
         uses: actions/checkout@v6
         with:
-          fetch-depth: 0  # Fetch all the history for GitVersion
+          fetch-depth: 0
           persist-credentials: true
 
-      # TODO: add lint / test / scanning steps here
+      # ── Go setup ────────────────────────────────────────────
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: '1.26'
+          cache: false
 
-      # 2: Call our custom `GitVersion action` to tag the repo
+      - name: Download Go modules
+        run: go mod download
+
+      # ── Tag ─────────────────────────────────────────────────
       - name: Tag with GitVersion
         id: gitversion
         uses: michielvha/gitversion-tag-action@main
         with:
           configFilePath: gitversion.yml
 
-      # 3: Use the custom build-release action
+      # ── Release ─────────────────────────────────────────────
       - name: Build and Release Go Binary
         uses: michielvha/goreleaser-action@main
         with:
           github-token: ${{ github.token }}
           pgp-private-key: ${{ secrets.PGP_PRIVATE_KEY }}
 
-      # 4: Build and Push Docker image
-      - name: Build and Push Docker Image
-        uses: michielvha/docker-release-action@main
+    outputs:
+      semVer: ${{ steps.gitversion.outputs.semVer }}
+
+  # ---------------------------------------------------------------------------
+  # Release Container — native multi-arch build + merge
+  # ---------------------------------------------------------------------------
+  release-container:
+    name: Build Container (${{ matrix.platform }})
+    needs: release-binary
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux/amd64
+            runner: ubuntu-latest
+          - platform: linux/arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    steps:
+      # ── Checkout ────────────────────────────────────────────
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      # ── Build & push digest ────────────────────────────────
+      - name: Build and push by digest
+        uses: michielvha/docker-release-action@v2
         with:
+          matrix-mode: build
+          version: ${{ needs.release-binary.outputs.semVer }}
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
           project: ${{ github.event.repository.name }}
-          version: ${{ steps.gitversion.outputs.semVer }}
-          platforms: 'linux/amd64,linux/arm64'
+          platforms: ${{ matrix.platform }}
           context: '.'
+
+  # ---------------------------------------------------------------------------
+  # Merge — create multi-arch manifest
+  # ---------------------------------------------------------------------------
+  merge-manifest:
+    name: Merge Manifest
+    needs: [release-binary, release-container]
+    runs-on: ubuntu-latest
+    steps:
+      # ── Merge ───────────────────────────────────────────────
+      - name: Create multi-arch manifest
+        uses: michielvha/docker-release-action@v2
+        with:
+          matrix-mode: merge
+          version: ${{ needs.release-binary.outputs.semVer }}
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+          project: ${{ github.event.repository.name }}
+          trivy-scan: 'false'

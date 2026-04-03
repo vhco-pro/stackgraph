@@ -1,0 +1,110 @@
+{
+  "format_version": "1.0",
+  "terraform_version": "1.9.0",
+  "values": {
+    "root_module": {
+      "resources": [
+        {
+          "address": "aws_vpc.main",
+          "mode": "managed",
+          "type": "aws_vpc",
+          "name": "main",
+          "provider_name": "registry.terraform.io/hashicorp/aws",
+          "schema_version": 1,
+          "values": { "id": "vpc-3tier001", "cidr_block": "10.0.0.0/16" },
+          "depends_on": []
+        },
+        {
+          "address": "aws_subnet.web",
+          "mode": "managed",
+          "type": "aws_subnet",
+          "name": "web",
+          "provider_name": "registry.terraform.io/hashicorp/aws",
+          "schema_version": 1,
+          "values": { "id": "subnet-web001", "vpc_id": "vpc-3tier001", "cidr_block": "10.0.1.0/24", "map_public_ip_on_launch": true },
+          "depends_on": ["aws_vpc.main"]
+        },
+        {
+          "address": "aws_subnet.app",
+          "mode": "managed",
+          "type": "aws_subnet",
+          "name": "app",
+          "provider_name": "registry.terraform.io/hashicorp/aws",
+          "schema_version": 1,
+          "values": { "id": "subnet-app001", "vpc_id": "vpc-3tier001", "cidr_block": "10.0.2.0/24", "map_public_ip_on_launch": false },
+          "depends_on": ["aws_vpc.main"]
+        },
+        {
+          "address": "aws_subnet.db",
+          "mode": "managed",
+          "type": "aws_subnet",
+          "name": "db",
+          "provider_name": "registry.terraform.io/hashicorp/aws",
+          "schema_version": 1,
+          "values": { "id": "subnet-db001", "vpc_id": "vpc-3tier001", "cidr_block": "10.0.3.0/24", "map_public_ip_on_launch": false },
+          "depends_on": ["aws_vpc.main"]
+        },
+        {
+          "address": "aws_security_group.web_sg",
+          "mode": "managed",
+          "type": "aws_security_group",
+          "name": "web_sg",
+          "provider_name": "registry.terraform.io/hashicorp/aws",
+          "schema_version": 1,
+          "values": { "id": "sg-web3t", "vpc_id": "vpc-3tier001", "name": "web-tier-sg" },
+          "depends_on": ["aws_vpc.main"]
+        },
+        {
+          "address": "aws_security_group.app_sg",
+          "mode": "managed",
+          "type": "aws_security_group",
+          "name": "app_sg",
+          "provider_name": "registry.terraform.io/hashicorp/aws",
+          "schema_version": 1,
+          "values": { "id": "sg-app3t", "vpc_id": "vpc-3tier001", "name": "app-tier-sg" },
+          "depends_on": ["aws_vpc.main"]
+        },
+        {
+          "address": "aws_lb.web",
+          "mode": "managed",
+          "type": "aws_lb",
+          "name": "web",
+          "provider_name": "registry.terraform.io/hashicorp/aws",
+          "schema_version": 0,
+          "values": { "id": "arn:aws:elb:lb/web-alb", "name": "web-alb", "load_balancer_type": "application", "subnet_id": "subnet-web001" },
+          "depends_on": ["aws_subnet.web"]
+        },
+        {
+          "address": "aws_instance.web",
+          "mode": "managed",
+          "type": "aws_instance",
+          "name": "web",
+          "provider_name": "registry.terraform.io/hashicorp/aws",
+          "schema_version": 1,
+          "values": { "id": "i-web3t", "instance_type": "t3.small", "subnet_id": "subnet-web001", "vpc_security_group_ids": ["sg-web3t"] },
+          "depends_on": ["aws_subnet.web", "aws_security_group.web_sg", "aws_lb.web"]
+        },
+        {
+          "address": "aws_instance.app",
+          "mode": "managed",
+          "type": "aws_instance",
+          "name": "app",
+          "provider_name": "registry.terraform.io/hashicorp/aws",
+          "schema_version": 1,
+          "values": { "id": "i-app3t", "instance_type": "t3.medium", "subnet_id": "subnet-app001", "vpc_security_group_ids": ["sg-app3t"] },
+          "depends_on": ["aws_subnet.app", "aws_security_group.app_sg"]
+        },
+        {
+          "address": "aws_db_instance.main",
+          "mode": "managed",
+          "type": "aws_db_instance",
+          "name": "main",
+          "provider_name": "registry.terraform.io/hashicorp/aws",
+          "schema_version": 2,
+          "values": { "id": "db-3tier", "engine": "mysql", "engine_version": "8.0", "instance_class": "db.r5.large", "allocated_storage": 100 },
+          "depends_on": ["aws_subnet.db"]
+        }
+      ]
+    }
+  }
+}

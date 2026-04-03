@@ -79,7 +79,7 @@ resources:
     category: Security
     icon: aws/security/security-group.svg
     is_group: true
-    group_parent: aws_subnet
+    group_parent: aws_vpc
     group_level: 3
   aws_security_group_rule:
     service: SG Rule
