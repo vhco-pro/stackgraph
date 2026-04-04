@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/dop251/goja"
@@ -112,34 +113,27 @@ func computeDagreLayout(g *sgraph.Graph) (map[string]NodePosition, map[string]Ed
 		}
 	}
 
-	// Build set of compound (group) node IDs — only groups that actually have children.
-	// Empty groups (e.g., security group with no resources inside) are treated as leaf nodes for edge purposes.
-	groupIDs := make(map[string]bool)
-	childCount := make(map[string]int)
+	// Build set of nodes that have children in the compound graph
+	hasChildren := make(map[string]bool)
 	for _, n := range g.Nodes {
 		if n.Parent != "" {
-			childCount[n.Parent]++
-		}
-	}
-	for _, n := range g.Nodes {
-		if (n.Type == sgraph.NodeTypeGroup || len(n.Children) > 0) && childCount[n.ID] > 0 {
-			groupIDs[n.ID] = true
+			hasChildren[n.Parent] = true
 		}
 	}
 
-	// Add edges to dagre — only between leaf nodes (not groups).
-	// Cross-compound edges cause dagre to crash, so we skip edges
-	// involving group nodes for layout purposes. We still render
-	// all edges in the SVG by drawing lines between computed positions.
+	// Add edges to dagre — only between leaf nodes (not compound parents).
+	// Dagre's compound graph crashes on edges involving compound parent nodes.
+	// All edges are still drawn in the SVG regardless — this is just for layout.
 	for _, e := range g.Edges {
-		if parentChildPairs[e.Source+"->"+e.Target] {
-			continue
-		}
 		if e.Source == e.Target {
 			continue
 		}
-		// Only add edges between leaf nodes to dagre
-		if groupIDs[e.Source] || groupIDs[e.Target] {
+		// Skip containment edges
+		if parentChildPairs[e.Source+"->"+e.Target] || parentChildPairs[e.Target+"->"+e.Source] {
+			continue
+		}
+		// Skip if either endpoint is a compound parent (dagre limitation)
+		if hasChildren[e.Source] || hasChildren[e.Target] {
 			continue
 		}
 		script := fmt.Sprintf(`g.setEdge(%q, %q);`, e.Source, e.Target)
@@ -221,15 +215,44 @@ func generateDagreSVG(g *sgraph.Graph, positions map[string]NodePosition, edgeRo
 
 	var b strings.Builder
 
-	b.WriteString(fmt.Sprintf(`<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="%d" height="%d" font-family="Sans-Serif">`, canvasW, canvasH))
+	fmt.Fprintf(&b, `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="%d" height="%d" font-family="Sans-Serif">`, canvasW, canvasH)
+	b.WriteString("\n")
+
+	// Dark mode CSS — auto-detects prefers-color-scheme
+	b.WriteString(`<style>
+  .sg-bg { fill: #FFFFFF; }
+  .sg-text { fill: #2D3436; }
+  .sg-text-sm { fill: #2D3436; }
+  .sg-edge { stroke: #7B8894; }
+  .sg-arrow { fill: #7B8894; }
+  .sg-node-box { fill: #FFFFFF; stroke: #DEE2E6; }
+  @media (prefers-color-scheme: dark) {
+    .sg-bg { fill: #1a1a2e; }
+    .sg-text { fill: #E0E0E0; }
+    .sg-text-sm { fill: #B0B0B0; }
+    .sg-edge { stroke: #9CA3AF; }
+    .sg-arrow { fill: #9CA3AF; }
+    .sg-node-box { fill: #2a2a3e; stroke: #4A5568; }
+    .sg-container-cloud { fill: #1e1e32; stroke: #4A90D9; }
+    .sg-container-vpc { fill: #1e1530; stroke: #A855F7; }
+    .sg-container-subnet { fill: #1a2e1a; stroke: #8BC34A; }
+    .sg-container-sg { fill: #2e1a1a; stroke: #EF5350; }
+    .sg-container-default { fill: #1e1e2e; stroke: #6B7280; }
+    .sg-label-cloud { fill: #4A90D9; }
+    .sg-label-vpc { fill: #C084FC; }
+    .sg-label-subnet { fill: #8BC34A; }
+    .sg-label-sg { fill: #EF5350; }
+    .sg-label-default { fill: #9CA3AF; }
+  }
+</style>`)
 	b.WriteString("\n")
 
 	// Background
-	b.WriteString(fmt.Sprintf(`<rect width="%d" height="%d" fill="#FFFFFF"/>`, canvasW, canvasH))
+	fmt.Fprintf(&b, `<rect class="sg-bg" width="%d" height="%d" fill="#FFFFFF"/>`, canvasW, canvasH)
 	b.WriteString("\n")
 
 	// Arrow marker
-	b.WriteString(`<defs><marker id="arrowhead" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#7B8894"/></marker></defs>`)
+	b.WriteString(`<defs><marker id="arrowhead" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto"><polygon class="sg-arrow" points="0 0, 10 3.5, 0 7" fill="#7B8894"/></marker></defs>`)
 	b.WriteString("\n")
 
 	// Build parent→children index for rendering order
@@ -238,16 +261,40 @@ func generateDagreSVG(g *sgraph.Graph, positions map[string]NodePosition, edgeRo
 		nodeIdx[n.ID] = n
 	}
 
-	// Render containers first (back to front), then leaf nodes on top
-	// Sort: groups first by depth, then resources
+	// Render containers back-to-front (outermost first, innermost last)
+	// so inner containers render on top of outer ones
+	type containerEntry struct {
+		node  *sgraph.Node
+		pos   NodePosition
+		depth int
+	}
+	var containers []containerEntry
 	for _, n := range g.Nodes {
 		pos, ok := positions[n.ID]
 		if !ok {
 			continue
 		}
 		if n.Type == sgraph.NodeTypeGroup || len(n.Children) > 0 {
-			renderDagreContainer(&b, n, pos)
+			// Compute nesting depth
+			depth := 0
+			cur := n.Parent
+			for cur != "" {
+				depth++
+				if pn := nodeIdx[cur]; pn != nil {
+					cur = pn.Parent
+				} else {
+					break
+				}
+			}
+			containers = append(containers, containerEntry{node: n, pos: pos, depth: depth})
 		}
+	}
+	// Sort by depth ascending (outermost drawn first = background)
+	sort.Slice(containers, func(i, j int) bool {
+		return containers[i].depth < containers[j].depth
+	})
+	for _, c := range containers {
+		renderDagreContainer(&b, c.node, c.pos)
 	}
 	for _, n := range g.Nodes {
 		pos, ok := positions[n.ID]
@@ -260,30 +307,39 @@ func generateDagreSVG(g *sgraph.Graph, positions map[string]NodePosition, edgeRo
 	}
 
 	// Render edges
-	// Build lookup sets for filtering
-	// Build set of groups with actual children (for edge filtering)
-	childCounts := make(map[string]int)
+	// Build ancestry map for containment check
 	parentOf := make(map[string]string)
 	for _, n := range g.Nodes {
 		if n.Parent != "" {
-			childCounts[n.Parent]++
 			parentOf[n.ID] = n.Parent
 		}
 	}
-	groupIDSet := make(map[string]bool)
-	for _, n := range g.Nodes {
-		if (n.Type == sgraph.NodeTypeGroup || len(n.Children) > 0) && childCounts[n.ID] > 0 {
-			groupIDSet[n.ID] = true
+
+	// isAncestor checks if ancestor is a parent/grandparent/etc of node
+	isAncestor := func(nodeID, ancestorID string) bool {
+		cur := nodeID
+		for {
+			p, ok := parentOf[cur]
+			if !ok || p == "" {
+				return false
+			}
+			if p == ancestorID {
+				return true
+			}
+			cur = p
 		}
 	}
 
 	for _, e := range g.Edges {
-		// Skip edges between parent and direct child (shown via nesting)
-		if parentOf[e.Source] == e.Target || parentOf[e.Target] == e.Source {
+		// Skip edges where one node is an ancestor of the other (shown via nesting)
+		if isAncestor(e.Source, e.Target) || isAncestor(e.Target, e.Source) {
 			continue
 		}
-		// Skip edges where BOTH endpoints are containers (not useful visually)
-		if groupIDSet[e.Source] && groupIDSet[e.Target] {
+
+		// Both endpoints need positions to draw
+		srcPos, sok := positions[e.Source]
+		tgtPos, tok := positions[e.Target]
+		if !sok || !tok {
 			continue
 		}
 
@@ -294,21 +350,11 @@ func generateDagreSVG(g *sgraph.Graph, positions map[string]NodePosition, edgeRo
 			continue
 		}
 
-		// Fallback: draw line between leaf nodes only
-		// If target is a container, skip (containment is shown visually)
-		if groupIDSet[e.Target] || groupIDSet[e.Source] {
-			continue
-		}
-
-		srcPos, sok := positions[e.Source]
-		tgtPos, tok := positions[e.Target]
-		if sok && tok {
-			// Draw from bottom of source to top of target
-			renderDagreEdge(&b, []Point{
-				{X: srcPos.X, Y: srcPos.Y + srcPos.Height/2},
-				{X: tgtPos.X, Y: tgtPos.Y - tgtPos.Height/2},
-			})
-		}
+		// Fallback: draw straight line between node centers (bottom → top)
+		renderDagreEdge(&b, []Point{
+			{X: srcPos.X, Y: srcPos.Y + srcPos.Height/2},
+			{X: tgtPos.X, Y: tgtPos.Y - tgtPos.Height/2},
+		})
 	}
 
 	b.WriteString("</svg>\n")
@@ -326,9 +372,10 @@ func renderDagreContainer(b *strings.Builder, n *sgraph.Node, pos NodePosition) 
 		dashAttr = ` stroke-dasharray="6,3"`
 	}
 
-	// Container border
-	b.WriteString(fmt.Sprintf(`<rect x="%.0f" y="%.0f" width="%.0f" height="%.0f" rx="8" fill="%s" stroke="%s" stroke-width="2"%s/>`,
-		x, y, pos.Width, pos.Height, fill, stroke, dashAttr))
+	// Container border — with CSS class for dark mode
+	cssClass := dagreContainerCSSClass(n)
+	fmt.Fprintf(b, `<rect class="%s" x="%.0f" y="%.0f" width="%.0f" height="%.0f" rx="8" fill="%s" stroke="%s" stroke-width="2"%s/>`,
+		cssClass, x, y, pos.Width, pos.Height, fill, stroke, dashAttr)
 	b.WriteString("\n")
 
 	// Label with optional icon (top-left)
@@ -337,6 +384,7 @@ func renderDagreContainer(b *strings.Builder, n *sgraph.Node, pos NodePosition) 
 		label = n.Service + " — " + n.Label
 	}
 	labelColor := dagreContainerLabelColor(n)
+	labelCSSClass := dagreContainerLabelCSSClass(n)
 
 	// Check for group icon
 	groupIcon := containerGroupIcon(n)
@@ -344,15 +392,14 @@ func renderDagreContainer(b *strings.Builder, n *sgraph.Node, pos NodePosition) 
 	if groupIcon != "" {
 		iconData := embedIconBase64(groupIcon)
 		if iconData != "" {
-			// Render small icon before label
 			fmt.Fprintf(b, `<image href="%s" x="%.0f" y="%.0f" width="24" height="24"/>`, iconData, x+8, y+4)
 			b.WriteString("\n")
-			labelX = x + 38 // shift label right of icon
+			labelX = x + 38
 		}
 	}
 
-	fmt.Fprintf(b, `<text x="%.0f" y="%.0f" font-size="13" font-weight="600" fill="%s">%s</text>`,
-		labelX, y+22, labelColor, escapeXMLStr(label))
+	fmt.Fprintf(b, `<text class="%s" x="%.0f" y="%.0f" font-size="13" font-weight="600" fill="%s">%s</text>`,
+		labelCSSClass, labelX, y+22, labelColor, escapeXMLStr(label))
 	b.WriteString("\n")
 }
 
@@ -405,8 +452,8 @@ func renderDagreNode(b *strings.Builder, n *sgraph.Node, pos NodePosition) {
 		// Split multi-line labels
 		lines := strings.Split(label, "\n")
 		for i, line := range lines {
-			b.WriteString(fmt.Sprintf(`<text x="%.0f" y="%.0f" text-anchor="middle" font-size="11" fill="#2D3436">%s</text>`,
-				cx, labelY+float64(i)*14, escapeXMLStr(line)))
+			fmt.Fprintf(b, `<text class="sg-text" x="%.0f" y="%.0f" text-anchor="middle" font-size="11" fill="#2D3436">%s</text>`,
+				cx, labelY+float64(i)*14, escapeXMLStr(line))
 			b.WriteString("\n")
 		}
 	} else {
@@ -425,8 +472,8 @@ func renderDagreNode(b *strings.Builder, n *sgraph.Node, pos NodePosition) {
 			stroke = "#FB8C00"
 		}
 
-		b.WriteString(fmt.Sprintf(`<rect x="%.0f" y="%.0f" width="%.0f" height="%.0f" rx="6" fill="%s" stroke="%s" stroke-width="1.5"/>`,
-			x, y, pos.Width, pos.Height, fill, stroke))
+		fmt.Fprintf(b, `<rect class="sg-node-box" x="%.0f" y="%.0f" width="%.0f" height="%.0f" rx="6" fill="%s" stroke="%s" stroke-width="1.5"/>`,
+			x, y, pos.Width, pos.Height, fill, stroke)
 		b.WriteString("\n")
 
 		label := n.Label
@@ -439,9 +486,117 @@ func renderDagreNode(b *strings.Builder, n *sgraph.Node, pos NodePosition) {
 		if len(label) > 24 {
 			label = label[:21] + "..."
 		}
-		b.WriteString(fmt.Sprintf(`<text x="%.0f" y="%.0f" text-anchor="middle" font-size="11" font-weight="500" fill="#2D3436">%s</text>`,
-			cx, cy+4, escapeXMLStr(label)))
+		fmt.Fprintf(b, `<text class="sg-text" x="%.0f" y="%.0f" text-anchor="middle" font-size="11" font-weight="500" fill="#2D3436">%s</text>`,
+			cx, cy+4, escapeXMLStr(label))
 		b.WriteString("\n")
+	}
+}
+
+// getIconPath maps resource types to embedded icon file paths.
+func getIconPath(n *sgraph.Node) string {
+	switch n.ResourceType {
+	// AWS Compute
+	case "aws_instance":
+		return "aws/Arch_Compute/Arch_Amazon-EC2_64.png"
+	case "aws_lambda_function":
+		return "aws/Arch_Compute/Arch_AWS-Lambda_64.png"
+	case "aws_autoscaling_group":
+		return "aws/Arch_Compute/Arch_Amazon-EC2-Auto-Scaling_64.png"
+
+	// AWS Containers
+	case "aws_ecs_cluster", "aws_ecs_service", "aws_ecs_task_definition":
+		return "aws/Arch_Containers/Arch_Amazon-Elastic-Container-Service_64.png"
+	case "aws_eks_cluster", "aws_eks_node_group":
+		return "aws/Arch_Containers/Arch_Amazon-Elastic-Kubernetes-Service_64.png"
+
+	// AWS Networking
+	case "aws_lb":
+		return "aws/Arch_Networking-Content-Delivery/Arch_Elastic-Load-Balancing_64.png"
+	case "aws_route53_zone", "aws_route53_record":
+		return "aws/Arch_Networking-Content-Delivery/Arch_Amazon-Route-53_64.png"
+	case "aws_cloudfront_distribution":
+		return "aws/Arch_Networking-Content-Delivery/Arch_Amazon-CloudFront_64.png"
+	case "aws_api_gateway_rest_api", "aws_apigatewayv2_api":
+		return "aws/Arch_Networking-Content-Delivery/Arch_Amazon-API-Gateway_64.png"
+
+	// AWS Storage
+	case "aws_s3_bucket":
+		return "aws/Arch_Storage/Arch_Amazon-Simple-Storage-Service_64.png"
+	case "aws_ebs_volume":
+		return "aws/Arch_Storage/Arch_Amazon-Elastic-Block-Store_64.png"
+
+	// AWS Database
+	case "aws_db_instance", "aws_rds_cluster":
+		return "aws/Arch_Databases/Arch_Amazon-RDS_64.png"
+	case "aws_dynamodb_table":
+		return "aws/Arch_Databases/Arch_Amazon-DynamoDB_64.png"
+	case "aws_elasticache_cluster", "aws_elasticache_replication_group":
+		return "aws/Arch_Databases/Arch_Amazon-ElastiCache_64.png"
+
+	// AWS Security
+	case "aws_iam_role", "aws_iam_policy", "aws_iam_user", "aws_iam_instance_profile":
+		return "aws/Arch_Security-Identity/Arch_AWS-Identity-and-Access-Management_64.png"
+	case "aws_kms_key":
+		return "aws/Arch_Security-Identity/Arch_AWS-Key-Management-Service_64.png"
+	case "aws_secretsmanager_secret":
+		return "aws/Arch_Security-Identity/Arch_AWS-Secrets-Manager_64.png"
+
+	// AWS Messaging
+	case "aws_sqs_queue":
+		return "aws/Arch_Application-Integration/Arch_Amazon-Simple-Queue-Service_64.png"
+	case "aws_sns_topic", "aws_sns_topic_subscription":
+		return "aws/Arch_Application-Integration/Arch_Amazon-Simple-Notification-Service_64.png"
+
+	// AWS Monitoring
+	case "aws_cloudwatch_log_group", "aws_cloudwatch_metric_alarm":
+		return "aws/Arch_Management-Tools/Arch_Amazon-CloudWatch_64.png"
+
+	// Azure Compute
+	case "azurerm_virtual_machine", "azurerm_linux_virtual_machine", "azurerm_windows_virtual_machine":
+		return "azure/compute/10021-icon-service-Virtual-Machine.svg"
+	case "azurerm_kubernetes_cluster":
+		return "azure/containers/10023-icon-service-Kubernetes-Services.svg"
+
+	// Azure Networking
+	case "azurerm_virtual_network":
+		return "azure/networking/10061-icon-service-Virtual-Networks.svg"
+	case "azurerm_network_security_group":
+		return "azure/networking/10067-icon-service-Network-Security-Groups.svg"
+	case "azurerm_public_ip":
+		return "azure/networking/10069-icon-service-Public-IP-Addresses.svg"
+
+	// Azure Database
+	case "azurerm_mssql_server", "azurerm_mssql_database":
+		return "azure/databases/10130-icon-service-SQL-Database.svg"
+
+	// Azure Storage
+	case "azurerm_storage_account":
+		return "azure/storage/10086-icon-service-Storage-Accounts.svg"
+
+	// Azure General
+	case "azurerm_resource_group":
+		return "azure/general/10007-icon-service-Resource-Groups.svg"
+
+	// GCP Compute
+	case "google_compute_instance":
+		return "gcp/compute_engine/compute_engine.svg"
+	case "google_container_cluster":
+		return "gcp/google_kubernetes_engine/google_kubernetes_engine.svg"
+	case "google_cloudfunctions_function", "google_cloudfunctions2_function":
+		return "gcp/cloud_functions/cloud_functions.svg"
+
+	// GCP Storage/DB
+	case "google_storage_bucket":
+		return "gcp/cloud_storage/cloud_storage.svg"
+	case "google_sql_database_instance":
+		return "gcp/cloud_sql/cloud_sql.svg"
+
+	// GCP Networking
+	case "google_compute_network":
+		return "gcp/virtual_private_cloud/virtual_private_cloud.svg"
+
+	default:
+		return ""
 	}
 }
 
@@ -450,15 +605,33 @@ func renderDagreEdge(b *strings.Builder, points []Point) {
 		return
 	}
 
-	// Dagre points are polyline waypoints — render as straight line segments
-	// This matches dagre-d3's default (d3.curveLinear)
 	var d strings.Builder
 	fmt.Fprintf(&d, "M %.1f,%.1f", points[0].X, points[0].Y)
-	for i := 1; i < len(points); i++ {
-		fmt.Fprintf(&d, " L %.1f,%.1f", points[i].X, points[i].Y)
+
+	if len(points) == 2 {
+		// Simple straight line
+		fmt.Fprintf(&d, " L %.1f,%.1f", points[1].X, points[1].Y)
+	} else {
+		// Smooth cubic bezier through waypoints
+		// Use Catmull-Rom to cubic bezier conversion for natural curves
+		for i := 1; i < len(points); i++ {
+			prev := points[max(0, i-2)]
+			p0 := points[i-1]
+			p1 := points[i]
+			next := points[min(len(points)-1, i+1)]
+
+			// Control points: 1/3 and 2/3 along the segment, influenced by neighbors
+			cp1x := p0.X + (p1.X-prev.X)/6
+			cp1y := p0.Y + (p1.Y-prev.Y)/6
+			cp2x := p1.X - (next.X-p0.X)/6
+			cp2y := p1.Y - (next.Y-p0.Y)/6
+
+			fmt.Fprintf(&d, " C %.1f,%.1f %.1f,%.1f %.1f,%.1f",
+				cp1x, cp1y, cp2x, cp2y, p1.X, p1.Y)
+		}
 	}
 
-	fmt.Fprintf(b, `<path d="%s" fill="none" stroke="#7B8894" stroke-width="1.5" marker-end="url(#arrowhead)"/>`, d.String())
+	fmt.Fprintf(b, `<path class="sg-edge" d="%s" fill="none" stroke="#7B8894" stroke-width="1.5" marker-end="url(#arrowhead)"/>`, d.String())
 	b.WriteString("\n")
 }
 
@@ -536,6 +709,36 @@ func dagreContainerLabelColor(n *sgraph.Node) string {
 		return "#1565C0"
 	default:
 		return "#495057"
+	}
+}
+
+func dagreContainerCSSClass(n *sgraph.Node) string {
+	switch n.ResourceType {
+	case "aws_cloud":
+		return "sg-container-cloud"
+	case "aws_vpc":
+		return "sg-container-vpc"
+	case "aws_subnet":
+		return "sg-container-subnet"
+	case "aws_security_group":
+		return "sg-container-sg"
+	default:
+		return "sg-container-default"
+	}
+}
+
+func dagreContainerLabelCSSClass(n *sgraph.Node) string {
+	switch n.ResourceType {
+	case "aws_cloud":
+		return "sg-label-cloud"
+	case "aws_vpc":
+		return "sg-label-vpc"
+	case "aws_subnet":
+		return "sg-label-subnet"
+	case "aws_security_group":
+		return "sg-label-sg"
+	default:
+		return "sg-label-default"
 	}
 }
 

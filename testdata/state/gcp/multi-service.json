@@ -1,0 +1,80 @@
+{
+  "format_version": "1.0",
+  "terraform_version": "1.9.0",
+  "values": {
+    "root_module": {
+      "resources": [
+        {
+          "address": "google_compute_network.main",
+          "mode": "managed",
+          "type": "google_compute_network",
+          "name": "main",
+          "provider_name": "registry.terraform.io/hashicorp/google",
+          "schema_version": 0,
+          "values": { "id": "projects/myproject/global/networks/prod-vpc", "name": "prod-vpc", "auto_create_subnetworks": false, "project": "myproject" },
+          "depends_on": []
+        },
+        {
+          "address": "google_compute_subnetwork.web",
+          "mode": "managed",
+          "type": "google_compute_subnetwork",
+          "name": "web",
+          "provider_name": "registry.terraform.io/hashicorp/google",
+          "schema_version": 0,
+          "values": { "id": "projects/myproject/regions/europe-west1/subnetworks/web", "name": "web-subnet", "ip_cidr_range": "10.0.1.0/24", "region": "europe-west1", "network": "projects/myproject/global/networks/prod-vpc" },
+          "depends_on": ["google_compute_network.main"]
+        },
+        {
+          "address": "google_compute_instance.web",
+          "mode": "managed",
+          "type": "google_compute_instance",
+          "name": "web",
+          "provider_name": "registry.terraform.io/hashicorp/google",
+          "schema_version": 0,
+          "values": { "id": "projects/myproject/zones/europe-west1-b/instances/web", "name": "web-instance", "machine_type": "e2-medium", "zone": "europe-west1-b" },
+          "depends_on": ["google_compute_subnetwork.web"]
+        },
+        {
+          "address": "google_container_cluster.main",
+          "mode": "managed",
+          "type": "google_container_cluster",
+          "name": "main",
+          "provider_name": "registry.terraform.io/hashicorp/google",
+          "schema_version": 0,
+          "values": { "id": "projects/myproject/locations/europe-west1/clusters/prod-gke", "name": "prod-gke", "location": "europe-west1", "initial_node_count": 3 },
+          "depends_on": ["google_compute_subnetwork.web"]
+        },
+        {
+          "address": "google_sql_database_instance.main",
+          "mode": "managed",
+          "type": "google_sql_database_instance",
+          "name": "main",
+          "provider_name": "registry.terraform.io/hashicorp/google",
+          "schema_version": 0,
+          "values": { "id": "projects/myproject/instances/prod-db", "name": "prod-db", "database_version": "POSTGRES_15", "region": "europe-west1" },
+          "depends_on": []
+        },
+        {
+          "address": "google_storage_bucket.assets",
+          "mode": "managed",
+          "type": "google_storage_bucket",
+          "name": "assets",
+          "provider_name": "registry.terraform.io/hashicorp/google",
+          "schema_version": 0,
+          "values": { "id": "prod-assets-bucket", "name": "prod-assets", "location": "EU" },
+          "depends_on": []
+        },
+        {
+          "address": "google_cloudfunctions_function.api",
+          "mode": "managed",
+          "type": "google_cloudfunctions_function",
+          "name": "api",
+          "provider_name": "registry.terraform.io/hashicorp/google",
+          "schema_version": 0,
+          "values": { "id": "projects/myproject/locations/europe-west1/functions/api", "name": "api-function", "runtime": "go121", "region": "europe-west1" },
+          "depends_on": []
+        }
+      ]
+    }
+  }
+}

@@ -1,8 +1,34 @@
 <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="460" height="152" font-family="Sans-Serif">
-<rect width="460" height="152" fill="#FFFFFF"/>
-<defs><marker id="arrowhead" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#7B8894"/></marker></defs>
-<rect x="40" y="40" width="140" height="52" rx="6" fill="#FFFFFF" stroke="#DEE2E6" stroke-width="1.5"/>
-<text x="110" y="70" text-anchor="middle" font-size="11" font-weight="500" fill="#2D3436">web</text>
-<rect x="260" y="40" width="140" height="52" rx="6" fill="#FFFFFF" stroke="#DEE2E6" stroke-width="1.5"/>
-<text x="330" y="70" text-anchor="middle" font-size="11" font-weight="500" fill="#2D3436">database</text>
+<style>
+  .sg-bg { fill: #FFFFFF; }
+  .sg-text { fill: #2D3436; }
+  .sg-text-sm { fill: #2D3436; }
+  .sg-edge { stroke: #7B8894; }
+  .sg-arrow { fill: #7B8894; }
+  .sg-node-box { fill: #FFFFFF; stroke: #DEE2E6; }
+  @media (prefers-color-scheme: dark) {
+    .sg-bg { fill: #1a1a2e; }
+    .sg-text { fill: #E0E0E0; }
+    .sg-text-sm { fill: #B0B0B0; }
+    .sg-edge { stroke: #9CA3AF; }
+    .sg-arrow { fill: #9CA3AF; }
+    .sg-node-box { fill: #2a2a3e; stroke: #4A5568; }
+    .sg-container-cloud { fill: #1e1e32; stroke: #4A90D9; }
+    .sg-container-vpc { fill: #1e1530; stroke: #A855F7; }
+    .sg-container-subnet { fill: #1a2e1a; stroke: #8BC34A; }
+    .sg-container-sg { fill: #2e1a1a; stroke: #EF5350; }
+    .sg-container-default { fill: #1e1e2e; stroke: #6B7280; }
+    .sg-label-cloud { fill: #4A90D9; }
+    .sg-label-vpc { fill: #C084FC; }
+    .sg-label-subnet { fill: #8BC34A; }
+    .sg-label-sg { fill: #EF5350; }
+    .sg-label-default { fill: #9CA3AF; }
+  }
+</style>
+<rect class="sg-bg" width="460" height="152" fill="#FFFFFF"/>
+<defs><marker id="arrowhead" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto"><polygon class="sg-arrow" points="0 0, 10 3.5, 0 7" fill="#7B8894"/></marker></defs>
+<rect class="sg-node-box" x="40" y="40" width="140" height="52" rx="6" fill="#FFFFFF" stroke="#DEE2E6" stroke-width="1.5"/>
+<text class="sg-text" x="110" y="70" text-anchor="middle" font-size="11" font-weight="500" fill="#2D3436">web</text>
+<rect class="sg-node-box" x="260" y="40" width="140" height="52" rx="6" fill="#FFFFFF" stroke="#DEE2E6" stroke-width="1.5"/>
+<text class="sg-text" x="330" y="70" text-anchor="middle" font-size="11" font-weight="500" fill="#2D3436">database</text>
 </svg>

@@ -1,0 +1,90 @@
+{
+  "format_version": "1.0",
+  "terraform_version": "1.9.0",
+  "values": {
+    "root_module": {
+      "resources": [
+        {
+          "address": "azurerm_resource_group.main",
+          "mode": "managed",
+          "type": "azurerm_resource_group",
+          "name": "main",
+          "provider_name": "registry.terraform.io/hashicorp/azurerm",
+          "schema_version": 0,
+          "values": { "id": "/subscriptions/000/resourceGroups/prod-rg", "name": "prod-rg", "location": "westeurope" },
+          "depends_on": []
+        },
+        {
+          "address": "azurerm_virtual_network.main",
+          "mode": "managed",
+          "type": "azurerm_virtual_network",
+          "name": "main",
+          "provider_name": "registry.terraform.io/hashicorp/azurerm",
+          "schema_version": 0,
+          "values": { "id": "/subscriptions/000/resourceGroups/prod-rg/providers/Microsoft.Network/virtualNetworks/prod-vnet", "name": "prod-vnet", "address_space": ["10.0.0.0/16"], "location": "westeurope" },
+          "depends_on": ["azurerm_resource_group.main"]
+        },
+        {
+          "address": "azurerm_subnet.web",
+          "mode": "managed",
+          "type": "azurerm_subnet",
+          "name": "web",
+          "provider_name": "registry.terraform.io/hashicorp/azurerm",
+          "schema_version": 0,
+          "values": { "id": "/subscriptions/000/rg/vnet/subnets/web", "name": "web-subnet", "address_prefixes": ["10.0.1.0/24"], "virtual_network_name": "prod-vnet" },
+          "depends_on": ["azurerm_virtual_network.main"]
+        },
+        {
+          "address": "azurerm_subnet.db",
+          "mode": "managed",
+          "type": "azurerm_subnet",
+          "name": "db",
+          "provider_name": "registry.terraform.io/hashicorp/azurerm",
+          "schema_version": 0,
+          "values": { "id": "/subscriptions/000/rg/vnet/subnets/db", "name": "db-subnet", "address_prefixes": ["10.0.2.0/24"], "virtual_network_name": "prod-vnet" },
+          "depends_on": ["azurerm_virtual_network.main"]
+        },
+        {
+          "address": "azurerm_linux_virtual_machine.web",
+          "mode": "managed",
+          "type": "azurerm_linux_virtual_machine",
+          "name": "web",
+          "provider_name": "registry.terraform.io/hashicorp/azurerm",
+          "schema_version": 0,
+          "values": { "id": "/subscriptions/000/rg/vm/web-vm", "name": "web-vm", "vm_size": "Standard_B2s", "location": "westeurope", "subnet_id": "/subscriptions/000/rg/vnet/subnets/web" },
+          "depends_on": ["azurerm_subnet.web"]
+        },
+        {
+          "address": "azurerm_mssql_server.main",
+          "mode": "managed",
+          "type": "azurerm_mssql_server",
+          "name": "main",
+          "provider_name": "registry.terraform.io/hashicorp/azurerm",
+          "schema_version": 0,
+          "values": { "id": "/subscriptions/000/rg/sql/prod-sql", "name": "prod-sql-server", "location": "westeurope" },
+          "depends_on": ["azurerm_subnet.db"]
+        },
+        {
+          "address": "azurerm_storage_account.data",
+          "mode": "managed",
+          "type": "azurerm_storage_account",
+          "name": "data",
+          "provider_name": "registry.terraform.io/hashicorp/azurerm",
+          "schema_version": 0,
+          "values": { "id": "/subscriptions/000/rg/storage/proddata", "name": "proddatastorage", "location": "westeurope" },
+          "depends_on": ["azurerm_resource_group.main"]
+        },
+        {
+          "address": "azurerm_kubernetes_cluster.main",
+          "mode": "managed",
+          "type": "azurerm_kubernetes_cluster",
+          "name": "main",
+          "provider_name": "registry.terraform.io/hashicorp/azurerm",
+          "schema_version": 0,
+          "values": { "id": "/subscriptions/000/rg/aks/prod-aks", "name": "prod-aks", "dns_prefix": "prodaks", "kubernetes_version": "1.29", "location": "westeurope" },
+          "depends_on": ["azurerm_subnet.web"]
+        }
+      ]
+    }
+  }
+}

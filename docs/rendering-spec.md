@@ -1,8 +1,10 @@
 ---
-description: "Spec for rendering quality improvements — tracking remaining issues after dagre renderer implementation"
+description: "Spec for stackgraph dagre renderer — tracking rendering quality and remaining improvements"
 status: in-progress
-status_description: "Dagre renderer working with real icons and nesting. Remaining: edge quality, layout tuning, D2 cleanup."
+status_description: "Core rendering working — containers, icons, flow edges, z-ordering all functional. Edge routing and dark mode remaining."
 author: Michiel VH
+goal: "Production-quality static infrastructure diagrams with embedded icons, nested containers, and auto dark mode"
+priority: high
 created: 2026-04-03
 ---
 
@@ -10,54 +12,95 @@ created: 2026-04-03
 
 ## Context
 
-stackgraph has three renderers. The dagre renderer (custom SVG via dagre.js + goja) is the winner — it's the only one that produces self-contained SVGs with base64-embedded cloud provider icons, no system dependencies.
+stackgraph uses a custom dagre.js renderer (via goja Go JS runtime) that produces self-contained SVGs with base64-embedded cloud provider icons. This is the primary renderer — D2 and go-graphviz are being removed.
 
-**Current state:**
-- AWS Cloud boundary with official icon: working
-- VPC/Subnet/SG container nesting with colored borders and icons: working
-- Base64-embedded AWS Architecture Icons on resource nodes: working
-- Compound graph layout via dagre.js: working
+## Current State (working)
 
-**Remaining issues:**
+- [x] AWS Cloud boundary with official AWS Cloud icon
+- [x] VPC container with purple border (#8C4FFF) and VPC icon
+- [x] Subnet containers with green fill (#F2F7EE) and subnet icon
+- [x] Security Group containers with red dashed border (#E53935) and shield icon
+- [x] Resource nodes with real AWS Architecture Icons (base64-embedded)
+- [x] Compound graph layout via dagre.js (compound: true, setParent)
+- [x] Container z-ordering — outermost drawn first (back), innermost last (front)
+- [x] Inferred flow edges between resources (ALB→EC2, EC2→RDS, Lambda→S3, etc.)
+- [x] Edge filtering — ancestor/descendant containment edges hidden, flow edges shown
+- [x] Self-contained SVG — no external file references, portable
+- [x] Three-tier architecture diagram rendering correctly
+
+## Remaining Issues
+
+### Edge routing quality
 
 | Issue | Impact | Root Cause |
 |-------|--------|------------|
-| Too few edges visible | Diagram looks disconnected | Edge filter suppresses all edges to/from container nodes. Need to keep leaf-to-leaf flow edges. |
-| Layout too horizontal for flat resources | S3, Lambda, Route53 spread in one row | No vertical hierarchy edges between standalone resources |
-| Dagre can't route edges around containers | Edges cross through container borders | Known dagre limitation — no obstacle avoidance |
-| D2 and Graphviz renderers still in codebase | Binary size bloat, maintenance burden | Need to remove D2 dependency and go-graphviz |
+| Lines cross through containers | Visual clutter on multi-service | Dagre polyline waypoints are straight segments, no obstacle avoidance |
+| Multiple edges converge/diverge at same point | Messy line intersections | Dagre routes without separation between parallel edges |
+
+**Approach:** Smooth the polyline waypoints into cubic bezier curves. This won't avoid obstacles but will make line crossings look cleaner.
+
+### Dark mode support
+
+SVG can auto-detect light/dark mode via CSS `@media (prefers-color-scheme: dark)`. Single SVG adapts automatically.
+
+**Light mode (current):**
+- Background: #FFFFFF
+- Text: #2D3436
+- Edge: #7B8894
+- AWS Cloud border: #232F3E
+
+**Dark mode (new):**
+- Background: #1a1a2e
+- Text: #E0E0E0
+- Edge: #9CA3AF
+- AWS Cloud border: #4A90D9
+- Container fills: darken by 70% + increase saturation
+
+### Cleanup
+
+- Remove D2 renderer (`pkg/output/svg.go`) and `oss.terrastruct.com/d2` dependency
+- Remove Graphviz renderer (`pkg/output/svg_graphviz.go`) and `github.com/goccy/go-graphviz` dependency
+- Make dagre the default (and only) SVG renderer
+- Run `go mod tidy` to purge unused deps
 
 ## Acceptance Criteria
 
-- [ ] Multi-service example shows VPC with nested subnets, SGs, and resources visible as colored containers
-- [ ] Edges between leaf resources (EC2 → RDS, ALB → EC2) render as visible arrows
-- [ ] Standalone resources (S3, Lambda, Route53) positioned logically outside VPC
-- [ ] D2 renderer and `oss.terrastruct.com/d2` dependency removed from go.mod
-- [ ] go-graphviz renderer and `github.com/goccy/go-graphviz` dependency removed from go.mod
-- [ ] `--renderer dagre` becomes the default (or only) SVG renderer
-- [ ] Binary size reduced after removing D2 and go-graphviz dependencies
-- [ ] rendering-spec.md updated with final status
+### Edge quality
+- [ ] Multi-service diagram has clean edge lines (no messy crossings)
+- [ ] Edges use smooth curves instead of sharp polyline segments
+
+### Dark mode
+- [ ] SVG contains `@media (prefers-color-scheme: dark)` CSS block
+- [ ] Background, text, edge, and container colors swap automatically
+- [ ] Icons remain visible in dark mode (they have transparent backgrounds)
+- [ ] Dark mode looks professional when viewed in dark-themed browser/IDE
+
+### Cleanup
+- [ ] D2 renderer removed
+- [ ] go-graphviz renderer removed
+- [ ] `go mod tidy` removes D2 and go-graphviz transitive dependencies
+- [ ] Binary size reduced significantly
+- [ ] `--renderer` flag removed, dagre is the only SVG renderer
+- [ ] All SVG tests updated to test dagre output
 
 ## Implementation Tasks
 
-### Edge improvements
-- [ ] Keep edges between leaf nodes even if they cross container boundaries
-- [ ] Only suppress edges that are direct parent→child containment (already shown via nesting)
-- [ ] Add edge labels for meaningful connections (e.g., "port 5432" for DB connections)
+- [ ] Add CSS `<style>` block with `@media (prefers-color-scheme: dark)` to SVG header
+- [ ] Assign CSS classes to containers/nodes/edges for dark mode targeting
+- [ ] Smooth edge paths — convert polyline waypoints to cubic bezier curves
+- [ ] Remove `pkg/output/svg.go` and `pkg/output/svg_graphviz.go`
+- [ ] Remove D2 and go-graphviz from go.mod
+- [ ] Update CLI to remove `--renderer` flag
+- [ ] Update `pkg/output/svg_test.go` for dagre-only output
+- [ ] Regenerate all example SVGs
+- [ ] Update README.md and architecture.md
 
-### Cleanup
-- [ ] Remove `pkg/output/svg.go` (D2 renderer)
-- [ ] Remove `pkg/output/svg_graphviz.go` (Graphviz renderer)
-- [ ] Remove D2 and go-graphviz from go.mod/go.sum
-- [ ] Update `--renderer` flag: remove d2/graphviz options, make dagre the default
-- [ ] Clean up unused D2/Graphviz example SVGs
-- [ ] Run `go mod tidy` to remove unused dependencies
+## Test Plan
 
-### Layout tuning
-- [ ] Increase dagre `ranksep` for better vertical spacing
-- [ ] Add edge weight support to dagre (heavier edges = closer nodes)
-- [ ] Consider separate layout for VPC-internal vs external resources
-
-### Test updates
-- [ ] Update SVG tests to validate dagre output (base64 icons, self-contained)
-- [ ] Remove D2/Graphviz-specific tests
+| Criterion | Test Type | Location |
+|-----------|-----------|----------|
+| SVG contains dark mode CSS media query | Unit | `pkg/output/svg_dagre_test.go` |
+| SVG has no external file references | Unit | `pkg/output/svg_dagre_test.go` |
+| SVG contains base64 icon data | Unit | `pkg/output/svg_dagre_test.go` |
+| Container z-order correct (outermost first) | Unit | `pkg/output/svg_dagre_test.go` |
+| Empty graph renders placeholder | Unit | `pkg/output/svg_dagre_test.go` |

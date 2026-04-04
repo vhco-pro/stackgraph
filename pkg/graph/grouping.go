@@ -64,8 +64,118 @@ func (g *Graph) ApplyGrouping() {
 	// to the same parent as the resource and put the resource inside the SG.
 	g.assignSecurityGroupContainment()
 
-	// Phase 5: Add cloud provider boundary around all top-level provider resources
+	// Phase 5: Infer data flow edges based on resource type relationships.
+	// Terraform depends_on shows build dependencies, not runtime data flow.
+	// We add synthetic edges for common patterns (ALB → EC2, EC2 → RDS, etc.)
+	g.inferFlowEdges()
+
+	// Phase 6: Add cloud provider boundary around all top-level provider resources
 	g.addCloudBoundary()
+}
+
+// inferFlowEdges adds synthetic data-flow edges between resources based on
+// common architectural patterns. These are the edges that make diagrams useful.
+func (g *Graph) inferFlowEdges() {
+	g.ensureIndex()
+
+	// Collect resources by type for pairing
+	byType := make(map[string][]*Node)
+	for _, n := range g.Nodes {
+		if n.Type == NodeTypeResource || n.Type == NodeTypeData {
+			byType[n.ResourceType] = append(byType[n.ResourceType], n)
+		}
+	}
+
+	// Common flow patterns: source type → target type
+	// Direction represents data/traffic flow, not dependency
+	patterns := []struct {
+		srcType string
+		tgtType string
+		label   string
+	}{
+		// Web tier flows
+		{"aws_lb", "aws_instance", ""},
+		{"aws_lb", "aws_ecs_service", ""},
+		{"aws_cloudfront_distribution", "aws_lb", ""},
+		{"aws_cloudfront_distribution", "aws_s3_bucket", ""},
+		{"aws_route53_record", "aws_lb", ""},
+		{"aws_route53_record", "aws_cloudfront_distribution", ""},
+		{"aws_api_gateway_rest_api", "aws_lambda_function", ""},
+		{"aws_apigatewayv2_api", "aws_lambda_function", ""},
+
+		// App → Database flows
+		{"aws_instance", "aws_db_instance", ""},
+		{"aws_instance", "aws_rds_cluster", ""},
+		{"aws_instance", "aws_dynamodb_table", ""},
+		{"aws_instance", "aws_elasticache_cluster", ""},
+		{"aws_ecs_service", "aws_db_instance", ""},
+		{"aws_ecs_service", "aws_rds_cluster", ""},
+		{"aws_lambda_function", "aws_dynamodb_table", ""},
+		{"aws_lambda_function", "aws_db_instance", ""},
+
+		// Storage flows
+		{"aws_instance", "aws_s3_bucket", ""},
+		{"aws_lambda_function", "aws_s3_bucket", ""},
+
+		// Messaging flows
+		{"aws_lambda_function", "aws_sqs_queue", ""},
+		{"aws_lambda_function", "aws_sns_topic", ""},
+		{"aws_instance", "aws_sqs_queue", ""},
+
+		// Azure flows
+		{"azurerm_linux_virtual_machine", "azurerm_mssql_server", ""},
+		{"azurerm_linux_virtual_machine", "azurerm_mssql_database", ""},
+		{"azurerm_linux_virtual_machine", "azurerm_storage_account", ""},
+		{"azurerm_windows_virtual_machine", "azurerm_mssql_server", ""},
+		{"azurerm_virtual_machine", "azurerm_mssql_server", ""},
+		{"azurerm_virtual_machine", "azurerm_storage_account", ""},
+		{"azurerm_kubernetes_cluster", "azurerm_mssql_server", ""},
+		{"azurerm_kubernetes_cluster", "azurerm_storage_account", ""},
+		{"azurerm_kubernetes_cluster", "azurerm_cosmosdb_account", ""},
+		{"azurerm_application_gateway", "azurerm_linux_virtual_machine", ""},
+		{"azurerm_application_gateway", "azurerm_kubernetes_cluster", ""},
+
+		// GCP flows
+		{"google_compute_instance", "google_sql_database_instance", ""},
+		{"google_compute_instance", "google_storage_bucket", ""},
+		{"google_container_cluster", "google_sql_database_instance", ""},
+		{"google_container_cluster", "google_storage_bucket", ""},
+		{"google_cloudfunctions_function", "google_sql_database_instance", ""},
+		{"google_cloudfunctions_function", "google_storage_bucket", ""},
+		{"google_cloudfunctions2_function", "google_sql_database_instance", ""},
+		{"google_cloudfunctions2_function", "google_storage_bucket", ""},
+	}
+
+	existingEdges := make(map[string]bool)
+	for _, e := range g.Edges {
+		existingEdges[e.Source+"->"+e.Target] = true
+		existingEdges[e.Target+"->"+e.Source] = true
+	}
+
+	for _, p := range patterns {
+		srcs := byType[p.srcType]
+		tgts := byType[p.tgtType]
+		if len(srcs) == 0 || len(tgts) == 0 {
+			continue
+		}
+
+		for _, src := range srcs {
+			for _, tgt := range tgts {
+				key := src.ID + "->" + tgt.ID
+				if existingEdges[key] {
+					continue
+				}
+				g.AddEdge(&Edge{
+					Source: src.ID,
+					Target: tgt.ID,
+					Type:   "flow",
+					Label:  p.label,
+				})
+				existingEdges[key] = true
+				existingEdges[tgt.ID+"->"+src.ID] = true
+			}
+		}
+	}
 }
 
 // assignSecurityGroupContainment moves resources inside their security groups.
