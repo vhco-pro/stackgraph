@@ -23,6 +23,7 @@ func newGenerateCmd() *cobra.Command {
 		outputFile string
 		inputType  string
 		terragrunt bool
+		layout     string
 	)
 
 	cmd := &cobra.Command{
@@ -91,7 +92,12 @@ func newGenerateCmd() *cobra.Command {
 			case "dot":
 				out, err = output.RenderDOT(g)
 			case "svg":
-				out, err = output.RenderDagreSVG(g)
+				switch layout {
+				case "elk":
+					out, err = output.RenderElkSVG(g)
+				default:
+					out, err = output.RenderDagreSVG(g)
+				}
 			default:
 				return fmt.Errorf("unsupported format: %s (supported: json, dot, svg)", formatFlag)
 			}
@@ -113,6 +119,7 @@ func newGenerateCmd() *cobra.Command {
 	cmd.Flags().StringVarP(&outputFile, "output", "o", "", "Output file (default: stdout)")
 	cmd.Flags().StringVar(&inputType, "input-type", "", "Explicit input type: state, plan, dot (default: auto-detect)")
 	cmd.Flags().BoolVar(&terragrunt, "terragrunt", false, "Parse source directory as a Terragrunt project")
+	cmd.Flags().StringVar(&layout, "layout", "dagre", "Layout engine: dagre (default) or elk (orthogonal edges)")
 
 	return cmd
 }
