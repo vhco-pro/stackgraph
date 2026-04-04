@@ -50,7 +50,7 @@ func RenderDOT(g *graph.Graph) ([]byte, error) {
 		if e.Label != "" {
 			label = fmt.Sprintf(" [label=%q]", e.Label)
 		}
-		b.WriteString(fmt.Sprintf("  %q -> %q%s;\n", e.Source, e.Target, label))
+		fmt.Fprintf(&b, "  %q -> %q%s;\n", e.Source, e.Target, label)
 	}
 
 	b.WriteString("}\n")
@@ -61,10 +61,10 @@ func RenderDOT(g *graph.Graph) ([]byte, error) {
 func writeSubgraph(b *strings.Builder, gn *graph.Node, g *graph.Graph, groups map[string]*graph.Node, written map[string]bool, depth int) {
 	indent := strings.Repeat("  ", depth)
 	// Graphviz requires subgraph names to start with "cluster_"
-	b.WriteString(fmt.Sprintf("%ssubgraph \"cluster_%s\" {\n", indent, gn.ID))
-	b.WriteString(fmt.Sprintf("%s  label=%q;\n", indent, dotNodeLabel(gn)))
-	b.WriteString(fmt.Sprintf("%s  style=dashed;\n", indent))
-	b.WriteString(fmt.Sprintf("%s  color=gray;\n", indent))
+	fmt.Fprintf(b, "%ssubgraph \"cluster_%s\" {\n", indent, gn.ID)
+	fmt.Fprintf(b, "%s  label=%q;\n", indent, dotNodeLabel(gn))
+	fmt.Fprintf(b, "%s  style=dashed;\n", indent)
+	fmt.Fprintf(b, "%s  color=gray;\n", indent)
 
 	written[gn.ID] = true
 
@@ -81,7 +81,7 @@ func writeSubgraph(b *strings.Builder, gn *graph.Node, g *graph.Graph, groups ma
 		}
 	}
 
-	b.WriteString(fmt.Sprintf("%s}\n", indent))
+	fmt.Fprintf(b, "%s}\n", indent)
 }
 
 func writeNode(b *strings.Builder, n *graph.Node, depth int) {
@@ -91,7 +91,7 @@ func writeNode(b *strings.Builder, n *graph.Node, depth int) {
 	if n.Type == graph.NodeTypeData {
 		shape = "ellipse"
 	}
-	b.WriteString(fmt.Sprintf("%s%q [label=%q, shape=%s];\n", indent, n.ID, label, shape))
+	fmt.Fprintf(b, "%s%q [label=%q, shape=%s];\n", indent, n.ID, label, shape)
 }
 
 func dotNodeLabel(n *graph.Node) string {

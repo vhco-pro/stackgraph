@@ -6,9 +6,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/michielvha/stackgraph/pkg/graph"
-
 	tfjson "github.com/hashicorp/terraform-json"
+	"github.com/michielvha/stackgraph/pkg/graph"
 )
 
 // ParseState parses a terraform/tofu show -json state output and returns a graph.
@@ -118,33 +117,33 @@ func curateAttributes(resourceType string, values map[string]any) map[string]any
 
 	// Resource-type-specific attributes worth keeping for display
 	typeSpecific := map[string][]string{
-		"aws_instance":            {"instance_type", "ami", "availability_zone", "vpc_security_group_ids", "subnet_id"},
-		"aws_vpc":                 {"cidr_block", "enable_dns_support", "enable_dns_hostnames"},
-		"aws_subnet":             {"cidr_block", "availability_zone", "vpc_id", "map_public_ip_on_launch"},
-		"aws_security_group":     {"vpc_id", "description"},
-		"aws_lb":                 {"load_balancer_type", "internal", "subnets"},
-		"aws_lambda_function":    {"runtime", "handler", "memory_size", "timeout"},
-		"aws_s3_bucket":          {"bucket", "region"},
-		"aws_db_instance":        {"engine", "engine_version", "instance_class", "allocated_storage"},
-		"aws_ecs_service":        {"launch_type", "desired_count", "cluster"},
-		"aws_ecs_cluster":        {},
-		"aws_rds_cluster":        {"engine", "engine_version", "database_name"},
-		"aws_route53_record":     {"type", "ttl", "zone_id"},
+		"aws_instance":                {"instance_type", "ami", "availability_zone", "vpc_security_group_ids", "subnet_id"},
+		"aws_vpc":                     {"cidr_block", "enable_dns_support", "enable_dns_hostnames"},
+		"aws_subnet":                  {"cidr_block", "availability_zone", "vpc_id", "map_public_ip_on_launch"},
+		"aws_security_group":          {"vpc_id", "description"},
+		"aws_lb":                      {"load_balancer_type", "internal", "subnets"},
+		"aws_lambda_function":         {"runtime", "handler", "memory_size", "timeout"},
+		"aws_s3_bucket":               {"bucket", "region"},
+		"aws_db_instance":             {"engine", "engine_version", "instance_class", "allocated_storage"},
+		"aws_ecs_service":             {"launch_type", "desired_count", "cluster"},
+		"aws_ecs_cluster":             {},
+		"aws_rds_cluster":             {"engine", "engine_version", "database_name"},
+		"aws_route53_record":          {"type", "ttl", "zone_id"},
 		"aws_cloudfront_distribution": {"enabled", "default_root_object"},
 
-		"azurerm_virtual_machine":      {"vm_size", "location"},
-		"azurerm_resource_group":       {"location"},
-		"azurerm_virtual_network":      {"address_space", "location"},
-		"azurerm_subnet":              {"address_prefixes", "virtual_network_name"},
-		"azurerm_kubernetes_cluster":   {"dns_prefix", "kubernetes_version", "location"},
+		"azurerm_virtual_machine":    {"vm_size", "location"},
+		"azurerm_resource_group":     {"location"},
+		"azurerm_virtual_network":    {"address_space", "location"},
+		"azurerm_subnet":             {"address_prefixes", "virtual_network_name"},
+		"azurerm_kubernetes_cluster": {"dns_prefix", "kubernetes_version", "location"},
 
-		"google_compute_instance":      {"machine_type", "zone"},
-		"google_compute_network":       {"auto_create_subnetworks"},
-		"google_compute_subnetwork":    {"ip_cidr_range", "region", "network"},
-		"google_container_cluster":     {"location", "initial_node_count"},
+		"google_compute_instance":   {"machine_type", "zone"},
+		"google_compute_network":    {"auto_create_subnetworks"},
+		"google_compute_subnetwork": {"ip_cidr_range", "region", "network"},
+		"google_container_cluster":  {"location", "initial_node_count"},
 
-		"proxmox_vm_qemu":             {"target_node", "cores", "memory", "disk_size"},
-		"proxmox_lxc":                 {"target_node", "cores", "memory", "rootfs_size"},
+		"proxmox_vm_qemu": {"target_node", "cores", "memory", "disk_size"},
+		"proxmox_lxc":     {"target_node", "cores", "memory", "rootfs_size"},
 	}
 
 	// Always keep attributes ending in _id (used for implicit edge detection)

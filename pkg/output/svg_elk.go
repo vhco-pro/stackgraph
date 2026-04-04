@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/dop251/goja"
+	"github.com/michielvha/logger"
 	sgraph "github.com/michielvha/stackgraph/pkg/graph"
 )
 
@@ -22,7 +23,22 @@ type ElkNode struct {
 	X             float64           `json:"x,omitempty"`
 	Y             float64           `json:"y,omitempty"`
 	Children      []*ElkNode        `json:"children,omitempty"`
+	Labels        []*ElkLabel       `json:"labels,omitempty"`
 	Edges         []*ElkEdge        `json:"edges,omitempty"`
+	Ports         []*ElkPort        `json:"ports,omitempty"`
+	LayoutOptions map[string]string `json:"layoutOptions,omitempty"`
+}
+
+// ElkLabel defines a label on a node (used by ELK to compute padding for labels).
+type ElkLabel struct {
+	Text   string  `json:"text"`
+	Width  float64 `json:"width"`
+	Height float64 `json:"height"`
+}
+
+// ElkPort defines an edge attachment point on a node.
+type ElkPort struct {
+	ID            string            `json:"id"`
 	LayoutOptions map[string]string `json:"layoutOptions,omitempty"`
 }
 
@@ -59,7 +75,7 @@ func RenderElkSVG(g *sgraph.Graph) ([]byte, error) {
 	elkGraph := buildElkGraph(g)
 
 	// Run ELK layout via goja
-	positions, edges, err := runElkLayout(elkGraph)
+	positions, edges, err := runElkLayout(elkGraph, g)
 	if err != nil {
 		return nil, fmt.Errorf("ELK layout failed: %w", err)
 	}
@@ -116,7 +132,7 @@ func buildElkGraph(g *sgraph.Graph) *ElkNode {
 			return nil
 		}
 
-		w, h := dagreNodeSize(n) // reuse sizing
+		w, h := dagreNodeSize(n)
 		elkNode := &ElkNode{
 			ID:     id,
 			Width:  float64(w),
@@ -125,10 +141,20 @@ func buildElkGraph(g *sgraph.Graph) *ElkNode {
 
 		kids := childMap[id]
 		if len(kids) > 0 || n.Type == sgraph.NodeTypeGroup {
-			// Container node — top padding must be large enough to clear
-			// the container label text (icon + label ~ 30px height)
+			// Container — ensure minimum width accommodates label text
+			label := n.Label
+			if n.Service != "" {
+				label = n.Service + " — " + n.Label
+			}
+			minLabelWidth := float64(len(label)*8 + 50) // rough char width + icon + padding
+			if elkNode.Width < minLabelWidth {
+				elkNode.Width = minLabelWidth
+			}
+
 			elkNode.LayoutOptions = map[string]string{
-				"elk.padding": "[top=50,left=20,bottom=20,right=20]",
+				"elk.padding":              "[top=40,left=16,bottom=16,right=16]",
+				"elk.nodeSize.constraints": "[MINIMUM_SIZE]",
+				"elk.nodeSize.minimum":     fmt.Sprintf("(%d, 80)", int(minLabelWidth)),
 			}
 			for _, kid := range kids {
 				child := buildNode(kid)
@@ -137,43 +163,38 @@ func buildElkGraph(g *sgraph.Graph) *ElkNode {
 				}
 			}
 		}
+		// Leaf nodes: no ports, no layout options — ELK auto-creates ports
+		// and chooses the best attachment side (N/S/E/W)
 
 		return elkNode
 	}
 
-	// Build root graph with optimized ELK layout options
+	// Build root graph — ALL layout options go on root when using INCLUDE_CHILDREN
 	root := &ElkNode{
 		ID: "root",
 		LayoutOptions: map[string]string{
 			// Core algorithm
-			"elk.algorithm":             "layered",
-			"elk.direction":             "DOWN",
-			"elk.hierarchyHandling":     "INCLUDE_CHILDREN",
-
-			// Edge routing — orthogonal (right-angle) edges
-			"elk.edgeRouting": "ORTHOGONAL",
+			"elk.algorithm":         "layered",
+			"elk.direction":         "RIGHT",
+			"elk.hierarchyHandling": "INCLUDE_CHILDREN",
+			"elk.edgeRouting":       "ORTHOGONAL",
 
 			// Node spacing
 			"elk.spacing.nodeNode":                      "60",
 			"elk.layered.spacing.nodeNodeBetweenLayers": "80",
 
-			// Edge spacing — prevent overlapping parallel edges
-			"elk.spacing.edgeEdge":                          "15",
-			"elk.spacing.edgeNode":                          "20",
-			"elk.layered.spacing.edgeEdgeBetweenLayers":     "20",
-			"elk.layered.spacing.edgeNodeBetweenLayers":     "20",
+			// Edge spacing
+			"elk.spacing.edgeEdge":                      "15",
+			"elk.spacing.edgeNode":                      "20",
+			"elk.layered.spacing.edgeEdgeBetweenLayers": "20",
+			"elk.layered.spacing.edgeNodeBetweenLayers": "20",
 
 			// Canvas padding
 			"elk.padding": "[top=40,left=40,bottom=40,right=40]",
 
-			// Port constraints — let ELK choose optimal side (N/S/E/W)
-			"elk.portConstraints": "FREE",
-
-			// Crossing minimization and node placement
-			"elk.layered.crossingMinimization.strategy": "LAYER_SWEEP",
-			"elk.layered.nodePlacement.strategy":        "NETWORK_SIMPLEX",
-
-			// Compaction — minimize edge length for tighter layouts
+			// Layout strategies
+			"elk.layered.crossingMinimization.strategy":      "LAYER_SWEEP",
+			"elk.layered.nodePlacement.strategy":             "NETWORK_SIMPLEX",
 			"elk.layered.compaction.postCompaction.strategy": "EDGE_LENGTH",
 		},
 	}
@@ -185,14 +206,15 @@ func buildElkGraph(g *sgraph.Graph) *ElkNode {
 		}
 	}
 
-	// Add edges — only non-ancestor edges between leaf nodes
+	// Add edges — reference node IDs directly (NOT port IDs)
+	// ELK auto-creates ports and chooses the best attachment side
 	edgeIdx := 0
 	for _, e := range g.Edges {
 		if isAncestor(e.Source, e.Target) || isAncestor(e.Target, e.Source) {
 			continue
 		}
-		// Both endpoints must exist
 		if nodeIdx[e.Source] == nil || nodeIdx[e.Target] == nil {
+			logger.Debugf("skipping ELK edge %s -> %s: node not found in graph", e.Source, e.Target)
 			continue
 		}
 
@@ -207,7 +229,7 @@ func buildElkGraph(g *sgraph.Graph) *ElkNode {
 	return root
 }
 
-func runElkLayout(elkGraph *ElkNode) (map[string]NodePosition, []*ElkEdge, error) {
+func runElkLayout(elkGraph *ElkNode, _ *sgraph.Graph) (map[string]NodePosition, []*ElkEdge, error) {
 	vm := goja.New()
 
 	// Setup stubs — matches D2's approach for loading ELK in goja
@@ -240,7 +262,9 @@ func runElkLayout(elkGraph *ElkNode) (map[string]NodePosition, []*ElkEdge, error
 	}
 
 	// Set the graph and run layout
-	vm.Set("graphJSON", string(graphJSON))
+	if err := vm.Set("graphJSON", string(graphJSON)); err != nil {
+		return nil, nil, fmt.Errorf("failed to set graphJSON in JS: %w", err)
+	}
 	_, err = vm.RunString(`var graph = JSON.parse(graphJSON);`)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to parse graph in JS: %w", err)
@@ -314,20 +338,17 @@ func runElkLayout(elkGraph *ElkNode) (map[string]NodePosition, []*ElkEdge, error
 		buildOffsets(child, 0, 0)
 	}
 
-	// Extract edges from ALL containers (ELK puts edges on their container node)
-	// and translate coordinates to absolute
+	// Extract edges from ALL containers and translate to absolute coordinates
 	var edges []*ElkEdge
 	var collectEdges func(node *ElkNode)
 	collectEdges = func(node *ElkNode) {
 		for _, edge := range node.Edges {
-			// Get the container's absolute offset
 			containerID := edge.Container
 			if containerID == "" {
 				containerID = node.ID
 			}
 			offset := containerOffsets[containerID]
 
-			// Translate all edge section coordinates to absolute
 			for si := range edge.Sections {
 				edge.Sections[si].StartPoint.X += offset[0]
 				edge.Sections[si].StartPoint.Y += offset[1]
@@ -436,28 +457,35 @@ func generateElkSVG(g *sgraph.Graph, positions map[string]NodePosition, elkEdges
 	sort.Slice(containers, func(i, j int) bool {
 		return containers[i].depth < containers[j].depth
 	})
+
+	// Layer 1: Container rectangles (background)
 	for _, c := range containers {
-		renderDagreContainer(&b, c.node, c.pos) // reuse container rendering
+		renderContainerRect(&b, c.node, c.pos)
 	}
 
-	// Render leaf nodes
-	for _, n := range g.Nodes {
-		pos, ok := positions[n.ID]
-		if !ok {
-			continue
-		}
-		if n.Type != sgraph.NodeTypeGroup && len(n.Children) == 0 {
-			renderDagreNode(&b, n, pos) // reuse node rendering
-		}
-	}
-
-	// Render edges — ELK provides orthogonal bend points
+	// Layer 2: Edges (on top of container backgrounds)
 	for _, edge := range elkEdges {
 		if len(edge.Sections) == 0 {
 			continue
 		}
 		section := edge.Sections[0]
 		renderElkEdge(&b, section)
+	}
+
+	// Layer 3: Container labels + icons (on top of edges so labels are never obscured)
+	for _, c := range containers {
+		renderContainerLabel(&b, c.node, c.pos)
+	}
+
+	// Layer 4: Leaf nodes (on top of everything)
+	for _, n := range g.Nodes {
+		pos, ok := positions[n.ID]
+		if !ok {
+			continue
+		}
+		if n.Type != sgraph.NodeTypeGroup && len(n.Children) == 0 {
+			renderDagreNode(&b, n, pos)
+		}
 	}
 
 	b.WriteString("</svg>\n")

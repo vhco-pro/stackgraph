@@ -4,9 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/michielvha/stackgraph/pkg/graph"
-
 	tfjson "github.com/hashicorp/terraform-json"
+	"github.com/michielvha/stackgraph/pkg/graph"
 )
 
 // ParsePlan parses a terraform/tofu show -json plan output and returns a graph

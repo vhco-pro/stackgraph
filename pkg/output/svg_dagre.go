@@ -1,8 +1,8 @@
 package output
 
 import (
-	"encoding/base64"
 	_ "embed"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"path/filepath"
@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/dop251/goja"
+	"github.com/michielvha/logger"
 	sgraph "github.com/michielvha/stackgraph/pkg/graph"
 	"github.com/michielvha/stackgraph/pkg/icons"
 )
@@ -40,7 +41,7 @@ const (
 	iconSize      = 64
 	nodePadding   = 16
 	labelHeight   = 20
-	nodeWidth     = iconSize + nodePadding*2 // 96
+	nodeWidth     = iconSize + nodePadding*2                   // 96
 	nodeHeight    = iconSize + labelHeight + nodePadding*2 + 8 // ~124
 	boxNodeWidth  = 140
 	boxNodeHeight = 52
@@ -134,10 +135,12 @@ func computeDagreLayout(g *sgraph.Graph) (map[string]NodePosition, map[string]Ed
 		}
 		// Skip if either endpoint is a compound parent (dagre limitation)
 		if hasChildren[e.Source] || hasChildren[e.Target] {
+			logger.Debugf("skipping edge %s -> %s: compound parent node", e.Source, e.Target)
 			continue
 		}
 		script := fmt.Sprintf(`g.setEdge(%q, %q);`, e.Source, e.Target)
 		if _, err := vm.RunString(script); err != nil {
+			logger.Debugf("dagre edge failed %s -> %s: %v", e.Source, e.Target, err)
 			continue
 		}
 	}
@@ -340,6 +343,7 @@ func generateDagreSVG(g *sgraph.Graph, positions map[string]NodePosition, edgeRo
 		srcPos, sok := positions[e.Source]
 		tgtPos, tok := positions[e.Target]
 		if !sok || !tok {
+			logger.Debugf("skipping edge render %s -> %s: missing position (src=%v, tgt=%v)", e.Source, e.Target, sok, tok)
 			continue
 		}
 
@@ -372,13 +376,11 @@ func renderDagreContainer(b *strings.Builder, n *sgraph.Node, pos NodePosition) 
 		dashAttr = ` stroke-dasharray="6,3"`
 	}
 
-	// Container border — with CSS class for dark mode
 	cssClass := dagreContainerCSSClass(n)
 	fmt.Fprintf(b, `<rect class="%s" x="%.0f" y="%.0f" width="%.0f" height="%.0f" rx="8" fill="%s" stroke="%s" stroke-width="2"%s/>`,
 		cssClass, x, y, pos.Width, pos.Height, fill, stroke, dashAttr)
 	b.WriteString("\n")
 
-	// Label with optional icon (top-left)
 	label := n.Label
 	if n.Service != "" {
 		label = n.Service + " — " + n.Label
@@ -386,7 +388,51 @@ func renderDagreContainer(b *strings.Builder, n *sgraph.Node, pos NodePosition) 
 	labelColor := dagreContainerLabelColor(n)
 	labelCSSClass := dagreContainerLabelCSSClass(n)
 
-	// Check for group icon
+	groupIcon := containerGroupIcon(n)
+	labelX := x + 12
+	if groupIcon != "" {
+		iconData := embedIconBase64(groupIcon)
+		if iconData != "" {
+			fmt.Fprintf(b, `<image href="%s" x="%.0f" y="%.0f" width="24" height="24"/>`, iconData, x+8, y+4)
+			b.WriteString("\n")
+			labelX = x + 38
+		}
+	}
+
+	fmt.Fprintf(b, `<text class="%s" x="%.0f" y="%.0f" font-size="13" font-weight="600" fill="%s">%s</text>`,
+		labelCSSClass, labelX, y+22, labelColor, escapeXMLStr(label))
+	b.WriteString("\n")
+}
+
+// renderContainerRect and renderContainerLabel are split versions for ELK renderer
+// which needs to render edges between container rects and labels.
+func renderContainerRect(b *strings.Builder, n *sgraph.Node, pos NodePosition) {
+	x := pos.X - pos.Width/2
+	y := pos.Y - pos.Height/2
+
+	fill, stroke, dash := dagreContainerStyle(n)
+	dashAttr := ""
+	if dash {
+		dashAttr = ` stroke-dasharray="6,3"`
+	}
+
+	cssClass := dagreContainerCSSClass(n)
+	fmt.Fprintf(b, `<rect class="%s" x="%.0f" y="%.0f" width="%.0f" height="%.0f" rx="8" fill="%s" stroke="%s" stroke-width="2"%s/>`,
+		cssClass, x, y, pos.Width, pos.Height, fill, stroke, dashAttr)
+	b.WriteString("\n")
+}
+
+func renderContainerLabel(b *strings.Builder, n *sgraph.Node, pos NodePosition) {
+	x := pos.X - pos.Width/2
+	y := pos.Y - pos.Height/2
+
+	label := n.Label
+	if n.Service != "" {
+		label = n.Service + " — " + n.Label
+	}
+	labelColor := dagreContainerLabelColor(n)
+	labelCSSClass := dagreContainerLabelCSSClass(n)
+
 	groupIcon := containerGroupIcon(n)
 	labelX := x + 12
 	if groupIcon != "" {
@@ -452,8 +498,8 @@ func renderDagreNode(b *strings.Builder, n *sgraph.Node, pos NodePosition) {
 		// Icon-based node: icon centered, label below
 		iconX := cx - float64(iconSize)/2
 		iconY := y + float64(nodePadding)
-		b.WriteString(fmt.Sprintf(`<image href="%s" x="%.0f" y="%.0f" width="%d" height="%d"/>`,
-			iconData, iconX, iconY, iconSize, iconSize))
+		fmt.Fprintf(b, `<image href="%s" x="%.0f" y="%.0f" width="%d" height="%d"/>`,
+			iconData, iconX, iconY, iconSize, iconSize)
 		b.WriteString("\n")
 
 		// Label below icon
@@ -623,18 +669,19 @@ func renderDagreEdge(b *strings.Builder, points []Point) {
 
 	var d strings.Builder
 
-	if len(points) == 2 {
+	switch len(points) {
+	case 2:
 		// 1-rank edge: straight line from source bottom to target top
 		fmt.Fprintf(&d, "M %.1f,%.1f L %.1f,%.1f",
 			points[0].X, points[0].Y, points[1].X, points[1].Y)
-	} else if len(points) == 3 {
+	case 3:
 		// 2-rank edge: gentle S-curve through midpoint
 		// Use a quadratic bezier with the middle point as control
 		fmt.Fprintf(&d, "M %.1f,%.1f Q %.1f,%.1f %.1f,%.1f",
 			points[0].X, points[0].Y,
 			points[1].X, points[1].Y,
 			points[2].X, points[2].Y)
-	} else {
+	default:
 		// Multi-rank edge: cubic B-spline (basis spline)
 		// This is what dagre-d3 uses with d3.curveBasis.
 		// The B-spline approximates the path through the waypoints
@@ -684,6 +731,7 @@ func renderDagreEdge(b *strings.Builder, points []Point) {
 func embedIconBase64(iconPath string) string {
 	data, err := icons.GetIconBytes(iconPath)
 	if err != nil {
+		logger.Debugf("icon not found: %s", iconPath)
 		return ""
 	}
 
@@ -805,4 +853,3 @@ func escapeXMLStr(s string) string {
 	s = strings.ReplaceAll(s, "\"", "&quot;")
 	return s
 }
-

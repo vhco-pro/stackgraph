@@ -1,7 +1,7 @@
 ---
 description: "Spec for stackgraph dagre renderer — tracking rendering quality and remaining improvements"
 status: in-progress
-status_description: "Core rendering working — containers, icons, flow edges, z-ordering all functional. Edge routing and dark mode remaining."
+status_description: "ELK left-to-right layout resolves edge-label overlap. Dark mode working. Container min-width enforced for labels."
 author: Michiel VH
 goal: "Production-quality static infrastructure diagrams with embedded icons, nested containers, and auto dark mode"
 priority: high

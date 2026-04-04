@@ -49,10 +49,10 @@ func newMappingsListCmd() *cobra.Command {
 			})
 
 			w := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 0, 2, ' ', 0)
-			fmt.Fprintln(w, "RESOURCE TYPE\tPROVIDER\tSERVICE\tCATEGORY")
-			fmt.Fprintln(w, strings.Repeat("-", 13)+"\t"+strings.Repeat("-", 8)+"\t"+strings.Repeat("-", 7)+"\t"+strings.Repeat("-", 8))
+			_, _ = fmt.Fprintln(w, "RESOURCE TYPE\tPROVIDER\tSERVICE\tCATEGORY")
+			_, _ = fmt.Fprintln(w, strings.Repeat("-", 13)+"\t"+strings.Repeat("-", 8)+"\t"+strings.Repeat("-", 7)+"\t"+strings.Repeat("-", 8))
 			for _, e := range entries {
-				fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", e.ResourceType, e.Provider, e.Service, e.Category)
+				_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", e.ResourceType, e.Provider, e.Service, e.Category)
 			}
 			return w.Flush()
 		},

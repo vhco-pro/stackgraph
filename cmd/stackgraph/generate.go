@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/michielvha/logger"
 	"github.com/michielvha/stackgraph/pkg/graph"
 	"github.com/michielvha/stackgraph/pkg/mapping"
 	"github.com/michielvha/stackgraph/pkg/output"
@@ -152,21 +153,26 @@ func detectContentType(data []byte) string {
 	var probe map[string]json.RawMessage
 	if json.Unmarshal(data, &probe) == nil {
 		if _, ok := probe["planned_values"]; ok {
+			logger.Debug("detected input type: plan (found planned_values)")
 			return "plan"
 		}
 		if _, ok := probe["values"]; ok {
+			logger.Debug("detected input type: state (found values)")
 			return "state"
 		}
 		// "resource_changes" is plan-only
 		if _, ok := probe["resource_changes"]; ok {
+			logger.Debug("detected input type: plan (found resource_changes)")
 			return "plan"
 		}
+		logger.Debug("JSON structure did not match known plan/state keys, falling back to state")
 	}
 
 	return "state" // default fallback
 }
 
 func parseByType(inputType string, data []byte) (*graph.Graph, error) {
+	logger.Debugf("parsing input as %s", inputType)
 	switch inputType {
 	case "state":
 		return parser.ParseState(data)

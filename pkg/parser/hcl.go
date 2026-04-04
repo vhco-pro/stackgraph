@@ -8,6 +8,7 @@ import (
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
+	"github.com/michielvha/logger"
 	"github.com/michielvha/stackgraph/pkg/graph"
 )
 
@@ -116,6 +117,8 @@ func ParseHCLDir(dir string) (*graph.Graph, error) {
 							Type:   attr.Name,
 							Label:  strings.TrimSuffix(strings.ReplaceAll(attr.Name, "_", " "), " id"),
 						})
+					} else {
+						logger.Debugf("HCL reference %s -> %s: target not found in graph", srcAddress, ref)
 					}
 				}
 			}
