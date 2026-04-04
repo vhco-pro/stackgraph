@@ -152,7 +152,7 @@ func buildElkGraph(g *sgraph.Graph) *ElkNode {
 			}
 
 			elkNode.LayoutOptions = map[string]string{
-				"elk.padding":              "[top=40,left=16,bottom=16,right=16]",
+				"elk.padding":              "[top=40,left=30,bottom=20,right=30]",
 				"elk.nodeSize.constraints": "[MINIMUM_SIZE]",
 				"elk.nodeSize.minimum":     fmt.Sprintf("(%d, 80)", int(minLabelWidth)),
 			}

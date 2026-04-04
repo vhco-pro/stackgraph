@@ -1,7 +1,7 @@
 ---
 description: "Spec for migrating from dagre.js to ELK.js for layout engine — enabling orthogonal edge routing and better compound graph support"
-status: proposed
-status_description: "Proposed — dagre B-spline fix is interim, ELK.js is the proper solution for edge routing"
+status: completed
+status_description: "ELK.js implemented as --layout elk option with orthogonal routing and left-to-right direction"
 author: Michiel VH
 goal: "Professional orthogonal edge routing and improved compound graph layout"
 priority: medium

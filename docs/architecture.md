@@ -15,23 +15,23 @@ Input (state/plan/HCL/DOT)
   → Render output (JSON, DOT, SVG/PNG)
 ```
 
-## Dual Rendering Strategy
+## Rendering Strategy
 
-stackgraph produces two types of visual output that share the same graph JSON but render differently:
+stackgraph produces two types of visual output that share the same graph JSON:
 
 ```
-                    ┌─ CLI: go-graphviz → static SVG/PNG (Terravision-quality)
+                    ┌─ CLI: dagre.js or ELK.js → static SVG (self-contained)
 Graph JSON ─────────┤
                     └─ Stackweaver frontend: @xyflow/react + ELK.js → interactive diagram
 ```
 
-**CLI static output** — Uses D2 (`oss.terrastruct.com/d2`, MPL-2.0) as a Go library to produce production-quality SVG diagrams with cloud provider icons embedded inline (base64), nested containers (VPC → Subnet → instances), and professional layout via the dagre engine. No system dependencies, fully offline. This is the standalone product — works without Stackweaver.
+**CLI static output** — Uses dagre.js (default) or ELK.js (`--layout elk`) via goja (Go JS runtime) for layout, then generates SVG directly with base64-embedded cloud provider icons. No system dependencies, fully offline, self-contained SVG output.
 
-**Stackweaver frontend** — Consumes the same graph JSON via API and renders with `@xyflow/react` + ELK.js for an interactive experience (pan, zoom, click-to-inspect, search, export). This is the platform integration — documented in the Stackweaver integration plan.
+Two layout engines available:
+- **dagre** (default, `--layout dagre`) — top-down layout with B-spline curve edges, 278KB
+- **ELK** (`--layout elk`) — left-to-right layout with orthogonal (right-angle) edges, 3.6MB. Better edge routing, no edge-label overlap.
 
-These two renderers are completely independent. Changing the CLI renderer has zero impact on the frontend, and vice versa.
-
-See [rendering-analysis.md](rendering-analysis.md) for the full D2 vs go-graphviz comparison and why D2 was chosen.
+**Stackweaver frontend** — Consumes the same graph JSON via API and renders with `@xyflow/react` + ELK.js for an interactive experience (pan, zoom, click-to-inspect, search, export). Documented in the Stackweaver integration plan.
 
 ## Package Structure
 
@@ -123,39 +123,32 @@ Unmapped resources render as generic nodes with the resource type as the label.
 
 ## SVG Rendering (CLI)
 
-The static renderer uses D2 (`oss.terrastruct.com/d2`) as a Go library — purpose-built for architecture diagrams with first-class nested containers, automatic layout, and inline icon embedding.
+The static renderer uses dagre.js or ELK.js (via goja Go JS runtime) for layout computation, then generates SVG directly with full control over icon embedding, container styling, and dark mode.
 
 ### Rendering Approach
 
-The renderer converts the internal graph to a D2 script programmatically:
+1. **Layout** — dagre.js (278KB) or ELK.js (3.6MB) computes node positions and edge routes via goja
+2. **Containers** (VPC, Subnet, SG) render as `<rect>` elements with provider-specific colors and icons in labels
+3. **Resource nodes** render with base64-embedded cloud provider icons (AWS PNG 64px, Azure/GCP SVG)
+4. **Edges** render as orthogonal (ELK) or B-spline (dagre) `<path>` elements with arrowhead markers
+5. **Dark mode** — CSS `@media (prefers-color-scheme: dark)` auto-swaps all colors
+6. **Self-contained** — all icons base64-embedded, no external file references
 
-1. **Resource nodes** render with cloud provider SVG icons embedded inline (base64) and labels below
-2. **Group nodes** (VPC, Subnet, SG) render as D2 containers with styled borders, fill colors, and rounded corners
-3. **Edges** render with automatic routing through container boundaries
-4. **Layout** uses the dagre engine (hierarchical DAG layout, bundled in D2)
-5. **Icons** are local SVG files from official cloud provider icon sets, bundled in the binary via `go:embed`. D2 base64-encodes them directly into the SVG — fully self-contained, no CDN, fully offline
-
-### Visual Design Parameters
+### Visual Design
 
 | Container | Fill | Stroke |
 |-----------|------|--------|
 | AWS VPC | `#F8F4FF` | `#8C4FFF` (purple) |
-| AWS Subnet (public) | `#F2F7EE` | `#7CB342` (green) |
-| AWS Subnet (private) | `#DEEBF7` | `#7CB342` (green) |
-| AWS Security Group | `#FFF5F5` | `#E53935` (red) |
-| Azure Resource Group | `#F0F8FF` | `#0078D4` (blue) |
-| Azure VNet | `#E8F4FC` | `#0078D4` |
-| GCP VPC | `#E3F2FD` | `#4285F4` |
-| GCP Subnetwork | `#EDE7F6` | `#7C4DFF` |
-| Generic | `#F8F9FA` | `#ADB5BD` |
-
-Plan action colors: green (create), red (delete), amber (update).
+| AWS Subnet | `#F2F7EE` | `#7CB342` (green) |
+| AWS Security Group | `#FFF5F5` | `#E53935` (red, dashed) |
+| Azure Resource Group | `#F0F0F0` | `#767676` (gray, dashed) |
+| Azure VNet | `#E7F4E4` | `#50E6FF` (cyan) |
+| GCP VPC | `#E6F4EA` | `#34A853` (green) |
+| GCP Subnetwork | `#F1F3F4` | `#5F6368` (gray) |
 
 ### Non-Cloud Providers
 
-Providers without official icon sets (Proxmox, Kubernetes, Cloudflare, DigitalOcean, Hetzner, etc.) render as clean labeled boxes with D2's theme styling (rounded borders, shadows). Custom SVG icons can be added by dropping files in `icons/<provider>/` and referencing them in the YAML mapping. D2 embeds them inline just like cloud provider icons.
-
-See [rendering-analysis.md](rendering-analysis.md) for the full D2 vs go-graphviz comparison.
+Providers without official icon sets (Proxmox, Kubernetes, Cloudflare, etc.) render as clean labeled boxes. Custom icons can be added by dropping files in `pkg/icons/icons/<provider>/` and adding entries to the YAML mapping.
 
 ## Dependencies
 
@@ -164,23 +157,17 @@ See [rendering-analysis.md](rendering-analysis.md) for the full D2 vs go-graphvi
 | hashicorp/terraform-json | v0.27.2 | MPL-2.0 | State + plan JSON structs |
 | hashicorp/hcl/v2 | v2.24.0 | MPL-2.0 | HCL source parsing |
 | gographviz | v2.0.3 | Apache-2.0 | DOT format parsing/generation |
-| terrastruct/d2 | v0.7.1 | MPL-2.0 | SVG diagram rendering (layout, icons, themes) |
+| dop251/goja | latest | MIT | Go JS runtime (runs dagre.js and ELK.js) |
 | spf13/cobra | v1.10.2 | Apache-2.0 | CLI framework |
 | gopkg.in/yaml.v3 | v3.0.1 | MIT | YAML mapping loading |
 
-**We do NOT import `hashicorp/terraform`** (the full binary's internal packages). This is intentional — InfraMap made this mistake and is permanently pinned to terraform v0.15.3. We use `hashicorp/terraform-json` which provides stable, versioned structs independent of the terraform version.
+**We do NOT import `hashicorp/terraform`** (the full binary's internal packages). We use `hashicorp/terraform-json` which provides stable, versioned structs independent of the terraform version.
 
 ## Remaining Work
 
-### Standalone (stackgraph-side)
-
-- [ ] Download and embed cloud provider SVG icons locally in `icons/` via `go:embed`
-- [ ] Switch `d2Icon()` from CDN URLs to local bundled icons
-- [ ] Add generic fallback icon for unmapped resources
-- [ ] Tune D2 container styling to match Terravision-quality output
-- [ ] Azure resource mappings YAML (~80 resource types)
-- [ ] GCP resource mappings YAML (~60 resource types)
-- [ ] Proxmox resource mappings YAML (~10 resource types)
+- [ ] Proxmox resource mappings YAML
+- [ ] Azure/GCP region/zone container support
+- [ ] Azure/GCP cloud boundary provider logos
 - [ ] Plan JSON action annotations (create/update/delete visual diff)
 - [ ] Terragrunt cross-module dependency visualization
 - [ ] Variant detection (ALB vs NLB, Fargate vs EC2)
