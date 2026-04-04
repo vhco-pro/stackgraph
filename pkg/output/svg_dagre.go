@@ -606,29 +606,59 @@ func renderDagreEdge(b *strings.Builder, points []Point) {
 	}
 
 	var d strings.Builder
-	fmt.Fprintf(&d, "M %.1f,%.1f", points[0].X, points[0].Y)
 
 	if len(points) == 2 {
-		// Simple straight line
-		fmt.Fprintf(&d, " L %.1f,%.1f", points[1].X, points[1].Y)
+		// 1-rank edge: straight line from source bottom to target top
+		fmt.Fprintf(&d, "M %.1f,%.1f L %.1f,%.1f",
+			points[0].X, points[0].Y, points[1].X, points[1].Y)
+	} else if len(points) == 3 {
+		// 2-rank edge: gentle S-curve through midpoint
+		// Use a quadratic bezier with the middle point as control
+		fmt.Fprintf(&d, "M %.1f,%.1f Q %.1f,%.1f %.1f,%.1f",
+			points[0].X, points[0].Y,
+			points[1].X, points[1].Y,
+			points[2].X, points[2].Y)
 	} else {
-		// Smooth cubic bezier through waypoints
-		// Use Catmull-Rom to cubic bezier conversion for natural curves
-		for i := 1; i < len(points); i++ {
-			prev := points[max(0, i-2)]
-			p0 := points[i-1]
-			p1 := points[i]
-			next := points[min(len(points)-1, i+1)]
+		// Multi-rank edge: cubic B-spline (basis spline)
+		// This is what dagre-d3 uses with d3.curveBasis.
+		// The B-spline approximates the path through the waypoints
+		// without overshooting, producing smooth flowing curves.
+		//
+		// Algorithm: for n points, generate n-1 cubic bezier segments.
+		// Each segment uses weighted averages of consecutive points
+		// as control points, ensuring C2 continuity.
+		fmt.Fprintf(&d, "M %.1f,%.1f", points[0].X, points[0].Y)
 
-			// Control points: 1/3 and 2/3 along the segment, influenced by neighbors
-			cp1x := p0.X + (p1.X-prev.X)/6
-			cp1y := p0.Y + (p1.Y-prev.Y)/6
-			cp2x := p1.X - (next.X-p0.X)/6
-			cp2y := p1.Y - (next.Y-p0.Y)/6
+		// First segment: line to the first B-spline point
+		bx := (points[0].X + 4*points[1].X + points[2].X) / 6
+		by := (points[0].Y + 4*points[1].Y + points[2].Y) / 6
+		fmt.Fprintf(&d, " L %.1f,%.1f", bx, by)
+
+		// Middle segments: cubic bezier using basis spline formula
+		for i := 1; i < len(points)-2; i++ {
+			p0 := points[i]
+			p1 := points[i+1]
+			p2 := points[i+2]
+
+			// Control point 1: 2/3 toward p1 from the B-spline point at i
+			cp1x := (2*p0.X + p1.X) / 3
+			cp1y := (2*p0.Y + p1.Y) / 3
+
+			// Control point 2: 1/3 toward p1 from the B-spline point at i+1
+			cp2x := (p0.X + 2*p1.X) / 3
+			cp2y := (p0.Y + 2*p1.Y) / 3
+
+			// End point: B-spline point at i+1
+			ex := (p0.X + 4*p1.X + p2.X) / 6
+			ey := (p0.Y + 4*p1.Y + p2.Y) / 6
 
 			fmt.Fprintf(&d, " C %.1f,%.1f %.1f,%.1f %.1f,%.1f",
-				cp1x, cp1y, cp2x, cp2y, p1.X, p1.Y)
+				cp1x, cp1y, cp2x, cp2y, ex, ey)
 		}
+
+		// Last segment: line to the final point
+		last := points[len(points)-1]
+		fmt.Fprintf(&d, " L %.1f,%.1f", last.X, last.Y)
 	}
 
 	fmt.Fprintf(b, `<path class="sg-edge" d="%s" fill="none" stroke="#7B8894" stroke-width="1.5" marker-end="url(#arrowhead)"/>`, d.String())
@@ -672,17 +702,19 @@ func dagreContainerStyle(n *sgraph.Node) (fill, stroke string, dashed bool) {
 	case "aws_ecs_cluster", "aws_eks_cluster":
 		return "#FFF8E1", "#FF9900", true
 
-	// Azure
+	// Azure (official architecture diagram colors)
 	case "azurerm_resource_group":
-		return "#F0F8FF", "#0078D4", true
+		return "#F0F0F0", "#767676", true
 	case "azurerm_virtual_network":
-		return "#E8F4FC", "#0078D4", false
+		return "#E7F4E4", "#50E6FF", false
+	case "azurerm_subnet":
+		return "#F2F2F2", "#B3B3B3", false
 
-	// GCP
+	// GCP (official brand color hierarchy: blue > green > yellow > red)
 	case "google_compute_network":
-		return "#E3F2FD", "#4285F4", false
+		return "#E6F4EA", "#34A853", false
 	case "google_compute_subnetwork":
-		return "#EDE7F6", "#7C4DFF", false
+		return "#F1F3F4", "#5F6368", false
 
 	default:
 		return "#F8F9FA", "#ADB5BD", true
@@ -703,10 +735,16 @@ func dagreContainerLabelColor(n *sgraph.Node) string {
 		return "#558B2F"
 	case "aws_security_group":
 		return "#C62828"
-	case "azurerm_resource_group", "azurerm_virtual_network":
+	case "azurerm_resource_group":
+		return "#767676"
+	case "azurerm_virtual_network":
 		return "#0078D4"
+	case "azurerm_subnet":
+		return "#666666"
 	case "google_compute_network":
-		return "#1565C0"
+		return "#34A853"
+	case "google_compute_subnetwork":
+		return "#5F6368"
 	default:
 		return "#495057"
 	}
