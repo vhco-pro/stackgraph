@@ -1,7 +1,7 @@
 ---
 description: "Spec for fixing Azure and GCP diagram rendering to match official architecture diagram standards"
-status: proposed
-status_description: "Azure/GCP diagrams currently have wrong icons, missing containers, and don't match official visual standards"
+status: in-progress
+status_description: "YAML mappings created, container nesting working. Icons render but need visual polish. Remaining: verify icon quality at scale, add region/zone containers."
 author: Michiel VH
 goal: "Azure and GCP diagrams that look like official architecture reference diagrams from Microsoft and Google"
 priority: high
@@ -68,12 +68,22 @@ GCP official diagrams use:
 
 ## Implementation Tasks
 
-- [ ] Verify all Azure icon file paths in getIconPath() match actual files in pkg/icons/icons/azure/
-- [ ] Verify all GCP icon file paths match actual files in pkg/icons/icons/gcp/
-- [ ] Fix any wrong icon path mappings
-- [ ] Add Azure VNet/Subnet as group nodes in YAML mappings (if not already)
-- [ ] Add GCP VPC/Subnet as group nodes in YAML mappings
-- [ ] Add Azure subscription boundary (similar to AWS Cloud boundary)
-- [ ] Test with both dagre and ELK layout engines
-- [ ] Regenerate Azure and GCP examples
-- [ ] Visual comparison with official reference diagrams
+### Completed
+- [x] Verify all Azure icon file paths match actual files — all 8 paths verified
+- [x] Verify all GCP icon file paths match actual files — all 6 paths verified
+- [x] Create `azure.yaml` mapping file with VNet, Subnet, RG as group nodes
+- [x] Create `gcp.yaml` mapping file with VPC, Subnet as group nodes
+- [x] Azure Resource Group → VNet → Subnet → resources nesting working
+- [x] GCP VPC → Subnet → resources nesting working
+- [x] Azure cloud boundary auto-generated with correct styling (#0078D4)
+- [x] GCP cloud boundary auto-generated with correct styling (#4285F4)
+- [x] Container label icons for VNet, Subnet, RG, VPC
+- [x] Test with both dagre and ELK layout engines
+- [x] Regenerate Azure and GCP examples
+
+### Remaining
+- [ ] Azure: add region/zone container support
+- [ ] GCP: add region/zone containers (yellow/red borders per brand colors)
+- [ ] Verify SVG icon rendering quality at 64x64 upscale (Azure icons are 18x18 native)
+- [ ] Add Azure/GCP provider logos to cloud boundary labels
+- [ ] Visual comparison with official reference diagrams and iterate

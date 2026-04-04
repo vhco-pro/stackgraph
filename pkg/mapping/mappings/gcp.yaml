@@ -1,0 +1,69 @@
+resources:
+  # Compute
+  google_compute_instance:
+    service: Compute Engine
+    category: Compute
+    icon: gcp/compute_engine/compute_engine.svg
+  google_cloudfunctions_function:
+    service: Cloud Functions
+    category: Compute
+    icon: gcp/cloud_functions/cloud_functions.svg
+  google_cloudfunctions2_function:
+    service: Cloud Functions
+    category: Compute
+    icon: gcp/cloud_functions/cloud_functions.svg
+  google_cloud_run_service:
+    service: Cloud Run
+    category: Compute
+    icon: gcp/cloud_run/cloud_run.svg
+
+  # Containers
+  google_container_cluster:
+    service: GKE
+    category: Containers
+    icon: gcp/google_kubernetes_engine/google_kubernetes_engine.svg
+  google_container_node_pool:
+    service: GKE Node Pool
+    category: Containers
+    icon: gcp/google_kubernetes_engine/google_kubernetes_engine.svg
+
+  # Networking
+  google_compute_network:
+    service: VPC Network
+    category: Networking
+    icon: gcp/virtual_private_cloud/virtual_private_cloud.svg
+    is_group: true
+    group_level: 1
+  google_compute_subnetwork:
+    service: Subnet
+    category: Networking
+    icon: gcp/virtual_private_cloud/virtual_private_cloud.svg
+    is_group: true
+    group_level: 2
+    group_parent: google_compute_network
+  google_compute_firewall:
+    service: Firewall Rule
+    category: Networking
+    icon: gcp/virtual_private_cloud/virtual_private_cloud.svg
+
+  # Database
+  google_sql_database_instance:
+    service: Cloud SQL
+    category: Database
+    icon: gcp/cloud_sql/cloud_sql.svg
+  google_sql_database:
+    service: SQL Database
+    category: Database
+    icon: gcp/cloud_sql/cloud_sql.svg
+
+  # Storage
+  google_storage_bucket:
+    service: Cloud Storage
+    category: Storage
+    icon: gcp/cloud_storage/cloud_storage.svg
+
+  # Big Data
+  google_bigquery_dataset:
+    service: BigQuery
+    category: Analytics
+    icon: gcp/bigquery/bigquery.svg

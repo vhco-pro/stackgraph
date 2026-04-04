@@ -1,0 +1,87 @@
+resources:
+  # Compute
+  azurerm_virtual_machine:
+    service: Virtual Machine
+    category: Compute
+    icon: azure/compute/10021-icon-service-Virtual-Machine.svg
+  azurerm_linux_virtual_machine:
+    service: Linux VM
+    category: Compute
+    icon: azure/compute/10021-icon-service-Virtual-Machine.svg
+  azurerm_windows_virtual_machine:
+    service: Windows VM
+    category: Compute
+    icon: azure/compute/10021-icon-service-Virtual-Machine.svg
+
+  # Containers
+  azurerm_kubernetes_cluster:
+    service: AKS
+    category: Containers
+    icon: azure/containers/10023-icon-service-Kubernetes-Services.svg
+
+  # Networking
+  azurerm_virtual_network:
+    service: Virtual Network
+    category: Networking
+    icon: azure/networking/10061-icon-service-Virtual-Networks.svg
+    is_group: true
+    group_level: 1
+    group_parent: azurerm_resource_group
+  azurerm_subnet:
+    service: Subnet
+    category: Networking
+    icon: azure/networking/10061-icon-service-Virtual-Networks.svg
+    is_group: true
+    group_level: 2
+    group_parent: azurerm_virtual_network
+  azurerm_network_security_group:
+    service: NSG
+    category: Networking
+    icon: azure/networking/10067-icon-service-Network-Security-Groups.svg
+    is_group: true
+    group_level: 3
+    group_parent: azurerm_subnet
+  azurerm_public_ip:
+    service: Public IP
+    category: Networking
+    icon: azure/networking/10069-icon-service-Public-IP-Addresses.svg
+  azurerm_application_gateway:
+    service: App Gateway
+    category: Networking
+    icon: azure/networking/10076-icon-service-Application-Gateways.svg
+  azurerm_lb:
+    service: Load Balancer
+    category: Networking
+    icon: azure/networking/10062-icon-service-Load-Balancers.svg
+
+  # Databases
+  azurerm_mssql_server:
+    service: SQL Server
+    category: Databases
+    icon: azure/databases/10130-icon-service-SQL-Database.svg
+  azurerm_mssql_database:
+    service: SQL Database
+    category: Databases
+    icon: azure/databases/10130-icon-service-SQL-Database.svg
+  azurerm_cosmosdb_account:
+    service: Cosmos DB
+    category: Databases
+    icon: azure/databases/10121-icon-service-Azure-Cosmos-DB.svg
+
+  # Storage
+  azurerm_storage_account:
+    service: Storage
+    category: Storage
+    icon: azure/storage/10086-icon-service-Storage-Accounts.svg
+  azurerm_storage_container:
+    service: Blob Container
+    category: Storage
+    icon: azure/storage/10086-icon-service-Storage-Accounts.svg
+
+  # General
+  azurerm_resource_group:
+    service: Resource Group
+    category: General
+    icon: azure/general/10007-icon-service-Resource-Groups.svg
+    is_group: true
+    group_level: 0

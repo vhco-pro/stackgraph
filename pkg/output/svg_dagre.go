@@ -415,6 +415,22 @@ func containerGroupIcon(n *sgraph.Node) string {
 		return "aws/Groups/Public-subnet_32.png"
 	case "aws_security_group":
 		return "aws/Arch_Security-Identity/Arch_AWS-Shield_64.png"
+	// Azure
+	case "azure_cloud":
+		return "" // no embedded Azure logo yet
+	case "azurerm_resource_group":
+		return "azure/general/10007-icon-service-Resource-Groups.svg"
+	case "azurerm_virtual_network":
+		return "azure/networking/10061-icon-service-Virtual-Networks.svg"
+	case "azurerm_subnet":
+		return "azure/networking/10061-icon-service-Virtual-Networks.svg"
+	// GCP
+	case "gcp_cloud":
+		return "" // no embedded GCP logo yet
+	case "google_compute_network":
+		return "gcp/virtual_private_cloud/virtual_private_cloud.svg"
+	case "google_compute_subnetwork":
+		return "gcp/virtual_private_cloud/virtual_private_cloud.svg"
 	default:
 		return ""
 	}
@@ -752,14 +768,16 @@ func dagreContainerLabelColor(n *sgraph.Node) string {
 
 func dagreContainerCSSClass(n *sgraph.Node) string {
 	switch n.ResourceType {
-	case "aws_cloud":
+	case "aws_cloud", "azure_cloud", "gcp_cloud":
 		return "sg-container-cloud"
-	case "aws_vpc":
+	case "aws_vpc", "azurerm_virtual_network", "google_compute_network":
 		return "sg-container-vpc"
-	case "aws_subnet":
+	case "aws_subnet", "azurerm_subnet", "google_compute_subnetwork":
 		return "sg-container-subnet"
-	case "aws_security_group":
+	case "aws_security_group", "azurerm_network_security_group":
 		return "sg-container-sg"
+	case "azurerm_resource_group":
+		return "sg-container-default"
 	default:
 		return "sg-container-default"
 	}
@@ -767,13 +785,13 @@ func dagreContainerCSSClass(n *sgraph.Node) string {
 
 func dagreContainerLabelCSSClass(n *sgraph.Node) string {
 	switch n.ResourceType {
-	case "aws_cloud":
+	case "aws_cloud", "azure_cloud", "gcp_cloud":
 		return "sg-label-cloud"
-	case "aws_vpc":
+	case "aws_vpc", "azurerm_virtual_network", "google_compute_network":
 		return "sg-label-vpc"
-	case "aws_subnet":
+	case "aws_subnet", "azurerm_subnet", "google_compute_subnetwork":
 		return "sg-label-subnet"
-	case "aws_security_group":
+	case "aws_security_group", "azurerm_network_security_group":
 		return "sg-label-sg"
 	default:
 		return "sg-label-default"
