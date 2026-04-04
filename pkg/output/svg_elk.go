@@ -125,9 +125,10 @@ func buildElkGraph(g *sgraph.Graph) *ElkNode {
 
 		kids := childMap[id]
 		if len(kids) > 0 || n.Type == sgraph.NodeTypeGroup {
-			// Container node — set padding
+			// Container node — top padding must be large enough to clear
+			// the container label text (icon + label ~ 30px height)
 			elkNode.LayoutOptions = map[string]string{
-				"elk.padding": "[top=40,left=20,bottom=20,right=20]",
+				"elk.padding": "[top=50,left=20,bottom=20,right=20]",
 			}
 			for _, kid := range kids {
 				child := buildNode(kid)
@@ -140,19 +141,40 @@ func buildElkGraph(g *sgraph.Graph) *ElkNode {
 		return elkNode
 	}
 
-	// Build root graph
+	// Build root graph with optimized ELK layout options
 	root := &ElkNode{
 		ID: "root",
 		LayoutOptions: map[string]string{
-			"elk.algorithm":                              "layered",
-			"elk.direction":                              "DOWN",
-			"elk.edgeRouting":                            "ORTHOGONAL",
-			"elk.spacing.nodeNode":                       "80",
-			"elk.layered.spacing.nodeNodeBetweenLayers":  "100",
-			"elk.padding":                                "[top=40,left=40,bottom=40,right=40]",
-			"elk.hierarchyHandling":                      "INCLUDE_CHILDREN",
-			"elk.layered.crossingMinimization.strategy":  "LAYER_SWEEP",
-			"elk.layered.nodePlacement.strategy":         "NETWORK_SIMPLEX",
+			// Core algorithm
+			"elk.algorithm":             "layered",
+			"elk.direction":             "DOWN",
+			"elk.hierarchyHandling":     "INCLUDE_CHILDREN",
+
+			// Edge routing — orthogonal (right-angle) edges
+			"elk.edgeRouting": "ORTHOGONAL",
+
+			// Node spacing
+			"elk.spacing.nodeNode":                      "60",
+			"elk.layered.spacing.nodeNodeBetweenLayers": "80",
+
+			// Edge spacing — prevent overlapping parallel edges
+			"elk.spacing.edgeEdge":                          "15",
+			"elk.spacing.edgeNode":                          "20",
+			"elk.layered.spacing.edgeEdgeBetweenLayers":     "20",
+			"elk.layered.spacing.edgeNodeBetweenLayers":     "20",
+
+			// Canvas padding
+			"elk.padding": "[top=40,left=40,bottom=40,right=40]",
+
+			// Port constraints — let ELK choose optimal side (N/S/E/W)
+			"elk.portConstraints": "FREE",
+
+			// Crossing minimization and node placement
+			"elk.layered.crossingMinimization.strategy": "LAYER_SWEEP",
+			"elk.layered.nodePlacement.strategy":        "NETWORK_SIMPLEX",
+
+			// Compaction — minimize edge length for tighter layouts
+			"elk.layered.compaction.postCompaction.strategy": "EDGE_LENGTH",
 		},
 	}
 
