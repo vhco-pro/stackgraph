@@ -91,6 +91,27 @@ fixes are in [v2-improvement-spec.md](../v2-improvement-spec.md).
    code between the two SVG renderers, 28MB binary (1748 embedded icons, ~51
    used).
 
+## After: Release-1 core implemented (same branch)
+
+The containment redesign from the spec (declarative `parent_ref` lookups,
+pipeline reorder, containment-preserving collapse, evidence-only edges with
+`--infer-flows` opt-in, module-address fix, ELK as default) was implemented on
+this branch immediately after the review. The same 39-resource two-VPC state
+that produced the smoking gun now renders correctly:
+
+![Two-VPC state after the fix: both VPCs properly nested, evidence-only edges](assets/2026-08-after-big.png)
+
+**Same input as the smoking gun.** Both VPCs contain their subnets; NAT sits in
+the public subnet, the IGW in the VPC; the collapsed `EC2 staging_app (x3)`
+sits inside its security group; labels no longer truncate; edge count dropped
+from 74 (mostly fabricated) to 5 evidence-based edges (23 with `--infer-flows`,
+all scoped to a single network container — no more prod → staging fiction).
+
+| Fixed | Preserved |
+|---|---|
+| ![Count collapse now nests correctly](assets/2026-08-after-aws-count-foreach.png) | ![Three-tier with inferred flows enabled](assets/2026-08-after-three-tier-flows.png) |
+| **Count-collapse containment fixed.** `EC2 web (x3)` inside subnet inside VPC. | **Fixture quality preserved.** Three-tier with `--infer-flows` matches the old best-case render. |
+
 ## The path to best-in-scene
 
 Competitors are weak — Terravision needs credentials and Graphviz, InfraMap

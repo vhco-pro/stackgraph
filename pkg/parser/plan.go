@@ -26,6 +26,8 @@ func ParsePlan(data []byte) (*graph.Graph, error) {
 		}
 
 		switch {
+		case rc.Change.Actions.Replace():
+			actions[rc.Address] = graph.ActionReplace
 		case rc.Change.Actions.Create():
 			actions[rc.Address] = graph.ActionCreate
 		case rc.Change.Actions.Delete():
@@ -40,7 +42,7 @@ func ParsePlan(data []byte) (*graph.Graph, error) {
 	// Use planned values for the graph (same structure as state)
 	if plan.PlannedValues != nil && plan.PlannedValues.RootModule != nil {
 		providers := make(map[string]int)
-		addModuleResources(g, plan.PlannedValues.RootModule, "", providers)
+		addModuleResources(g, plan.PlannedValues.RootModule, providers)
 
 		if len(providers) > 0 {
 			var topProvider string

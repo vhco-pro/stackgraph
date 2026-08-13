@@ -15,6 +15,7 @@ type ResourceMapping struct {
 	IsGroup     bool             `yaml:"is_group,omitempty"`
 	GroupLevel  int              `yaml:"group_level,omitempty"`
 	GroupParent string           `yaml:"group_parent,omitempty"`
+	ParentRef   string           `yaml:"parent_ref,omitempty"`
 	Variants    []VariantMapping `yaml:"variants,omitempty"`
 }
 

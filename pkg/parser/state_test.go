@@ -3,6 +3,8 @@ package parser
 import (
 	"os"
 	"testing"
+
+	"github.com/vhco-pro/stackgraph/pkg/graph"
 )
 
 func readTestFile(t *testing.T, path string) []byte {
@@ -175,4 +177,41 @@ func TestParseState_MalformedJSON(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for malformed JSON, got nil")
 	}
+}
+
+func TestParseState_NestedModuleAddresses(t *testing.T) {
+	data := readTestFile(t, "../../testdata/state/aws/nested-modules.json")
+	g, err := ParseState(data)
+	if err != nil {
+		t.Fatalf("ParseState failed: %v", err)
+	}
+
+	// terraform-json addresses are already fully qualified — the parser must
+	// not re-prefix them (regression: module.net.module.net.aws_subnet.a).
+	want := map[string]string{
+		"aws_vpc.main":                           "",
+		"module.net.aws_subnet.a":                "module.net",
+		"module.net.module.inner.aws_instance.w": "module.net.module.inner",
+	}
+	if len(g.Nodes) != len(want) {
+		t.Fatalf("got %d nodes, want %d", len(g.Nodes), len(want))
+	}
+	for id, wantModule := range want {
+		n := g.NodeByID(id)
+		if n == nil {
+			t.Errorf("expected node %q, not found (addresses: %v)", id, nodeIDs(g.Nodes))
+			continue
+		}
+		if n.Module != wantModule {
+			t.Errorf("node %q module = %q, want %q", id, n.Module, wantModule)
+		}
+	}
+}
+
+func nodeIDs(nodes []*graph.Node) []string {
+	ids := make([]string, 0, len(nodes))
+	for _, n := range nodes {
+		ids = append(ids, n.ID)
+	}
+	return ids
 }

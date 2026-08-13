@@ -1,7 +1,7 @@
 ---
 description: "Findings from the 2026-08 product review and the spec for making stackgraph correct at real-world scale — ID-based containment, evidence-based edges, mapping-driven rendering, single layout path"
-status: proposed
-status_description: "Review complete with reproduced failure cases; implementation not started"
+status: in-progress
+status_description: "Release-1 core landed: parent_ref containment, pipeline reorder, containment-preserving collapse, evidence-only edges (--infer-flows opt-in), module-address fix, ELK default, label sizing. Remaining: mappings-as-source-of-truth, dagre deletion, goja hardening, plan overhaul, coverage tooling, HTML viewer."
 author: Michiel VH
 goal: "Diagrams that stay correct and readable on real multi-VPC, multi-env states — not just single-VPC fixtures"
 priority: high
@@ -257,20 +257,27 @@ best in the scene" is what competitors don't have:
 
 ## Implementation order
 
-1. Pipeline reorder + ID-based containment (`parent_ref`, ref index,
-   containment resolver) — fixes the flat-diagram class outright.
-2. Containment-preserving collapse; suppress containment edges; pair-keyed
-   edge dedup; module-address fix with fixture.
-3. Remove cartesian `inferFlowEdges`; add evidence-based flows (target-group
-   attachments first).
+1. ~~Pipeline reorder + ID-based containment (`parent_ref`, ref index,
+   containment resolver)~~ — **done** (fixes the flat-diagram class outright).
+2. ~~Containment-preserving collapse; suppress containment edges; pair-keyed
+   edge dedup; module-address fix with fixture~~ — **done**.
+3. Cartesian `inferFlowEdges` — **removed from the default path; kept behind
+   `--infer-flows`, scoped to a single network container**. Evidence-based
+   flows (target-group attachments first) still to do. Implicit reference
+   detection now also scans lists. ELK is the default layout; box labels are
+   sized to fit and never truncate.
 4. Mappings as single source of truth (schema, icon validation, delete
    renderer switches, `--mappings` flag, icon pruning).
 5. Delete dagre; harden goja (VM reuse, `vm.Set`, interrupt/timeout, all edge
-   sections); global-services partition; label sizing.
+   sections); global-services partition.
 6. Structural-invariant + golden + end-to-end tests; big fixture; plan /
-   terragrunt / nested-module fixtures (incl. terragrunt panic fix).
-7. Plan mode overhaul (replace actions, deletes, icon-node coloring).
+   terragrunt fixtures (incl. terragrunt panic fix). Nested-module fixture +
+   containment/collapse/name-match regression tests are **done**.
+7. Plan mode overhaul (deletes from `resource_changes`, icon-node coloring;
+   replace-action mapping is **done**).
 8. Mapping expansion + `mappings coverage`.
 9. `--format html` interactive viewer.
 
 Steps 1–6 are the "make it honest" release; 7–9 are the "make it win" release.
+The 2026-08 results are documented with before/after renders in
+[reviews/2026-08-product-review.md](reviews/2026-08-product-review.md).

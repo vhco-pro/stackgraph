@@ -28,7 +28,7 @@ func ParseState(data []byte) (*graph.Graph, error) {
 
 	// Process root module resources
 	if state.Values.RootModule != nil {
-		addModuleResources(g, state.Values.RootModule, "", providers)
+		addModuleResources(g, state.Values.RootModule, providers)
 	}
 
 	// Set primary provider in metadata
@@ -47,12 +47,11 @@ func ParseState(data []byte) (*graph.Graph, error) {
 	return g, nil
 }
 
-func addModuleResources(g *graph.Graph, module *tfjson.StateModule, modulePrefix string, providers map[string]int) {
+func addModuleResources(g *graph.Graph, module *tfjson.StateModule, providers map[string]int) {
 	for _, r := range module.Resources {
+		// r.Address is already fully qualified inside child modules
+		// (e.g. "module.net.aws_subnet.a") — never re-prefix it.
 		address := r.Address
-		if modulePrefix != "" {
-			address = modulePrefix + "." + address
-		}
 
 		provider := extractProvider(r.ProviderName)
 		providers[provider]++
@@ -67,7 +66,7 @@ func addModuleResources(g *graph.Graph, module *tfjson.StateModule, modulePrefix
 			Label:        r.Name,
 			Provider:     provider,
 			Attributes:   attrs,
-			Module:       modulePrefix,
+			Module:       module.Address,
 		}
 
 		if r.Mode == tfjson.DataResourceMode {
@@ -88,8 +87,7 @@ func addModuleResources(g *graph.Graph, module *tfjson.StateModule, modulePrefix
 
 	// Recurse into child modules
 	for _, child := range module.ChildModules {
-		childPrefix := child.Address
-		addModuleResources(g, child, childPrefix, providers)
+		addModuleResources(g, child, providers)
 	}
 }
 
@@ -146,10 +144,18 @@ func curateAttributes(resourceType string, values map[string]any) map[string]any
 		"proxmox_lxc":     {"target_node", "cores", "memory", "rootfs_size"},
 	}
 
-	// Always keep attributes ending in _id (used for implicit edge detection)
+	// Reference-shaped attributes are always kept: implicit edge detection and
+	// parent_ref containment both resolve through them.
+	refShaped := func(k string) bool {
+		return strings.HasSuffix(k, "_id") || strings.HasSuffix(k, "_ids") ||
+			strings.HasSuffix(k, "_name") || strings.HasSuffix(k, "_names") ||
+			k == "network" || k == "subnetwork" || k == "subnets" ||
+			k == "security_groups" || k == "self_link" || k == "cluster"
+	}
+
 	result := make(map[string]any)
 	for k, v := range values {
-		if keep[k] || strings.HasSuffix(k, "_id") {
+		if keep[k] || refShaped(k) {
 			result[k] = v
 			continue
 		}

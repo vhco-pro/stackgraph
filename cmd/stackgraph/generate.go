@@ -9,11 +9,11 @@ import (
 	"strings"
 
 	"github.com/michielvha/logger"
+	"github.com/spf13/cobra"
 	"github.com/vhco-pro/stackgraph/pkg/graph"
 	"github.com/vhco-pro/stackgraph/pkg/mapping"
 	"github.com/vhco-pro/stackgraph/pkg/output"
 	"github.com/vhco-pro/stackgraph/pkg/parser"
-	"github.com/spf13/cobra"
 )
 
 func newGenerateCmd() *cobra.Command {
@@ -24,6 +24,7 @@ func newGenerateCmd() *cobra.Command {
 		outputFile string
 		inputType  string
 		terragrunt bool
+		inferFlows bool
 		layout     string
 	)
 
@@ -80,9 +81,15 @@ func newGenerateCmd() *cobra.Command {
 				return fmt.Errorf("failed to parse input: %w", err)
 			}
 
+			// Reference edges must exist before grouping so the edge-based
+			// containment fallback (DOT/HCL inputs) has something to work with;
+			// parent_ref containment reads attributes directly either way.
 			g.ApplyMappings(registry)
-			g.ApplyGrouping()
 			g.DetectImplicitEdges()
+			g.ApplyGrouping()
+			if inferFlows {
+				g.InferFlowEdges()
+			}
 			g.CollapseCountInstances()
 			g.FilterInternal()
 
@@ -96,8 +103,10 @@ func newGenerateCmd() *cobra.Command {
 				switch layout {
 				case "elk":
 					out, err = output.RenderElkSVG(g)
-				default:
+				case "dagre":
 					out, err = output.RenderDagreSVG(g)
+				default:
+					return fmt.Errorf("unsupported layout: %s (supported: elk, dagre)", layout)
 				}
 			default:
 				return fmt.Errorf("unsupported format: %s (supported: json, dot, svg)", formatFlag)
@@ -120,7 +129,8 @@ func newGenerateCmd() *cobra.Command {
 	cmd.Flags().StringVarP(&outputFile, "output", "o", "", "Output file (default: stdout)")
 	cmd.Flags().StringVar(&inputType, "input-type", "", "Explicit input type: state, plan, dot (default: auto-detect)")
 	cmd.Flags().BoolVar(&terragrunt, "terragrunt", false, "Parse source directory as a Terragrunt project")
-	cmd.Flags().StringVar(&layout, "layout", "dagre", "Layout engine: dagre (default) or elk (orthogonal edges)")
+	cmd.Flags().StringVar(&layout, "layout", "elk", "Layout engine: elk (default, orthogonal edges) or dagre")
+	cmd.Flags().BoolVar(&inferFlows, "infer-flows", false, "Add heuristic data-flow edges (ALB->EC2, EC2->RDS, ...) scoped to the same network container")
 
 	return cmd
 }

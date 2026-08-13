@@ -21,11 +21,12 @@ const (
 type Action string
 
 const (
-	ActionNone   Action = ""
-	ActionCreate Action = "create"
-	ActionUpdate Action = "update"
-	ActionDelete Action = "delete"
-	ActionNoOp   Action = "no-op"
+	ActionNone    Action = ""
+	ActionCreate  Action = "create"
+	ActionUpdate  Action = "update"
+	ActionReplace Action = "replace"
+	ActionDelete  Action = "delete"
+	ActionNoOp    Action = "no-op"
 )
 
 // Node represents a single resource or group in the infrastructure graph.
@@ -47,6 +48,7 @@ type Node struct {
 	IsGroupNode  bool                   `json:"-"` // internal: determined by mapping
 	GroupLevel   int                    `json:"-"` // internal: nesting depth
 	GroupParent  string                 `json:"-"` // internal: expected parent resource type
+	ParentRef    string                 `json:"-"` // internal: attribute naming the containing resource
 }
 
 // Edge represents a dependency or relationship between two nodes.
@@ -128,6 +130,7 @@ func (g *Graph) ApplyMappings(registry interface{ Lookup(string) *MappingResult 
 		n.IsGroupNode = result.IsGroup
 		n.GroupLevel = result.GroupLevel
 		n.GroupParent = result.GroupParent
+		n.ParentRef = result.ParentRef
 
 		if n.IsGroupNode {
 			n.Type = NodeTypeGroup
@@ -161,6 +164,7 @@ type MappingResult struct {
 	IsGroup     bool
 	GroupLevel  int
 	GroupParent string
+	ParentRef   string
 	Variants    []MappingVariant
 }
 
@@ -194,10 +198,6 @@ func (g *Graph) CollapseCountInstances() {
 	// Replace indexed groups with a single collapsed node
 	collapsed := make(map[string]bool)
 	for base, nodes := range baseGroups {
-		if len(nodes) < 1 {
-			continue
-		}
-
 		// Use the first node as the representative
 		rep := *nodes[0]
 		rep.ID = base
@@ -207,6 +207,15 @@ func (g *Graph) CollapseCountInstances() {
 			rep.Label = matches[1]
 		}
 		rep.Count = len(nodes)
+		// The representative keeps the members' parent (instances of one
+		// count block share a parent); prefer the first member that has one.
+		for _, n := range nodes {
+			if n.Parent != "" {
+				rep.Parent = n.Parent
+				break
+			}
+		}
+		rep.Children = nil
 		nonIndexed = append(nonIndexed, &rep)
 
 		for _, n := range nodes {
@@ -215,19 +224,41 @@ func (g *Graph) CollapseCountInstances() {
 	}
 
 	g.Nodes = nonIndexed
+	g.nodeIndex = nil // invalidate index before NodeByID below
 
-	// Update edges: repoint collapsed node references to their base address
+	// Rewrite every surviving node's parent/children links from member IDs
+	// to the collapsed base ID, so containers keep containing the collapsed node.
+	collapseRef := func(id string) string {
+		if matches := countIndexRegex.FindStringSubmatch(id); matches != nil && collapsed[id] {
+			return matches[1]
+		}
+		return id
+	}
+	for _, n := range g.Nodes {
+		n.Parent = collapseRef(n.Parent)
+		if len(n.Children) > 0 {
+			var children []string
+			seen := make(map[string]bool)
+			for _, c := range n.Children {
+				c = collapseRef(c)
+				if c != n.ID && !seen[c] {
+					seen[c] = true
+					children = append(children, c)
+				}
+			}
+			n.Children = children
+		}
+	}
+
+	// Update edges: repoint collapsed node references to their base address,
+	// dropping self-edges created by merging members of the same base.
 	var updatedEdges []*Edge
 	for _, e := range g.Edges {
-		src := e.Source
-		tgt := e.Target
-		if matches := countIndexRegex.FindStringSubmatch(src); matches != nil && collapsed[src] {
-			src = matches[1]
+		src := collapseRef(e.Source)
+		tgt := collapseRef(e.Target)
+		if src == tgt {
+			continue
 		}
-		if matches := countIndexRegex.FindStringSubmatch(tgt); matches != nil && collapsed[tgt] {
-			tgt = matches[1]
-		}
-		// Deduplicate edges after collapsing
 		updatedEdges = append(updatedEdges, &Edge{
 			Source: src,
 			Target: tgt,
@@ -239,14 +270,16 @@ func (g *Graph) CollapseCountInstances() {
 		updatedEdges = make([]*Edge, 0)
 	}
 	g.Edges = deduplicateEdges(updatedEdges)
-	g.nodeIndex = nil // invalidate index
 }
 
+// deduplicateEdges keeps one edge per source→target pair. The key deliberately
+// ignores edge type: a depends_on edge plus a subnet_id edge between the same
+// two nodes would otherwise draw as two overlapping arrows.
 func deduplicateEdges(edges []*Edge) []*Edge {
 	seen := make(map[string]bool)
 	var result []*Edge
 	for _, e := range edges {
-		key := e.Source + "->" + e.Target + ":" + e.Type
+		key := e.Source + "->" + e.Target
 		if !seen[key] {
 			seen[key] = true
 			result = append(result, e)

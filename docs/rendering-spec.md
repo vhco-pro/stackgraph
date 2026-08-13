@@ -12,7 +12,7 @@ created: 2026-04-03
 
 ## Context
 
-stackgraph has two layout engines: dagre.js (default) and ELK.js (`--layout elk`). Both run via goja (Go JS runtime) and produce self-contained SVGs with base64-embedded cloud provider icons.
+stackgraph has two layout engines: ELK.js (default) and dagre.js (`--layout dagre`, legacy). Both run via goja (Go JS runtime) and produce self-contained SVGs with base64-embedded cloud provider icons.
 
 D2 and go-graphviz renderers have been removed.
 
@@ -52,7 +52,7 @@ D2 and go-graphviz renderers have been removed.
 
 ## Layout Engine Comparison
 
-| Feature | dagre (default) | ELK (`--layout elk`) |
+| Feature | dagre (`--layout dagre`, legacy) | ELK (default) |
 |---------|----------------|---------------------|
 | Direction | Top-down | Left-to-right |
 | Edge routing | B-spline curves | Orthogonal (right-angle) |

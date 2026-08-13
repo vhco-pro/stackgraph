@@ -6,8 +6,8 @@ import (
 	"strings"
 	"text/tabwriter"
 
-	"github.com/vhco-pro/stackgraph/pkg/mapping"
 	"github.com/spf13/cobra"
+	"github.com/vhco-pro/stackgraph/pkg/mapping"
 )
 
 func newMappingsCmd() *cobra.Command {

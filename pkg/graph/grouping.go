@@ -6,8 +6,10 @@ import (
 )
 
 // ApplyGrouping assigns parent-child relationships between group nodes (VPC, subnet, etc.)
-// and their contained resources based on mapping metadata, implicit edge detection,
-// and attribute-based containment (e.g., security group membership).
+// and their contained resources. Containment is resolved primarily from declarative
+// parent_ref attribute lookups (deterministic, works without depends_on), with
+// edge-based inference as a fallback for parsers that produce no attributes (DOT, HCL).
+// Callers must run DetectImplicitEdges BEFORE this so the edge fallback sees real edges.
 func (g *Graph) ApplyGrouping() {
 	g.ensureIndex()
 
@@ -22,7 +24,21 @@ func (g *Graph) ApplyGrouping() {
 		return groupNodes[i].GroupLevel < groupNodes[j].GroupLevel
 	})
 
-	// Phase 1: Nest group nodes inside each other based on group_parent mapping
+	refIndex := g.buildRefIndex()
+
+	// Phase 1: parent_ref containment — group nodes first (outermost first,
+	// so children of nested groups resolve against already-placed parents),
+	// then regular resources.
+	for _, gn := range groupNodes {
+		g.assignParentByRef(gn, refIndex)
+	}
+	for _, n := range g.Nodes {
+		if !n.IsGroupNode {
+			g.assignParentByRef(n, refIndex)
+		}
+	}
+
+	// Phase 2 (fallback): edge-based nesting for nodes parent_ref could not place.
 	for _, gn := range groupNodes {
 		if gn.GroupParent == "" || gn.Parent != "" {
 			continue
@@ -35,14 +51,11 @@ func (g *Graph) ApplyGrouping() {
 			}
 
 			if g.hasEdgeBetween(gn.ID, candidate.ID) {
-				gn.Parent = candidate.ID
-				candidate.Children = appendUnique(candidate.Children, gn.ID)
+				g.setParent(gn, candidate)
 				break
 			}
 		}
 	}
-
-	// Phase 2: For non-group resources, find closest group parent via edges
 	for _, n := range g.Nodes {
 		if n.IsGroupNode || n.Parent != "" {
 			continue
@@ -50,8 +63,7 @@ func (g *Graph) ApplyGrouping() {
 
 		bestGroup := g.findBestGroup(n, groupNodes)
 		if bestGroup != nil {
-			n.Parent = bestGroup.ID
-			bestGroup.Children = appendUnique(bestGroup.Children, n.ID)
+			g.setParent(n, bestGroup)
 		}
 	}
 
@@ -60,22 +72,141 @@ func (g *Graph) ApplyGrouping() {
 
 	// Phase 4: Assign resources to security groups via attribute matching.
 	// This runs AFTER subnet assignment so SG inherits the subnet context.
-	// If a resource has vpc_security_group_ids referencing an SG, move the SG
-	// to the same parent as the resource and put the resource inside the SG.
 	g.assignSecurityGroupContainment()
 
-	// Phase 5: Infer data flow edges based on resource type relationships.
-	// Terraform depends_on shows build dependencies, not runtime data flow.
-	// We add synthetic edges for common patterns (ALB → EC2, EC2 → RDS, etc.)
-	g.inferFlowEdges()
+	// Phase 5: Drop edges that merely restate containment — nesting already
+	// shows them, and drawn arrows into container walls read as noise.
+	g.suppressContainmentEdges()
 
 	// Phase 6: Add cloud provider boundary around all top-level provider resources
 	g.addCloudBoundary()
 }
 
-// inferFlowEdges adds synthetic data-flow edges between resources based on
-// common architectural patterns. These are the edges that make diagrams useful.
-func (g *Graph) inferFlowEdges() {
+// refIndex resolves attribute reference values to nodes: by "id"/"arn" globally
+// (those are unique), and by (resource type, "name") for name-typed references
+// like azurerm's resource_group_name, which are only unique within a type.
+type refIndex struct {
+	byID   map[string]*Node
+	byName map[string]*Node // key: resourceType + "\x00" + name
+}
+
+func (g *Graph) buildRefIndex() *refIndex {
+	idx := &refIndex{
+		byID:   make(map[string]*Node),
+		byName: make(map[string]*Node),
+	}
+	for _, n := range g.Nodes {
+		if n.Attributes == nil {
+			continue
+		}
+		for _, key := range []string{"id", "arn", "self_link"} {
+			if v, ok := n.Attributes[key].(string); ok && v != "" {
+				idx.byID[v] = n
+			}
+		}
+		if name, ok := n.Attributes["name"].(string); ok && name != "" {
+			idx.byName[n.ResourceType+"\x00"+name] = n
+		}
+	}
+	return idx
+}
+
+// assignParentByRef places a node inside the container its parent_ref attribute
+// points at. Reference values may be a scalar string or a list (first resolvable
+// entry wins, e.g. aws_lb.subnets). Matches resolve by id/arn first; a name match
+// is only accepted for the mapping's declared group_parent type.
+func (g *Graph) assignParentByRef(n *Node, idx *refIndex) {
+	if n.Parent != "" || n.ParentRef == "" || n.Attributes == nil {
+		return
+	}
+
+	raw, ok := n.Attributes[n.ParentRef]
+	if !ok {
+		return
+	}
+
+	var candidates []string
+	switch v := raw.(type) {
+	case string:
+		candidates = []string{v}
+	case []interface{}:
+		for _, item := range v {
+			if s, ok := item.(string); ok {
+				candidates = append(candidates, s)
+			}
+		}
+	}
+
+	for _, ref := range candidates {
+		if ref == "" {
+			continue
+		}
+		target := idx.byID[ref]
+		if target == nil && n.GroupParent != "" {
+			target = idx.byName[n.GroupParent+"\x00"+ref]
+		}
+		if target == nil || target.ID == n.ID || !target.IsGroupNode {
+			continue
+		}
+		g.setParent(n, target)
+		return
+	}
+}
+
+// setParent links child under parent, guarding against containment cycles.
+func (g *Graph) setParent(child, parent *Node) {
+	for anc, hops := parent, 0; anc != nil && hops < len(g.Nodes)+1; hops++ {
+		if anc.ID == child.ID {
+			return // would create a cycle
+		}
+		anc = g.NodeByID(anc.Parent)
+	}
+	child.Parent = parent.ID
+	parent.Children = appendUnique(parent.Children, child.ID)
+}
+
+// suppressContainmentEdges removes edges whose relationship is already expressed
+// by nesting: an edge between a node and one of its ancestor containers.
+func (g *Graph) suppressContainmentEdges() {
+	g.ensureIndex()
+
+	isAncestor := func(anc, node *Node) bool {
+		for cur, hops := node, 0; cur != nil && hops < len(g.Nodes)+1; hops++ {
+			if cur.Parent == "" {
+				return false
+			}
+			if cur.Parent == anc.ID {
+				return true
+			}
+			cur = g.NodeByID(cur.Parent)
+		}
+		return false
+	}
+
+	var kept []*Edge
+	for _, e := range g.Edges {
+		src := g.NodeByID(e.Source)
+		tgt := g.NodeByID(e.Target)
+		if src != nil && tgt != nil &&
+			((tgt.IsGroupNode && isAncestor(tgt, src)) || (src.IsGroupNode && isAncestor(src, tgt))) {
+			continue
+		}
+		kept = append(kept, e)
+	}
+	if kept == nil {
+		kept = make([]*Edge, 0)
+	}
+	g.Edges = kept
+}
+
+// InferFlowEdges adds synthetic data-flow edges between resources based on
+// common architectural patterns (ALB → EC2, EC2 → RDS, …). These edges are
+// heuristic, not evidence from the state, so this is opt-in (--infer-flows)
+// and scoped: a pair only connects when both nodes live under the same
+// network container (VPC/VNet), or both live outside any network container.
+// Without that scope a prod instance would get a drawn edge to a staging
+// database purely because the types match.
+func (g *Graph) InferFlowEdges() {
 	g.ensureIndex()
 
 	// Collect resources by type for pairing
@@ -161,6 +292,9 @@ func (g *Graph) inferFlowEdges() {
 
 		for _, src := range srcs {
 			for _, tgt := range tgts {
+				if g.networkAncestor(src) != g.networkAncestor(tgt) {
+					continue
+				}
 				key := src.ID + "->" + tgt.ID
 				if existingEdges[key] {
 					continue
@@ -176,6 +310,18 @@ func (g *Graph) inferFlowEdges() {
 			}
 		}
 	}
+}
+
+// networkAncestor returns the ID of the level-1 group container (VPC, VNet,
+// VPC network) enclosing the node, or "" when the node lives outside one.
+func (g *Graph) networkAncestor(n *Node) string {
+	for cur, hops := n, 0; cur != nil && hops < len(g.Nodes)+1; hops++ {
+		if cur.IsGroupNode && cur.GroupLevel == 1 {
+			return cur.ID
+		}
+		cur = g.NodeByID(cur.Parent)
+	}
+	return ""
 }
 
 // assignSecurityGroupContainment moves resources inside their security groups.
@@ -423,29 +569,44 @@ func (g *Graph) DetectImplicitEdges() {
 				continue
 			}
 
-			valStr, ok := attrValue.(string)
-			if !ok || valStr == "" {
-				continue
+			// References appear as scalar strings or lists of strings
+			// (e.g. subnets, security_groups, route53 records).
+			var values []string
+			switch v := attrValue.(type) {
+			case string:
+				values = []string{v}
+			case []interface{}:
+				for _, item := range v {
+					if s, ok := item.(string); ok {
+						values = append(values, s)
+					}
+				}
 			}
 
-			targetNodeID, found := idIndex[valStr]
-			if !found || targetNodeID == n.ID {
-				continue
-			}
+			for _, valStr := range values {
+				if valStr == "" {
+					continue
+				}
 
-			edgeKey := n.ID + "->" + targetNodeID
-			if existingEdges[edgeKey] {
-				continue
-			}
+				targetNodeID, found := idIndex[valStr]
+				if !found || targetNodeID == n.ID {
+					continue
+				}
 
-			g.AddEdge(&Edge{
-				Source: n.ID,
-				Target: targetNodeID,
-				Type:   attrName,
-				Label:  formatEdgeLabel(attrName),
-			})
-			existingEdges[edgeKey] = true
-			existingEdges[targetNodeID+"->"+n.ID] = true
+				edgeKey := n.ID + "->" + targetNodeID
+				if existingEdges[edgeKey] {
+					continue
+				}
+
+				g.AddEdge(&Edge{
+					Source: n.ID,
+					Target: targetNodeID,
+					Type:   attrName,
+					Label:  formatEdgeLabel(attrName),
+				})
+				existingEdges[edgeKey] = true
+				existingEdges[targetNodeID+"->"+n.ID] = true
+			}
 		}
 	}
 }

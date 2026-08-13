@@ -197,7 +197,31 @@ func dagreNodeSize(n *sgraph.Node) (w, h int) {
 	if iconPath != "" {
 		return nodeWidth, nodeHeight
 	}
-	return boxNodeWidth, boxNodeHeight
+	// Box nodes are sized to their longest label line so names never truncate.
+	svc, name := boxNodeLabelLines(n)
+	longest := len([]rune(svc))
+	if l := len([]rune(name)); l > longest {
+		longest = l
+	}
+	w = longest*7 + 24
+	if w < boxNodeWidth {
+		w = boxNodeWidth
+	}
+	return w, boxNodeHeight
+}
+
+// boxNodeLabelLines returns the two label lines for an icon-less box node:
+// the service (or resource type) line and the resource name line.
+func boxNodeLabelLines(n *sgraph.Node) (service, name string) {
+	service = n.Service
+	if service == "" {
+		service = n.ResourceType
+	}
+	name = n.Label
+	if n.Count > 1 {
+		name += fmt.Sprintf(" (x%d)", n.Count)
+	}
+	return service, name
 }
 
 func generateDagreSVG(g *sgraph.Graph, positions map[string]NodePosition, edgeRoutes map[string]EdgePoints) string {
@@ -538,18 +562,12 @@ func renderDagreNode(b *strings.Builder, n *sgraph.Node, pos NodePosition) {
 			x, y, pos.Width, pos.Height, fill, stroke)
 		b.WriteString("\n")
 
-		label := n.Label
-		if n.Service != "" {
-			label = n.Service + " — " + n.Label
-		}
-		if n.Count > 1 {
-			label += fmt.Sprintf(" (x%d)", n.Count)
-		}
-		if len(label) > 24 {
-			label = label[:21] + "..."
-		}
-		fmt.Fprintf(b, `<text class="sg-text" x="%.0f" y="%.0f" text-anchor="middle" font-size="11" font-weight="500" fill="#2D3436">%s</text>`,
-			cx, cy+4, escapeXMLStr(label))
+		svc, name := boxNodeLabelLines(n)
+		fmt.Fprintf(b, `<text class="sg-text" x="%.0f" y="%.0f" text-anchor="middle" font-size="11" font-weight="600" fill="#2D3436">%s</text>`,
+			cx, cy-3, escapeXMLStr(svc))
+		b.WriteString("\n")
+		fmt.Fprintf(b, `<text class="sg-text-sm" x="%.0f" y="%.0f" text-anchor="middle" font-size="10" fill="#2D3436">%s</text>`,
+			cx, cy+11, escapeXMLStr(name))
 		b.WriteString("\n")
 	}
 }

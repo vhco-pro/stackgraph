@@ -77,6 +77,7 @@ func (r *Registry) Lookup(resourceType string) *graph.MappingResult {
 		IsGroup:     entry.mapping.IsGroup,
 		GroupLevel:  entry.mapping.GroupLevel,
 		GroupParent: entry.mapping.GroupParent,
+		ParentRef:   entry.mapping.ParentRef,
 	}
 
 	for _, v := range entry.mapping.Variants {

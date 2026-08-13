@@ -5,6 +5,7 @@ resources:
     category: Compute
     icon: aws/compute/ec2-instance.svg
     group_parent: aws_subnet
+    parent_ref: subnet_id
   aws_launch_template:
     service: EC2
     category: Compute
@@ -16,6 +17,7 @@ resources:
     is_group: true
     group_level: 4
     group_parent: aws_subnet
+    parent_ref: vpc_zone_identifier
   aws_lambda_function:
     service: Lambda
     category: Compute
@@ -74,6 +76,7 @@ resources:
     is_group: true
     group_parent: aws_vpc
     group_level: 2
+    parent_ref: vpc_id
   aws_security_group:
     service: Security Group
     category: Security
@@ -81,6 +84,7 @@ resources:
     is_group: true
     group_parent: aws_vpc
     group_level: 3
+    parent_ref: vpc_id
   aws_security_group_rule:
     service: SG Rule
     category: Security
@@ -89,10 +93,14 @@ resources:
     service: Internet Gateway
     category: Networking
     icon: aws/networking/internet-gateway.svg
+    group_parent: aws_vpc
+    parent_ref: vpc_id
   aws_nat_gateway:
     service: NAT Gateway
     category: Networking
     icon: aws/networking/nat-gateway.svg
+    group_parent: aws_subnet
+    parent_ref: subnet_id
   aws_eip:
     service: Elastic IP
     category: Networking
@@ -127,6 +135,8 @@ resources:
     service: ALB
     category: Networking
     icon: aws/networking/alb.svg
+    group_parent: aws_subnet
+    parent_ref: subnets
     variants:
       - match: { attribute: load_balancer_type, value: network }
         icon: aws/networking/nlb.svg

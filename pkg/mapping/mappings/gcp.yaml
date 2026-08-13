@@ -41,6 +41,7 @@ resources:
     is_group: true
     group_level: 2
     group_parent: google_compute_network
+    parent_ref: network
   google_compute_firewall:
     service: Firewall Rule
     category: Networking

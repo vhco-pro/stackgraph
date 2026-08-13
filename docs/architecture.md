@@ -25,10 +25,10 @@ Graph JSON ─────────┤
                     └─ Stackweaver frontend: @xyflow/react + ELK.js → interactive diagram
 ```
 
-**CLI static output** — Uses dagre.js (default) or ELK.js (`--layout elk`) via goja (Go JS runtime) for layout, then generates SVG directly with base64-embedded cloud provider icons. No system dependencies, fully offline, self-contained SVG output.
+**CLI static output** — Uses ELK.js (default) or dagre.js (`--layout dagre`) via goja (Go JS runtime) for layout, then generates SVG directly with base64-embedded cloud provider icons. No system dependencies, fully offline, self-contained SVG output.
 
 Two layout engines available:
-- **dagre** (default, `--layout dagre`) — top-down layout with B-spline curve edges, 278KB
+- **dagre** (`--layout dagre`, legacy) — top-down layout with B-spline curve edges, 278KB
 - **ELK** (`--layout elk`) — left-to-right layout with orthogonal (right-angle) edges, 3.6MB. Better edge routing, no edge-label overlap.
 
 **Stackweaver frontend** — Consumes the same graph JSON via API and renders with `@xyflow/react` + ELK.js for an interactive experience (pan, zoom, click-to-inspect, search, export). Documented in the Stackweaver integration plan.
