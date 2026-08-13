@@ -13,7 +13,7 @@ import (
 func RenderHTML(g *sgraph.Graph) ([]byte, error) {
 	svg, err := RenderSVG(g)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to render embedded SVG: %w", err)
 	}
 
 	graphJSON, err := g.ToJSON()
@@ -145,7 +145,8 @@ func RenderHTML(g *sgraph.Graph) ([]byte, error) {
     var rows = '';
     function row(k, v) {
       if (v === undefined || v === null || v === '') return;
-      rows += '<tr><td>' + k + '</td><td>' + String(v).replace(/&/g, '&amp;').replace(/</g, '&lt;') + '</td></tr>';
+      var e = function (s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;'); };
+      rows += '<tr><td>' + e(k) + '</td><td>' + e(v) + '</td></tr>';
     }
     row('service', node.service);
     row('category', node.category);
@@ -160,8 +161,9 @@ func RenderHTML(g *sgraph.Graph) ([]byte, error) {
         row(k, typeof v === 'object' ? JSON.stringify(v) : v);
       });
     }
-    panel.innerHTML = '<button class="close" aria-label="Close">×</button><h2>' + node.id.replace(/</g, '&lt;') +
-      '</h2><div class="type">' + node.resource_type + '</div><table>' + rows + '</table>';
+    var esc = function (s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;'); };
+    panel.innerHTML = '<button class="close" aria-label="Close">×</button><h2>' + esc(node.id) +
+      '</h2><div class="type">' + esc(node.resource_type) + '</div><table>' + rows + '</table>';
     panel.classList.add('open');
     panel.querySelector('.close').onclick = function () { panel.classList.remove('open'); };
   }

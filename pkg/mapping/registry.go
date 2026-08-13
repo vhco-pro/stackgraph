@@ -70,7 +70,7 @@ func LoadEmbedded() (*Registry, error) {
 func (r *Registry) LoadDir(dir string) error {
 	overlay, err := LoadFromFS(os.DirFS(dir), ".")
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to load mapping overlay from %s: %w", dir, err)
 	}
 	for resourceType, entry := range overlay.mappings {
 		r.mappings[resourceType] = entry
@@ -94,15 +94,8 @@ func (r *Registry) Lookup(resourceType string) *graph.MappingResult {
 		GroupParent: entry.mapping.GroupParent,
 		ParentRef:   entry.mapping.ParentRef,
 	}
-	if s := entry.mapping.Style; s != nil {
-		result.Style = &graph.NodeStyle{
-			Fill:   s.Fill,
-			Stroke: s.Stroke,
-			Label:  s.Label,
-			Role:   s.Role,
-			Dashed: s.Dashed,
-		}
-	}
+	// ApplyMappings deep-copies the style per node, so sharing the pointer is safe.
+	result.Style = entry.mapping.Style
 
 	for _, v := range entry.mapping.Variants {
 		result.Variants = append(result.Variants, graph.MappingVariant{
@@ -114,6 +107,21 @@ func (r *Registry) Lookup(resourceType string) *graph.MappingResult {
 	}
 
 	return result
+}
+
+// ParentRefAttrs returns every attribute name any mapping uses as a parent_ref,
+// so parsers can keep those attributes through curation regardless of shape.
+func (r *Registry) ParentRefAttrs() []string {
+	seen := make(map[string]bool)
+	var attrs []string
+	for _, entry := range r.mappings {
+		ref := entry.mapping.ParentRef
+		if ref != "" && !seen[ref] {
+			seen[ref] = true
+			attrs = append(attrs, ref)
+		}
+	}
+	return attrs
 }
 
 // List returns all mappings matching the given filters.

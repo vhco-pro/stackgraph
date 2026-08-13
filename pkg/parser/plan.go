@@ -9,8 +9,9 @@ import (
 )
 
 // ParsePlan parses a terraform/tofu show -json plan output and returns a graph
-// with action annotations (create/update/delete) on each node.
-func ParsePlan(data []byte) (*graph.Graph, error) {
+// with action annotations (create/update/delete) on each node. extraKeepAttrs
+// behaves as in ParseState.
+func ParsePlan(data []byte, extraKeepAttrs ...string) (*graph.Graph, error) {
 	var plan tfjson.Plan
 	if err := json.Unmarshal(data, &plan); err != nil {
 		return nil, fmt.Errorf("invalid plan JSON: %w", err)
@@ -42,7 +43,7 @@ func ParsePlan(data []byte) (*graph.Graph, error) {
 	// Use planned values for the graph (same structure as state)
 	if plan.PlannedValues != nil && plan.PlannedValues.RootModule != nil {
 		providers := make(map[string]int)
-		addModuleResources(g, plan.PlannedValues.RootModule, providers)
+		addModuleResources(g, plan.PlannedValues.RootModule, providers, extraKeepAttrs)
 
 		if len(providers) > 0 {
 			var topProvider string
@@ -74,7 +75,7 @@ func ParsePlan(data []byte) (*graph.Graph, error) {
 			ResourceType: rc.Type,
 			Label:        rc.Name,
 			Provider:     extractProvider(rc.ProviderName),
-			Attributes:   curateAttributes(rc.Type, before),
+			Attributes:   curateAttributes(rc.Type, before, extraKeepAttrs),
 			Module:       rc.ModuleAddress,
 		})
 	}

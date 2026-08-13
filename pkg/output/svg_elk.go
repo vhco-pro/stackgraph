@@ -69,11 +69,6 @@ type ElkPoint struct {
 // RenderSVG produces a self-contained SVG using ELK.js for layout with
 // orthogonal edge routing and base64-embedded icons.
 func RenderSVG(g *sgraph.Graph) ([]byte, error) {
-	return RenderElkSVG(g)
-}
-
-// RenderElkSVG produces an SVG using ELK.js for layout with orthogonal edge routing.
-func RenderElkSVG(g *sgraph.Graph) ([]byte, error) {
 	if len(g.Nodes) == 0 {
 		return []byte(`<svg xmlns="http://www.w3.org/2000/svg" width="400" height="80">` +
 			`<text x="200" y="40" text-anchor="middle" font-family="Sans-Serif" font-size="14" fill="#6c757d">No resources found</text></svg>`), nil
@@ -83,12 +78,12 @@ func RenderElkSVG(g *sgraph.Graph) ([]byte, error) {
 	elkGraph := buildElkGraph(g)
 
 	// Run ELK layout via goja
-	positions, edges, err := runElkLayout(elkGraph, g)
+	positions, edges, err := runElkLayout(elkGraph)
 	if err != nil {
 		return nil, fmt.Errorf("ELK layout failed: %w", err)
 	}
 
-	// Generate SVG (reuse dagre SVG generation with ELK positions)
+	// Assemble the SVG from the shared building blocks in svg.go
 	svg := generateElkSVG(g, positions, edges)
 	return []byte(svg), nil
 }
@@ -274,7 +269,7 @@ func getElkVM() (*goja.Runtime, error) {
 	return vm, nil
 }
 
-func runElkLayout(elkGraph *ElkNode, _ *sgraph.Graph) (map[string]NodePosition, []*ElkEdge, error) {
+func runElkLayout(elkGraph *ElkNode) (positions map[string]NodePosition, elkEdges []*ElkEdge, retErr error) {
 	elkVMMu.Lock()
 	defer elkVMMu.Unlock()
 
@@ -282,13 +277,28 @@ func runElkLayout(elkGraph *ElkNode, _ *sgraph.Graph) (map[string]NodePosition, 
 	if err != nil {
 		return nil, nil, err
 	}
+	// A previous run's timeout callback may have latched an interrupt after
+	// its ClearInterrupt (Stop returning false while the callback runs) —
+	// clear defensively before use.
+	vm.ClearInterrupt()
 
-	// Interrupt the VM if layout exceeds the timeout
+	// A layout failure (timeout interrupt, ELK exception) can leave the cached
+	// VM with corrupted mid-layout state — discard it so the next render
+	// starts from a fresh bundle instead of inheriting the wreckage.
+	defer func() {
+		if retErr != nil {
+			elkVM = nil
+		}
+	}()
+
+	// Interrupt the VM if layout exceeds the timeout. Defers run LIFO: the
+	// timer must be stopped BEFORE the interrupt is cleared, or a timer firing
+	// in between would poison the cached VM for every later render.
 	timer := time.AfterFunc(layoutTimeout, func() {
 		vm.Interrupt(fmt.Sprintf("ELK layout exceeded %s", layoutTimeout))
 	})
-	defer timer.Stop()
 	defer vm.ClearInterrupt()
+	defer timer.Stop()
 
 	// Serialize graph to JSON
 	graphJSON, err := json.Marshal(elkGraph)
@@ -336,14 +346,20 @@ func runElkLayout(elkGraph *ElkNode, _ *sgraph.Graph) (map[string]NodePosition, 
 		return nil, nil, fmt.Errorf("failed to parse ELK result: %w", err)
 	}
 
+	// Release the per-render strings held by the cached VM's globals so a
+	// large graph doesn't stay pinned in memory for the process lifetime.
+	if _, err := vm.RunString(`graphJSON = null; layoutResult = null;`); err != nil {
+		logger.Debugf("failed to clear ELK VM globals: %v", err)
+	}
+
 	// Extract positions recursively
-	positions := make(map[string]NodePosition)
+	positions = make(map[string]NodePosition)
 	var extractPositions func(node *ElkNode, offsetX, offsetY float64)
 	extractPositions = func(node *ElkNode, offsetX, offsetY float64) {
 		absX := offsetX + node.X
 		absY := offsetY + node.Y
 		positions[node.ID] = NodePosition{
-			X:      absX + node.Width/2, // dagre uses center, ELK uses top-left
+			X:      absX + node.Width/2, // NodePosition is center-based; ELK reports top-left
 			Y:      absY + node.Height/2,
 			Width:  node.Width,
 			Height: node.Height,
@@ -373,7 +389,7 @@ func runElkLayout(elkGraph *ElkNode, _ *sgraph.Graph) (map[string]NodePosition, 
 	}
 
 	// Extract edges from ALL containers and translate to absolute coordinates
-	var edges []*ElkEdge
+	edges := elkEdges
 	var collectEdges func(node *ElkNode)
 	collectEdges = func(node *ElkNode) {
 		for _, edge := range node.Edges {
@@ -501,7 +517,22 @@ func generateElkSVG(g *sgraph.Graph, positions map[string]NodePosition, elkEdges
 
 	// Layer 2: Edges (on top of container backgrounds). Hierarchical edges can
 	// carry multiple sections — render every one, arrowhead on the last only.
+	// An edge ELK returned no sections for still draws as a straight line
+	// between node centers: a crude edge beats a silently missing one.
 	for _, edge := range elkEdges {
+		if len(edge.Sections) == 0 {
+			if len(edge.Sources) > 0 && len(edge.Targets) > 0 {
+				src, sok := positions[edge.Sources[0]]
+				tgt, tok := positions[edge.Targets[0]]
+				if sok && tok {
+					renderElkEdge(&b, ElkSection{
+						StartPoint: ElkPoint{X: src.X, Y: src.Y},
+						EndPoint:   ElkPoint{X: tgt.X, Y: tgt.Y},
+					}, true)
+				}
+			}
+			continue
+		}
 		for si, section := range edge.Sections {
 			renderElkEdge(&b, section, si == len(edge.Sections)-1)
 		}

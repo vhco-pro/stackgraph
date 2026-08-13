@@ -9,28 +9,23 @@ import (
 	"github.com/vhco-pro/stackgraph/pkg/parser"
 )
 
-// runPipeline parses a state fixture and runs the full processing pipeline,
-// mirroring cmd/stackgraph/generate.go.
+// runPipeline parses a state fixture and runs the exact processing pipeline
+// the CLI uses — graph.Process — so the invariants validate real output.
 func runPipeline(t *testing.T, fixture string) *graph.Graph {
 	t.Helper()
 	data, err := os.ReadFile(fixture)
 	if err != nil {
 		t.Fatalf("read fixture: %v", err)
 	}
-	g, err := parser.ParseState(data)
-	if err != nil {
-		t.Fatalf("parse state: %v", err)
-	}
 	registry, err := mapping.LoadEmbedded()
 	if err != nil {
 		t.Fatalf("load mappings: %v", err)
 	}
-	g.ApplyMappings(registry)
-	g.DetectImplicitEdges()
-	g.ApplyGrouping()
-	g.ApplyMappings(registry)
-	g.CollapseCountInstances()
-	g.FilterInternal()
+	g, err := parser.ParseState(data, registry.ParentRefAttrs()...)
+	if err != nil {
+		t.Fatalf("parse state: %v", err)
+	}
+	graph.Process(g, registry, graph.ProcessOptions{})
 	return g
 }
 
@@ -55,7 +50,7 @@ func TestLayoutStructuralInvariants(t *testing.T) {
 			g := runPipeline(t, fixture)
 
 			elkGraph := buildElkGraph(g)
-			positions, _, err := runElkLayout(elkGraph, g)
+			positions, _, err := runElkLayout(elkGraph)
 			if err != nil {
 				t.Fatalf("ELK layout failed: %v", err)
 			}

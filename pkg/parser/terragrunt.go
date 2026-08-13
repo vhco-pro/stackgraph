@@ -51,8 +51,8 @@ func ParseTerragruntDir(dir string) (*graph.Graph, error) {
 
 		deps, err := parseTerragruntDeps(tgFile)
 		if err != nil {
-			// Surface the failure instead of silently dropping the module's edges
-			logger.Debugf("terragrunt: skipping dependencies of %s: %v", tgFile, err)
+			// Warn loudly: a diagram silently missing edges reads as complete
+			logger.Warnf("terragrunt: skipping dependencies of %s: %v", tgFile, err)
 			continue
 		}
 

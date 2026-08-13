@@ -43,8 +43,8 @@
       },
       "parent": "aws_vpc.main",
       "children": [
-        "aws_lb.web",
-        "aws_security_group.web_sg"
+        "aws_security_group.web_sg",
+        "aws_lb.web"
       ],
       "attributes": {
         "cidr_block": "10.0.1.0/24",
@@ -260,7 +260,7 @@
   "metadata": {
     "provider": "aws",
     "resource_count": 11,
-    "generated_at": "2026-08-13T19:35:01Z",
+    "generated_at": "2026-08-13T19:49:01Z",
     "generator_version": "dev",
     "input_mode": "state"
   }

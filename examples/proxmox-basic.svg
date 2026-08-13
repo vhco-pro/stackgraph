@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="300" height="284" font-family="Sans-Serif">
+<style>
+  .sg-bg { fill: #FFFFFF; }
+  .sg-text { fill: #2D3436; }
+  .sg-text-sm { fill: #2D3436; }
+  .sg-edge { stroke: #7B8894; }
+  .sg-arrow { fill: #7B8894; }
+  .sg-node-box { fill: #FFFFFF; stroke: #DEE2E6; }
+  @media (prefers-color-scheme: dark) {
+    .sg-bg { fill: #1a1a2e; }
+    .sg-text { fill: #E0E0E0; }
+    .sg-text-sm { fill: #B0B0B0; }
+    .sg-edge { stroke: #9CA3AF; }
+    .sg-arrow { fill: #9CA3AF; }
+    .sg-node-box { fill: #2a2a3e; stroke: #4A5568; }
+    .sg-container-cloud { fill: #1e1e32; stroke: #4A90D9; }
+    .sg-container-vpc { fill: #1e1530; stroke: #A855F7; }
+    .sg-container-subnet { fill: #1a2e1a; stroke: #8BC34A; }
+    .sg-container-sg { fill: #2e1a1a; stroke: #EF5350; }
+    .sg-container-default { fill: #1e1e2e; stroke: #6B7280; }
+    .sg-label-cloud { fill: #4A90D9; }
+    .sg-label-vpc { fill: #C084FC; }
+    .sg-label-subnet { fill: #8BC34A; }
+    .sg-label-sg { fill: #EF5350; }
+    .sg-label-default { fill: #9CA3AF; }
+  }
+</style>
+<rect class="sg-bg" width="300" height="284" fill="#FFFFFF"/>
+<defs><marker id="arrowhead" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto"><polygon class="sg-arrow" points="0 0, 10 3.5, 0 7" fill="#7B8894"/></marker></defs>
+<rect class="sg-container-default" data-id="proxmox_cloud.boundary" x="40" y="40" width="200" height="184" rx="8" fill="#F8F9FA" stroke="#ADB5BD" stroke-width="2" stroke-dasharray="6,3"/>
+<text class="sg-label-default" x="52" y="62" font-size="13" font-weight="600" fill="#495057">Proxmox</text>
+<g class="sg-node" data-id="proxmox_vm_qemu.web">
+<rect class="sg-node-box" x="70" y="80" width="140" height="52" rx="6" fill="#FFFFFF" stroke="#DEE2E6" stroke-width="1.5"/>
+<text class="sg-text" x="140" y="103" text-anchor="middle" font-size="11" font-weight="600" fill="#2D3436">proxmox_vm_qemu</text>
+<text class="sg-text-sm" x="140" y="117" text-anchor="middle" font-size="10" fill="#2D3436">web</text>
+</g>
+<g class="sg-node" data-id="proxmox_lxc.database">
+<rect class="sg-node-box" x="70" y="152" width="140" height="52" rx="6" fill="#FFFFFF" stroke="#DEE2E6" stroke-width="1.5"/>
+<text class="sg-text" x="140" y="175" text-anchor="middle" font-size="11" font-weight="600" fill="#2D3436">proxmox_lxc</text>
+<text class="sg-text-sm" x="140" y="189" text-anchor="middle" font-size="10" fill="#2D3436">database</text>
+</g>
+</svg>

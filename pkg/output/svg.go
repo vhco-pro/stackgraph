@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"github.com/michielvha/logger"
 	sgraph "github.com/vhco-pro/stackgraph/pkg/graph"
@@ -14,10 +15,10 @@ import (
 
 // NodePosition holds a node's computed layout position (center-based).
 type NodePosition struct {
-	X      float64 `json:"x"`
-	Y      float64 `json:"y"`
-	Width  float64 `json:"width"`
-	Height float64 `json:"height"`
+	X      float64
+	Y      float64
+	Width  float64
+	Height float64
 }
 
 const (
@@ -199,16 +200,13 @@ func renderNode(b *strings.Builder, n *sgraph.Node, pos NodePosition) {
 			iconData, iconX, iconY, iconSize, iconSize)
 		b.WriteString("\n")
 
-		// Label below icon
+		// Label below icon — same two lines as box nodes, one composition rule
 		labelY := iconY + float64(iconSize) + 16
-		label := n.Label
-		if n.Service != "" {
-			label = n.Service + "\n" + n.Label
+		svc, name := boxNodeLabelLines(n)
+		lines := []string{name}
+		if svc != n.ResourceType { // suppress the raw type line for unmapped nodes
+			lines = []string{svc, name}
 		}
-		if n.Count > 1 {
-			label += fmt.Sprintf(" (x%d)", n.Count)
-		}
-		lines := strings.Split(label, "\n")
 		for i, line := range lines {
 			fmt.Fprintf(b, `<text class="sg-text" x="%.0f" y="%.0f" text-anchor="middle" font-size="11" fill="#2D3436">%s</text>`,
 				cx, labelY+float64(i)*14, escapeXMLStr(line))
@@ -217,25 +215,24 @@ func renderNode(b *strings.Builder, n *sgraph.Node, pos NodePosition) {
 		return
 	}
 
-	// Generic box node
-	fill := "#FFFFFF"
-	stroke := "#DEE2E6"
-	strokeWidth := "1.5"
+	// Generic box node. Plan-action colors go in an inline style attribute:
+	// the .sg-node-box class rules would override plain presentation
+	// attributes (CSS class > presentation attribute in SVG), but inline
+	// style outranks the class in both light and dark mode.
+	styleAttr := ""
 	if accent != "" {
-		stroke = accent
-		strokeWidth = "2"
+		fill := "#FFF8E1"
 		switch n.Action {
 		case sgraph.ActionCreate:
 			fill = "#E8F5E9"
 		case sgraph.ActionDelete:
 			fill = "#FFEBEE"
-		case sgraph.ActionUpdate, sgraph.ActionReplace:
-			fill = "#FFF8E1"
 		}
+		styleAttr = fmt.Sprintf(` style="fill:%s;stroke:%s;stroke-width:2"`, fill, accent)
 	}
 
-	fmt.Fprintf(b, `<rect class="sg-node-box" x="%.0f" y="%.0f" width="%.0f" height="%.0f" rx="6" fill="%s" stroke="%s" stroke-width="%s"/>`,
-		x, y, pos.Width, pos.Height, fill, stroke, strokeWidth)
+	fmt.Fprintf(b, `<rect class="sg-node-box" x="%.0f" y="%.0f" width="%.0f" height="%.0f" rx="6" fill="#FFFFFF" stroke="#DEE2E6" stroke-width="1.5"%s/>`,
+		x, y, pos.Width, pos.Height, styleAttr)
 	b.WriteString("\n")
 
 	svc, name := boxNodeLabelLines(n)
@@ -247,20 +244,27 @@ func renderNode(b *strings.Builder, n *sgraph.Node, pos NodePosition) {
 	b.WriteString("\n")
 }
 
+// iconDataURICache memoizes base64 data URIs per icon path — embedded icons
+// are immutable, and a large diagram re-embeds the same EC2 icon many times.
+var iconDataURICache sync.Map // iconPath -> data URI string ("" = missing)
+
 func embedIconBase64(iconPath string) string {
-	data, err := icons.GetIconBytes(iconPath)
-	if err != nil {
+	if cached, ok := iconDataURICache.Load(iconPath); ok {
+		return cached.(string)
+	}
+
+	uri := ""
+	if data, err := icons.GetIconBytes(iconPath); err != nil {
 		logger.Debugf("icon not found: %s", iconPath)
-		return ""
+	} else {
+		mime := "image/png"
+		if strings.ToLower(filepath.Ext(iconPath)) == ".svg" {
+			mime = "image/svg+xml"
+		}
+		uri = fmt.Sprintf("data:%s;base64,%s", mime, base64.StdEncoding.EncodeToString(data))
 	}
-
-	ext := strings.ToLower(filepath.Ext(iconPath))
-	mime := "image/png"
-	if ext == ".svg" {
-		mime = "image/svg+xml"
-	}
-
-	return fmt.Sprintf("data:%s;base64,%s", mime, base64.StdEncoding.EncodeToString(data))
+	iconDataURICache.Store(iconPath, uri)
+	return uri
 }
 
 func escapeXMLStr(s string) string {

@@ -105,7 +105,15 @@ func (g *Graph) buildRefIndex() *refIndex {
 			}
 		}
 		if name, ok := n.Attributes["name"].(string); ok && name != "" {
-			idx.byName[n.ResourceType+"\x00"+name] = n
+			key := n.ResourceType + "\x00" + name
+			// Two same-type nodes sharing a name (e.g. equally named resource
+			// groups in different subscriptions) make the name ambiguous —
+			// record the collision so nothing nests under the wrong namesake.
+			if _, exists := idx.byName[key]; exists {
+				idx.byName[key] = nil
+			} else {
+				idx.byName[key] = n
+			}
 		}
 	}
 	return idx
@@ -125,19 +133,7 @@ func (g *Graph) assignParentByRef(n *Node, idx *refIndex) {
 		return
 	}
 
-	var candidates []string
-	switch v := raw.(type) {
-	case string:
-		candidates = []string{v}
-	case []interface{}:
-		for _, item := range v {
-			if s, ok := item.(string); ok {
-				candidates = append(candidates, s)
-			}
-		}
-	}
-
-	for _, ref := range candidates {
+	for _, ref := range attrStringValues(raw) {
 		if ref == "" {
 			continue
 		}
@@ -151,6 +147,25 @@ func (g *Graph) assignParentByRef(n *Node, idx *refIndex) {
 		g.setParent(n, target)
 		return
 	}
+}
+
+// attrStringValues extracts the string values a reference-shaped attribute can
+// carry: a scalar string or a list of strings. Both containment resolution and
+// implicit edge detection go through this one helper so they never drift.
+func attrStringValues(raw interface{}) []string {
+	switch v := raw.(type) {
+	case string:
+		return []string{v}
+	case []interface{}:
+		var values []string
+		for _, item := range v {
+			if s, ok := item.(string); ok {
+				values = append(values, s)
+			}
+		}
+		return values
+	}
+	return nil
 }
 
 // setParent links child under parent, guarding against containment cycles.
@@ -291,8 +306,9 @@ func (g *Graph) InferFlowEdges() {
 		}
 
 		for _, src := range srcs {
+			srcAncestor := g.networkAncestor(src)
 			for _, tgt := range tgts {
-				if g.networkAncestor(src) != g.networkAncestor(tgt) {
+				if srcAncestor != g.networkAncestor(tgt) {
 					continue
 				}
 				key := src.ID + "->" + tgt.ID
@@ -408,28 +424,29 @@ func (g *Graph) assignSecurityGroupContainment() {
 	}
 }
 
-// addCloudBoundary adds a synthetic cloud provider boundary node (e.g., "AWS Cloud")
-// wrapping all top-level resources of the same provider.
+// addCloudBoundary adds a synthetic provider boundary node (e.g., "AWS Cloud")
+// wrapping all top-level resources of the same provider. The boundary's
+// resource type is "<provider>_cloud" (aws→aws_cloud, azurerm→azure_cloud,
+// google→gcp_cloud, anything else literal) — a matching mapping entry supplies
+// its label, icon, and style via the post-grouping ApplyMappings pass, so any
+// provider added purely through mapping YAML gets a styled boundary too.
 func (g *Graph) addCloudBoundary() {
-	// Count providers among top-level nodes
-	providerCounts := make(map[string]int)
+	// Collect providers among top-level nodes, in deterministic order
+	seen := make(map[string]bool)
+	var providers []string
 	for _, n := range g.Nodes {
-		if n.Parent == "" {
-			providerCounts[n.Provider]++
+		if n.Parent == "" && n.Provider != "" && !seen[n.Provider] {
+			seen[n.Provider] = true
+			providers = append(providers, n.Provider)
 		}
 	}
+	sort.Strings(providers)
 
-	for provider, count := range providerCounts {
-		if count < 1 || provider == "" {
-			continue
-		}
-
-		// Create cloud boundary node
-		boundaryType := ""
-		boundaryLabel := ""
+	for _, provider := range providers {
+		boundaryType := provider + "_cloud"
+		boundaryLabel := strings.ToUpper(provider[:1]) + provider[1:]
 		switch provider {
 		case "aws":
-			boundaryType = "aws_cloud"
 			boundaryLabel = "AWS Cloud"
 		case "azurerm":
 			boundaryType = "azure_cloud"
@@ -437,8 +454,6 @@ func (g *Graph) addCloudBoundary() {
 		case "google":
 			boundaryType = "gcp_cloud"
 			boundaryLabel = "Google Cloud"
-		default:
-			continue // only add boundaries for known cloud providers
 		}
 
 		boundaryID := boundaryType + ".boundary"
@@ -558,32 +573,25 @@ func (g *Graph) DetectImplicitEdges() {
 		existingEdges[e.Target+"->"+e.Source] = true
 	}
 
-	// Scan all attributes for references to known IDs
+	// Scan all attributes for references to known IDs. Attribute names are
+	// visited in sorted order so the surviving edge's type/label is stable
+	// when two attributes reference the same target (maps iterate randomly).
 	for _, n := range g.Nodes {
 		if n.Attributes == nil {
 			continue
 		}
-		for attrName, attrValue := range n.Attributes {
-			// Skip the node's own "id" attribute
-			if attrName == "id" {
-				continue
+		attrNames := make([]string, 0, len(n.Attributes))
+		for attrName := range n.Attributes {
+			if attrName != "id" { // skip the node's own "id" attribute
+				attrNames = append(attrNames, attrName)
 			}
+		}
+		sort.Strings(attrNames)
 
+		for _, attrName := range attrNames {
 			// References appear as scalar strings or lists of strings
 			// (e.g. subnets, security_groups, route53 records).
-			var values []string
-			switch v := attrValue.(type) {
-			case string:
-				values = []string{v}
-			case []interface{}:
-				for _, item := range v {
-					if s, ok := item.(string); ok {
-						values = append(values, s)
-					}
-				}
-			}
-
-			for _, valStr := range values {
+			for _, valStr := range attrStringValues(n.Attributes[attrName]) {
 				if valStr == "" {
 					continue
 				}

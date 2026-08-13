@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"regexp"
+	"sort"
 	"strings"
 )
 
@@ -54,12 +55,14 @@ type Node struct {
 
 // NodeStyle carries container rendering colors resolved from the mapping registry.
 // Role selects the dark-mode CSS class family (cloud, vpc, subnet, sg, default).
+// The yaml tags let mapping files unmarshal directly into this type — one
+// struct from YAML through the registry to the renderer and the JSON contract.
 type NodeStyle struct {
-	Fill   string `json:"fill,omitempty"`
-	Stroke string `json:"stroke,omitempty"`
-	Label  string `json:"label,omitempty"`
-	Role   string `json:"role,omitempty"`
-	Dashed bool   `json:"dashed,omitempty"`
+	Fill   string `json:"fill,omitempty"   yaml:"fill,omitempty"`
+	Stroke string `json:"stroke,omitempty" yaml:"stroke,omitempty"`
+	Label  string `json:"label,omitempty"  yaml:"label,omitempty"`
+	Role   string `json:"role,omitempty"   yaml:"role,omitempty"`
+	Dashed bool   `json:"dashed,omitempty" yaml:"dashed,omitempty"`
 }
 
 // Edge represents a dependency or relationship between two nodes.
@@ -211,9 +214,37 @@ func (g *Graph) CollapseCountInstances() {
 		}
 	}
 
-	// Replace indexed groups with a single collapsed node
-	collapsed := make(map[string]bool)
-	for base, nodes := range baseGroups {
+	// Replace indexed groups with a single collapsed node. Bases are processed
+	// in sorted order — map iteration order must never leak into node order,
+	// or identical inputs produce different JSON/layout bytes run to run.
+	bases := make([]string, 0, len(baseGroups))
+	for base := range baseGroups {
+		bases = append(bases, base)
+	}
+	sort.Strings(bases)
+
+	// The member→base mapping is recorded so later reference rewriting is a
+	// map lookup, not a second regex pass that could drift from baseGroups.
+	collapsed := make(map[string]string) // member ID -> base ID
+	for _, base := range bases {
+		nodes := baseGroups[base]
+
+		// Members spread across different parents (for_each over AZ subnets)
+		// cannot be represented by one node in one container — collapsing
+		// would draw instances in subnet B as if they lived in subnet A.
+		// Keep such groups expanded.
+		mixedParents := false
+		for _, n := range nodes[1:] {
+			if n.Parent != nodes[0].Parent {
+				mixedParents = true
+				break
+			}
+		}
+		if mixedParents {
+			nonIndexed = append(nonIndexed, nodes...)
+			continue
+		}
+
 		// Use the first node as the representative
 		rep := *nodes[0]
 		rep.ID = base
@@ -223,46 +254,41 @@ func (g *Graph) CollapseCountInstances() {
 			rep.Label = matches[1]
 		}
 		rep.Count = len(nodes)
-		// The representative keeps the members' parent (instances of one
-		// count block share a parent); prefer the first member that has one.
-		for _, n := range nodes {
-			if n.Parent != "" {
-				rep.Parent = n.Parent
-				break
-			}
-		}
 		rep.Children = nil
 		nonIndexed = append(nonIndexed, &rep)
 
 		for _, n := range nodes {
-			collapsed[n.ID] = true
+			collapsed[n.ID] = base
 		}
 	}
 
 	g.Nodes = nonIndexed
-	g.nodeIndex = nil // invalidate index before NodeByID below
+	g.nodeIndex = nil // invalidate index
 
-	// Rewrite every surviving node's parent/children links from member IDs
-	// to the collapsed base ID, so containers keep containing the collapsed node.
 	collapseRef := func(id string) string {
-		if matches := countIndexRegex.FindStringSubmatch(id); matches != nil && collapsed[id] {
-			return matches[1]
+		if base, ok := collapsed[id]; ok {
+			return base
 		}
 		return id
 	}
 	for _, n := range g.Nodes {
 		n.Parent = collapseRef(n.Parent)
-		if len(n.Children) > 0 {
-			var children []string
-			seen := make(map[string]bool)
-			for _, c := range n.Children {
-				c = collapseRef(c)
-				if c != n.ID && !seen[c] {
-					seen[c] = true
-					children = append(children, c)
-				}
-			}
-			n.Children = children
+	}
+
+	// Rebuild every Children list from the (rewritten) Parent pointers —
+	// the parent pointer is canonical, and this restores the invariant for
+	// collapsed representatives (whose copied Children were cleared) and for
+	// containers that held collapsed members.
+	for _, n := range g.Nodes {
+		n.Children = nil
+	}
+	g.ensureIndex()
+	for _, n := range g.Nodes {
+		if n.Parent == "" {
+			continue
+		}
+		if p := g.nodeIndex[n.Parent]; p != nil {
+			p.Children = append(p.Children, n.ID)
 		}
 	}
 
@@ -290,16 +316,23 @@ func (g *Graph) CollapseCountInstances() {
 
 // deduplicateEdges keeps one edge per source→target pair. The key deliberately
 // ignores edge type: a depends_on edge plus a subnet_id edge between the same
-// two nodes would otherwise draw as two overlapping arrows.
+// two nodes would otherwise draw as two overlapping arrows. When duplicates
+// carry different labels, the labeled (more informative) edge wins so the
+// survivor doesn't depend on slice order.
 func deduplicateEdges(edges []*Edge) []*Edge {
-	seen := make(map[string]bool)
+	seen := make(map[string]*Edge)
 	var result []*Edge
 	for _, e := range edges {
 		key := e.Source + "->" + e.Target
-		if !seen[key] {
-			seen[key] = true
-			result = append(result, e)
+		if kept, ok := seen[key]; ok {
+			if kept.Label == "" && e.Label != "" {
+				kept.Label = e.Label
+				kept.Type = e.Type
+			}
+			continue
 		}
+		seen[key] = e
+		result = append(result, e)
 	}
 	return result
 }
@@ -335,6 +368,30 @@ func (g *Graph) FilterInternal() {
 	}
 	g.Edges = filteredEdges
 	g.nodeIndex = nil
+}
+
+// ProcessOptions configures the standard processing pipeline.
+type ProcessOptions struct {
+	// InferFlows adds heuristic data-flow edges (ALB→EC2, …) scoped to a
+	// single network container. Off by default: these edges are guesses.
+	InferFlows bool
+}
+
+// Process runs the standard pipeline every consumer (CLI, library, tests)
+// should use. The ordering is load-bearing: reference edges must exist before
+// grouping so the edge-based containment fallback works, and mappings are
+// applied a second time so the cloud-boundary nodes grouping synthesizes get
+// their icon and style.
+func Process(g *Graph, registry interface{ Lookup(string) *MappingResult }, opts ProcessOptions) {
+	g.ApplyMappings(registry)
+	g.DetectImplicitEdges()
+	g.ApplyGrouping()
+	g.ApplyMappings(registry)
+	if opts.InferFlows {
+		g.InferFlowEdges()
+	}
+	g.CollapseCountInstances()
+	g.FilterInternal()
 }
 
 // FilterDanglingEdges removes edges whose source or target node doesn't exist.

@@ -1,6 +1,8 @@
 // Package mapping provides the resource type to cloud service mapping system.
 package mapping
 
+import "github.com/vhco-pro/stackgraph/pkg/graph"
+
 // ProviderMappings represents all resource mappings for a single provider.
 type ProviderMappings struct {
 	Resources   map[string]*ResourceMapping `yaml:"resources"`
@@ -16,18 +18,8 @@ type ResourceMapping struct {
 	GroupLevel  int              `yaml:"group_level,omitempty"`
 	GroupParent string           `yaml:"group_parent,omitempty"`
 	ParentRef   string           `yaml:"parent_ref,omitempty"`
-	Style       *StyleMapping    `yaml:"style,omitempty"`
+	Style       *graph.NodeStyle `yaml:"style,omitempty"`
 	Variants    []VariantMapping `yaml:"variants,omitempty"`
-}
-
-// StyleMapping declares how a group/container renders. Colors are hex strings;
-// role selects the dark-mode CSS class family (cloud, vpc, subnet, sg, default).
-type StyleMapping struct {
-	Fill   string `yaml:"fill,omitempty"`
-	Stroke string `yaml:"stroke,omitempty"`
-	Label  string `yaml:"label,omitempty"`
-	Role   string `yaml:"role,omitempty"`
-	Dashed bool   `yaml:"dashed,omitempty"`
 }
 
 // VariantMapping selects an alternative icon/service based on a resource attribute value.

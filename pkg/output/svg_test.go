@@ -147,3 +147,22 @@ func TestRenderSVG_PlanActionAccent(t *testing.T) {
 		t.Error("expected create-action accent color on icon node")
 	}
 }
+
+func TestRenderSVG_PlanActionAccentOnBoxNode(t *testing.T) {
+	g := graph.NewGraph("plan")
+	g.AddNode(&graph.Node{
+		ID: "proxmox_vm_qemu.old", Type: graph.NodeTypeResource,
+		ResourceType: "proxmox_vm_qemu", Label: "old", Action: graph.ActionDelete,
+	})
+
+	out, err := RenderSVG(g)
+	if err != nil {
+		t.Fatalf("RenderSVG failed: %v", err)
+	}
+
+	// The accent must be an inline style — presentation attributes lose to
+	// the .sg-node-box class rules and would render invisible.
+	if !strings.Contains(string(out), `style="fill:#FFEBEE;stroke:#E53935`) {
+		t.Error("expected inline-style delete accent on unmapped box node")
+	}
+}

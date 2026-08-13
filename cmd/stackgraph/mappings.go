@@ -37,25 +37,18 @@ func newMappingsCoverageCmd() *cobra.Command {
 				return fmt.Errorf("--input is required")
 			}
 
-			registry, err := mapping.LoadEmbedded()
-			if err != nil {
-				return fmt.Errorf("failed to load mappings: %w", err)
-			}
-			if mappingsDir != "" {
-				if err := registry.LoadDir(mappingsDir); err != nil {
-					return fmt.Errorf("failed to load mappings from %s: %w", mappingsDir, err)
-				}
-			}
-
-			detectedType, err := detectInputType(inputFile)
+			registry, err := loadRegistry(mappingsDir)
 			if err != nil {
 				return err
 			}
+
+			// Read once; sniff the content type from the bytes we already hold
+			// (state files run to hundreds of MB — never read them twice).
 			data, err := os.ReadFile(inputFile)
 			if err != nil {
 				return fmt.Errorf("failed to read input file: %w", err)
 			}
-			g, err := parseByType(detectedType, data)
+			g, err := parseByType(detectContentType(data), data, registry.ParentRefAttrs())
 			if err != nil {
 				return fmt.Errorf("failed to parse input: %w", err)
 			}

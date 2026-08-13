@@ -94,13 +94,12 @@ func writeNode(b *strings.Builder, n *graph.Node, depth int) {
 	fmt.Fprintf(b, "%s%q [label=%q, shape=%s];\n", indent, n.ID, label, shape)
 }
 
+// dotNodeLabel reuses the shared service/name composition so DOT, SVG, and
+// HTML all render the same count badge format.
 func dotNodeLabel(n *graph.Node) string {
-	label := n.Label
+	svc, name := boxNodeLabelLines(n)
 	if n.Service != "" {
-		label = n.Service + "\\n" + n.Label
+		return svc + "\\n" + name
 	}
-	if n.Count > 1 {
-		label += fmt.Sprintf(" x%d", n.Count)
-	}
-	return label
+	return name
 }

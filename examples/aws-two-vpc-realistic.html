@@ -281,9 +281,9 @@
       },
       "parent": "aws_cloud.boundary",
       "children": [
+        "aws_internet_gateway.prod_igw",
         "aws_subnet.prod_public",
-        "aws_subnet.prod_private",
-        "aws_internet_gateway.prod_igw"
+        "aws_subnet.prod_private"
       ],
       "attributes": {
         "cidr_block": "10.0.0.0/16",
@@ -341,8 +341,8 @@
       "parent": "aws_vpc.prod",
       "children": [
         "aws_nat_gateway.prod_nat",
-        "aws_lb.prod_alb",
-        "aws_security_group.prod_web"
+        "aws_security_group.prod_web",
+        "aws_lb.prod_alb"
       ],
       "attributes": {
         "cidr_block": "10.0.1.0/24",
@@ -456,9 +456,9 @@
       },
       "parent": "aws_cloud.boundary",
       "children": [
+        "aws_internet_gateway.staging_igw",
         "aws_subnet.staging_public",
-        "aws_subnet.staging_private",
-        "aws_internet_gateway.staging_igw"
+        "aws_subnet.staging_private"
       ],
       "attributes": {
         "cidr_block": "10.0.0.0/16",
@@ -516,8 +516,8 @@
       "parent": "aws_vpc.staging",
       "children": [
         "aws_nat_gateway.staging_nat",
-        "aws_lb.staging_alb",
-        "aws_security_group.staging_web"
+        "aws_security_group.staging_web",
+        "aws_lb.staging_alb"
       ],
       "attributes": {
         "cidr_block": "10.0.1.0/24",
@@ -1073,7 +1073,7 @@
   "metadata": {
     "provider": "aws",
     "resource_count": 36,
-    "generated_at": "2026-08-13T19:35:00Z",
+    "generated_at": "2026-08-13T19:49:00Z",
     "generator_version": "dev",
     "input_mode": "state"
   }
@@ -1141,7 +1141,8 @@
     var rows = '';
     function row(k, v) {
       if (v === undefined || v === null || v === '') return;
-      rows += '<tr><td>' + k + '</td><td>' + String(v).replace(/&/g, '&amp;').replace(/</g, '&lt;') + '</td></tr>';
+      var e = function (s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;'); };
+      rows += '<tr><td>' + e(k) + '</td><td>' + e(v) + '</td></tr>';
     }
     row('service', node.service);
     row('category', node.category);
@@ -1156,8 +1157,9 @@
         row(k, typeof v === 'object' ? JSON.stringify(v) : v);
       });
     }
-    panel.innerHTML = '<button class="close" aria-label="Close">×</button><h2>' + node.id.replace(/</g, '&lt;') +
-      '</h2><div class="type">' + node.resource_type + '</div><table>' + rows + '</table>';
+    var esc = function (s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;'); };
+    panel.innerHTML = '<button class="close" aria-label="Close">×</button><h2>' + esc(node.id) +
+      '</h2><div class="type">' + esc(node.resource_type) + '</div><table>' + rows + '</table>';
     panel.classList.add('open');
     panel.querySelector('.close').onclick = function () { panel.classList.remove('open'); };
   }

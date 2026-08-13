@@ -284,3 +284,37 @@ best in the scene" is what competitors don't have:
 Steps 1–6 are the "make it honest" release; 7–9 are the "make it win" release.
 The 2026-08 results are documented with before/after renders in
 [reviews/2026-08-product-review.md](reviews/2026-08-product-review.md).
+
+## Follow-ups from the 2026-08 code review
+
+Applied immediately: goja interrupt-race fix + VM discard on layout failure,
+HTML panel escaping, deterministic ordering (collapse bases, boundary
+providers, attribute scan), name-collision ambiguity in the ref index,
+mixed-parent count groups stay expanded, straight-line fallback for edges ELK
+returns no route for, label-preferring edge dedup, shared
+`attrStringValues`/`loadRegistry`/`graph.Process` helpers, single-read
+coverage command, `--layout` kept as a deprecated no-op, icon data-URI cache,
+`parent_ref` attributes survive curation for `--mappings` overlays, generic
+provider boundaries (any provider gets one; style via `<provider>_cloud`
+mapping entry).
+
+Deferred (design work, tracked here):
+
+- **Flow patterns in YAML.** `InferFlowEdges`' type-pair table is the last
+  provider knowledge living in Go — a `flows:` mapping section would open it
+  to `--mappings` users.
+- **Role/dark-mode vocabulary.** Container roles {cloud,vpc,subnet,sg} are
+  clamped in Go and mirrored in the SVG CSS; declaring new role families (and
+  their dark palettes) should be data, with light/dark pairs in the style
+  block.
+- **Member-list containment vocabulary.** `vpc_security_group_ids`-style
+  grouping (resource lists its containers) is an AWS-only Go special case;
+  a `member_ref:` mapping field would generalize it.
+- **Network-scope declaration.** `networkAncestor` treats `group_level == 1`
+  as "network container"; a `network_scope: true` style/mapping flag would
+  survive hierarchy changes (regions, projects above VPCs).
+- **Icon `<defs>`/`<use>` dedup.** The data-URI cache removes repeated
+  encoding; emitting each icon once and referencing it would also shrink SVG
+  output for icon-heavy diagrams.
+- **Shared palette constants** between the SVG stylesheet and the HTML
+  viewer chrome so dark-mode retunes stay in sync.

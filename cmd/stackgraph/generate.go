@@ -34,15 +34,11 @@ func newGenerateCmd() *cobra.Command {
 		Short: "Generate an infrastructure diagram",
 		Long:  "Generate an infrastructure diagram from a state file, plan file, HCL source, or DOT graph input.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			registry, err := mapping.LoadEmbedded()
+			registry, err := loadRegistry(mappingsDir)
 			if err != nil {
-				return fmt.Errorf("failed to load mappings: %w", err)
+				return err
 			}
-			if mappingsDir != "" {
-				if err := registry.LoadDir(mappingsDir); err != nil {
-					return fmt.Errorf("failed to load mappings from %s: %w", mappingsDir, err)
-				}
-			}
+			keepAttrs := registry.ParentRefAttrs()
 
 			var g *graph.Graph
 
@@ -65,7 +61,7 @@ func newGenerateCmd() *cobra.Command {
 				if readErr != nil {
 					return fmt.Errorf("failed to read input file: %w", readErr)
 				}
-				g, err = parseByType(detectedType, data)
+				g, err = parseByType(detectedType, data, keepAttrs)
 			default:
 				// Try reading from stdin
 				stat, _ := os.Stdin.Stat()
@@ -80,7 +76,7 @@ func newGenerateCmd() *cobra.Command {
 				if detectedType == "" {
 					detectedType = detectContentType(data)
 				}
-				g, err = parseByType(detectedType, data)
+				g, err = parseByType(detectedType, data, keepAttrs)
 			}
 
 			if err != nil {
@@ -90,20 +86,7 @@ func newGenerateCmd() *cobra.Command {
 			g.Metadata.GeneratorVersion = version
 			g.Metadata.GeneratedAt = time.Now().UTC().Format(time.RFC3339)
 
-			// Reference edges must exist before grouping so the edge-based
-			// containment fallback (DOT/HCL inputs) has something to work with;
-			// parent_ref containment reads attributes directly either way.
-			g.ApplyMappings(registry)
-			g.DetectImplicitEdges()
-			g.ApplyGrouping()
-			// Grouping synthesizes cloud-boundary nodes (aws_cloud, …); a second
-			// mapping pass gives them their icon and style from the registry.
-			g.ApplyMappings(registry)
-			if inferFlows {
-				g.InferFlowEdges()
-			}
-			g.CollapseCountInstances()
-			g.FilterInternal()
+			graph.Process(g, registry, graph.ProcessOptions{InferFlows: inferFlows})
 
 			var out []byte
 			switch formatFlag {
@@ -139,7 +122,28 @@ func newGenerateCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&inferFlows, "infer-flows", false, "Add heuristic data-flow edges (ALB->EC2, EC2->RDS, ...) scoped to the same network container")
 	cmd.Flags().StringVar(&mappingsDir, "mappings", "", "Directory of additional mapping YAML files (override embedded mappings by resource type)")
 
+	// Back-compat: --layout was removed when the dagre engine was deleted.
+	// Accept it as a deprecated no-op so existing scripts keep working.
+	var layoutDeprecated string
+	cmd.Flags().StringVar(&layoutDeprecated, "layout", "elk", "")
+	_ = cmd.Flags().MarkDeprecated("layout", "stackgraph always uses the ELK layout engine now")
+
 	return cmd
+}
+
+// loadRegistry loads the embedded mappings plus an optional overlay directory.
+// Shared by generate and mappings coverage so --mappings semantics never drift.
+func loadRegistry(mappingsDir string) (*mapping.Registry, error) {
+	registry, err := mapping.LoadEmbedded()
+	if err != nil {
+		return nil, fmt.Errorf("failed to load mappings: %w", err)
+	}
+	if mappingsDir != "" {
+		if err := registry.LoadDir(mappingsDir); err != nil {
+			return nil, err
+		}
+	}
+	return registry, nil
 }
 
 // detectInputType determines the input type from file extension and content.
@@ -188,13 +192,13 @@ func detectContentType(data []byte) string {
 	return "state" // default fallback
 }
 
-func parseByType(inputType string, data []byte) (*graph.Graph, error) {
+func parseByType(inputType string, data []byte, keepAttrs []string) (*graph.Graph, error) {
 	logger.Debugf("parsing input as %s", inputType)
 	switch inputType {
 	case "state":
-		return parser.ParseState(data)
+		return parser.ParseState(data, keepAttrs...)
 	case "plan":
-		return parser.ParsePlan(data)
+		return parser.ParsePlan(data, keepAttrs...)
 	case "dot":
 		return parser.ParseDOT(data)
 	default:

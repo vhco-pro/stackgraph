@@ -11,7 +11,10 @@ import (
 )
 
 // ParseState parses a terraform/tofu show -json state output and returns a graph.
-func ParseState(data []byte) (*graph.Graph, error) {
+// extraKeepAttrs names attributes that must survive curation regardless of shape —
+// callers pass the mapping registry's parent_ref attributes so user-supplied
+// mappings (--mappings) can resolve containment through any attribute name.
+func ParseState(data []byte, extraKeepAttrs ...string) (*graph.Graph, error) {
 	var state tfjson.State
 	if err := json.Unmarshal(data, &state); err != nil {
 		return nil, fmt.Errorf("invalid state JSON: %w", err)
@@ -28,7 +31,7 @@ func ParseState(data []byte) (*graph.Graph, error) {
 
 	// Process root module resources
 	if state.Values.RootModule != nil {
-		addModuleResources(g, state.Values.RootModule, providers)
+		addModuleResources(g, state.Values.RootModule, providers, extraKeepAttrs)
 	}
 
 	// Set primary provider in metadata
@@ -47,7 +50,7 @@ func ParseState(data []byte) (*graph.Graph, error) {
 	return g, nil
 }
 
-func addModuleResources(g *graph.Graph, module *tfjson.StateModule, providers map[string]int) {
+func addModuleResources(g *graph.Graph, module *tfjson.StateModule, providers map[string]int, extraKeepAttrs []string) {
 	for _, r := range module.Resources {
 		// r.Address is already fully qualified inside child modules
 		// (e.g. "module.net.aws_subnet.a") — never re-prefix it.
@@ -57,7 +60,7 @@ func addModuleResources(g *graph.Graph, module *tfjson.StateModule, providers ma
 		providers[provider]++
 
 		// Extract curated attributes for display
-		attrs := curateAttributes(r.Type, r.AttributeValues)
+		attrs := curateAttributes(r.Type, r.AttributeValues, extraKeepAttrs)
 
 		node := &graph.Node{
 			ID:           address,
@@ -87,7 +90,7 @@ func addModuleResources(g *graph.Graph, module *tfjson.StateModule, providers ma
 
 	// Recurse into child modules
 	for _, child := range module.ChildModules {
-		addModuleResources(g, child, providers)
+		addModuleResources(g, child, providers, extraKeepAttrs)
 	}
 }
 
@@ -103,9 +106,14 @@ func extractProvider(providerName string) string {
 
 // curateAttributes extracts a subset of resource attributes useful for display.
 // Keeps attributes needed for variant detection, tooltips, and grouping.
-func curateAttributes(resourceType string, values map[string]any) map[string]any {
+func curateAttributes(resourceType string, values map[string]any, extraKeepAttrs []string) map[string]any {
 	if values == nil {
 		return nil
+	}
+
+	extraKeep := make(map[string]bool, len(extraKeepAttrs))
+	for _, k := range extraKeepAttrs {
+		extraKeep[k] = true
 	}
 
 	// Always include these universal attributes
@@ -155,7 +163,7 @@ func curateAttributes(resourceType string, values map[string]any) map[string]any
 
 	result := make(map[string]any)
 	for k, v := range values {
-		if keep[k] || refShaped(k) {
+		if keep[k] || refShaped(k) || extraKeep[k] {
 			result[k] = v
 			continue
 		}

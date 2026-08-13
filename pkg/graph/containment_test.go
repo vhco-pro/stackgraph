@@ -137,3 +137,38 @@ func TestNameBasedContainmentRequiresTypeFilter(t *testing.T) {
 		t.Errorf("vnet parent = %q, want azurerm_resource_group.main", vnet.Parent)
 	}
 }
+
+func TestCollapseSkipsMembersInDifferentParents(t *testing.T) {
+	// for_each spread across AZ subnets: collapsing would misplace instances,
+	// so groups with mixed parents must stay expanded.
+	g := NewGraph("state")
+	for _, az := range []string{"a", "b"} {
+		g.AddNode(&Node{
+			ID: "aws_subnet." + az, ResourceType: "aws_subnet", Label: az, Provider: "aws",
+			IsGroupNode: true, GroupLevel: 2,
+			Attributes: map[string]any{"id": "subnet-" + az},
+		})
+	}
+	for i, az := range []string{"a", "b"} {
+		g.AddNode(&Node{
+			ID: "aws_instance.web[" + string(rune('0'+i)) + "]", ResourceType: "aws_instance",
+			Label: "web", Provider: "aws", ParentRef: "subnet_id", GroupParent: "aws_subnet",
+			Attributes: map[string]any{"id": "i-" + az, "subnet_id": "subnet-" + az},
+		})
+	}
+	g.ApplyGrouping()
+	g.CollapseCountInstances()
+
+	if g.NodeByID("aws_instance.web") != nil {
+		t.Fatal("mixed-parent count group must not collapse")
+	}
+	for i, az := range []string{"a", "b"} {
+		n := g.NodeByID("aws_instance.web[" + string(rune('0'+i)) + "]")
+		if n == nil {
+			t.Fatalf("member %d missing", i)
+		}
+		if n.Parent != "aws_subnet."+az {
+			t.Errorf("member %d parent = %q, want aws_subnet.%s", i, n.Parent, az)
+		}
+	}
+}
