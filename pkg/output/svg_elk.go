@@ -9,7 +9,7 @@ import (
 
 	"github.com/dop251/goja"
 	"github.com/michielvha/logger"
-	sgraph "github.com/michielvha/stackgraph/pkg/graph"
+	sgraph "github.com/vhco-pro/stackgraph/pkg/graph"
 )
 
 //go:embed elk.bundled.js

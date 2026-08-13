@@ -11,8 +11,8 @@ import (
 
 	"github.com/dop251/goja"
 	"github.com/michielvha/logger"
-	sgraph "github.com/michielvha/stackgraph/pkg/graph"
-	"github.com/michielvha/stackgraph/pkg/icons"
+	sgraph "github.com/vhco-pro/stackgraph/pkg/graph"
+	"github.com/vhco-pro/stackgraph/pkg/icons"
 )
 
 //go:embed dagre.min.js

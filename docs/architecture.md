@@ -68,7 +68,7 @@ stackgraph/
 ├── testdata/                    # Mock state/plan/HCL/DOT files for unit tests
 ├── examples/                    # Generated example outputs (SVG, JSON, DOT)
 ├── docs/                        # This documentation
-├── go.mod                       # github.com/michielvha/stackgraph, Go 1.26.1
+├── go.mod                       # github.com/vhco-pro/stackgraph, Go 1.26.1
 ├── README.md
 └── LICENSE                      # Apache-2.0
 ```

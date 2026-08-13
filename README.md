@@ -15,7 +15,7 @@ Infrastructure diagram generator for OpenTofu/Terraform. Produces interactive, c
 ## Installation
 
 ```bash
-go install github.com/michielvha/stackgraph/cmd/stackgraph@latest
+go install github.com/vhco-pro/stackgraph/cmd/stackgraph@latest
 ```
 
 ## Usage

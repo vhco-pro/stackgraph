@@ -9,10 +9,10 @@ import (
 	"strings"
 
 	"github.com/michielvha/logger"
-	"github.com/michielvha/stackgraph/pkg/graph"
-	"github.com/michielvha/stackgraph/pkg/mapping"
-	"github.com/michielvha/stackgraph/pkg/output"
-	"github.com/michielvha/stackgraph/pkg/parser"
+	"github.com/vhco-pro/stackgraph/pkg/graph"
+	"github.com/vhco-pro/stackgraph/pkg/mapping"
+	"github.com/vhco-pro/stackgraph/pkg/output"
+	"github.com/vhco-pro/stackgraph/pkg/parser"
 	"github.com/spf13/cobra"
 )
 

@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	tfjson "github.com/hashicorp/terraform-json"
-	"github.com/michielvha/stackgraph/pkg/graph"
+	"github.com/vhco-pro/stackgraph/pkg/graph"
 )
 
 // ParseState parses a terraform/tofu show -json state output and returns a graph.

@@ -7,7 +7,7 @@ import (
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
-	"github.com/michielvha/stackgraph/pkg/graph"
+	"github.com/vhco-pro/stackgraph/pkg/graph"
 )
 
 // ParseTerragruntDir discovers terragrunt.hcl files in a directory tree and

@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/awalterschulze/gographviz"
-	"github.com/michielvha/stackgraph/pkg/graph"
+	"github.com/vhco-pro/stackgraph/pkg/graph"
 )
 
 // ParseDOT parses a DOT format graph (e.g., from `tofu graph`) and returns a graph.

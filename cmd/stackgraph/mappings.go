@@ -6,7 +6,7 @@ import (
 	"strings"
 	"text/tabwriter"
 
-	"github.com/michielvha/stackgraph/pkg/mapping"
+	"github.com/vhco-pro/stackgraph/pkg/mapping"
 	"github.com/spf13/cobra"
 )
 

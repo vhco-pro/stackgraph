@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/michielvha/stackgraph/pkg/graph"
+	"github.com/vhco-pro/stackgraph/pkg/graph"
 )
 
 func TestRenderDagreSVG(t *testing.T) {
