@@ -112,6 +112,32 @@ all scoped to a single network container — no more prod → staging fiction).
 | ![Count collapse now nests correctly](assets/2026-08-after-aws-count-foreach.png) | ![Three-tier with inferred flows enabled](assets/2026-08-after-three-tier-flows.png) |
 | **Count-collapse containment fixed.** `EC2 web (x3)` inside subnet inside VPC. | **Fixture quality preserved.** Three-tier with `--infer-flows` matches the old best-case render. |
 
+## Final: full spec implemented (same branch, second wave)
+
+The rest of the spec landed after the containment work: the mapping registry is
+now the single source of truth (icons, container styles, containment — all
+YAML, all validated by tests, extensible at runtime via `--mappings`), the
+dagre renderer was deleted, goja was hardened (cached VM, 30s interrupt), plan
+mode works end to end, terragrunt can no longer panic, and coverage grew from
+91 nominal (51 effective) mapped types to **424 validated types** (AWS 230,
+Azure 110, GCP 84) while 1,516 unused icon files were pruned.
+
+![Realistic two-VPC state, final render with scoped flows](assets/2026-08-final-two-vpc.png)
+
+**Final render of the realistic two-VPC state** (`--infer-flows`): full nesting
+including the ECS cluster container with the Fargate variant icon, evidence
+edges (Route 53 record → zone), and scoped flows with zero cross-environment
+fiction.
+
+| Plan diff (new) | Interactive viewer (new) |
+|---|---|
+| ![Plan rendering with action accents](assets/2026-08-final-plan-diff.png) | ![HTML viewer with pan/zoom and inspect panel](assets/2026-08-final-viewer.png) |
+| **`--format svg` on a plan**: create = green ring, update/replace = orange, delete = red — destroyed resources included. No competitor has this. | **`--format html`**: self-contained interactive viewer — pan/zoom, click-to-inspect side panel, search filtering, dark mode. Verified with Playwright. |
+
+Structural invariants (every child inside its parent's bbox, no empty
+containers) are now enforced by tests against real ELK layouts for six
+fixtures, and every input mode has an end-to-end CLI test.
+
 ## The path to best-in-scene
 
 Competitors are weak — Terravision needs credentials and Graphviz, InfraMap
