@@ -138,6 +138,16 @@ Structural invariants (every child inside its parent's bbox, no empty
 containers) are now enforced by tests against real ELK layouts for six
 fixtures, and every input mode has an end-to-end CLI test.
 
+The cycle closed with an eight-angle adversarial code review of the branch;
+every confirmed finding was fixed in the same pass (goja interrupt race, HTML
+panel escaping, deterministic ordering, name-collision ambiguity, mixed-parent
+count groups, box-node accent rendering, edge-route fallback, shared pipeline
+and helpers) and the remaining design-level items are tracked in the spec.
+A side effect of the generic provider boundary: Proxmox states now render
+contained instead of as bare floating boxes.
+
+![Proxmox state with provider boundary](assets/2026-08-final-proxmox.png)
+
 ## The path to best-in-scene
 
 Competitors are weak — Terravision needs credentials and Graphviz, InfraMap
