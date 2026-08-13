@@ -57,6 +57,28 @@ func ParsePlan(data []byte) (*graph.Graph, error) {
 		}
 	}
 
+	// Resources being destroyed exist only in resource_changes (planned_values
+	// excludes them) — add them from the change's "before" values so deletes
+	// are visible in the diagram.
+	for _, rc := range plan.ResourceChanges {
+		if actions[rc.Address] != graph.ActionDelete || g.NodeByID(rc.Address) != nil {
+			continue
+		}
+		var before map[string]any
+		if rc.Change != nil {
+			before, _ = rc.Change.Before.(map[string]any)
+		}
+		g.AddNode(&graph.Node{
+			ID:           rc.Address,
+			Type:         graph.NodeTypeResource,
+			ResourceType: rc.Type,
+			Label:        rc.Name,
+			Provider:     extractProvider(rc.ProviderName),
+			Attributes:   curateAttributes(rc.Type, before),
+			Module:       rc.ModuleAddress,
+		})
+	}
+
 	// Apply action annotations
 	for _, n := range g.Nodes {
 		if action, ok := actions[n.ID]; ok {

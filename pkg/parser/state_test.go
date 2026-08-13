@@ -215,3 +215,60 @@ func nodeIDs(nodes []*graph.Node) []string {
 	}
 	return ids
 }
+
+func TestParsePlan_Actions(t *testing.T) {
+	data := readTestFile(t, "../../testdata/plan/aws/plan-changes.json")
+	g, err := ParsePlan(data)
+	if err != nil {
+		t.Fatalf("ParsePlan failed: %v", err)
+	}
+
+	want := map[string]graph.Action{
+		"aws_instance.new":     graph.ActionCreate,
+		"aws_instance.web":     graph.ActionUpdate,
+		"aws_db_instance.main": graph.ActionReplace,
+		"aws_s3_bucket.old":    graph.ActionDelete,
+		"aws_vpc.main":         graph.ActionNoOp,
+	}
+	for id, action := range want {
+		n := g.NodeByID(id)
+		if n == nil {
+			t.Errorf("expected node %q (destroyed resources must appear)", id)
+			continue
+		}
+		if n.Action != action {
+			t.Errorf("node %q action = %q, want %q", id, n.Action, action)
+		}
+	}
+}
+
+func TestParseTerragrunt_Simple(t *testing.T) {
+	g, err := ParseTerragruntDir("../../testdata/terragrunt/simple")
+	if err != nil {
+		t.Fatalf("ParseTerragruntDir failed: %v", err)
+	}
+	if len(g.Nodes) != 2 {
+		t.Fatalf("expected 2 module nodes, got %d", len(g.Nodes))
+	}
+	if len(g.Edges) != 1 {
+		t.Fatalf("expected 1 dependency edge, got %d", len(g.Edges))
+	}
+	e := g.Edges[0]
+	if e.Source != "module.app" || e.Target != "module.vpc" {
+		t.Errorf("edge = %s -> %s, want module.app -> module.vpc", e.Source, e.Target)
+	}
+}
+
+func TestParseTerragrunt_NonStringConfigPathDoesNotPanic(t *testing.T) {
+	// Regression: a numeric or unresolvable config_path used to panic in AsString()
+	g, err := ParseTerragruntDir("../../testdata/terragrunt/invalid")
+	if err != nil {
+		t.Fatalf("ParseTerragruntDir failed: %v", err)
+	}
+	if len(g.Nodes) != 1 {
+		t.Fatalf("expected 1 module node, got %d", len(g.Nodes))
+	}
+	if len(g.Edges) != 0 {
+		t.Errorf("expected no edges from invalid config_path values, got %d", len(g.Edges))
+	}
+}

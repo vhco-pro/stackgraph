@@ -39,6 +39,7 @@ type Node struct {
 	Service      string                 `json:"service,omitempty"`
 	Category     string                 `json:"category,omitempty"`
 	Icon         string                 `json:"icon,omitempty"`
+	Style        *NodeStyle             `json:"style,omitempty"`
 	Parent       string                 `json:"parent,omitempty"`
 	Children     []string               `json:"children,omitempty"`
 	Attributes   map[string]interface{} `json:"attributes,omitempty"`
@@ -49,6 +50,16 @@ type Node struct {
 	GroupLevel   int                    `json:"-"` // internal: nesting depth
 	GroupParent  string                 `json:"-"` // internal: expected parent resource type
 	ParentRef    string                 `json:"-"` // internal: attribute naming the containing resource
+}
+
+// NodeStyle carries container rendering colors resolved from the mapping registry.
+// Role selects the dark-mode CSS class family (cloud, vpc, subnet, sg, default).
+type NodeStyle struct {
+	Fill   string `json:"fill,omitempty"`
+	Stroke string `json:"stroke,omitempty"`
+	Label  string `json:"label,omitempty"`
+	Role   string `json:"role,omitempty"`
+	Dashed bool   `json:"dashed,omitempty"`
 }
 
 // Edge represents a dependency or relationship between two nodes.
@@ -131,6 +142,10 @@ func (g *Graph) ApplyMappings(registry interface{ Lookup(string) *MappingResult 
 		n.GroupLevel = result.GroupLevel
 		n.GroupParent = result.GroupParent
 		n.ParentRef = result.ParentRef
+		if result.Style != nil {
+			style := *result.Style
+			n.Style = &style
+		}
 
 		if n.IsGroupNode {
 			n.Type = NodeTypeGroup
@@ -165,6 +180,7 @@ type MappingResult struct {
 	GroupLevel  int
 	GroupParent string
 	ParentRef   string
+	Style       *NodeStyle
 	Variants    []MappingVariant
 }
 
@@ -319,6 +335,21 @@ func (g *Graph) FilterInternal() {
 	}
 	g.Edges = filteredEdges
 	g.nodeIndex = nil
+}
+
+// FilterDanglingEdges removes edges whose source or target node doesn't exist.
+func (g *Graph) FilterDanglingEdges() {
+	g.ensureIndex()
+	var kept []*Edge
+	for _, e := range g.Edges {
+		if g.nodeIndex[e.Source] != nil && g.nodeIndex[e.Target] != nil {
+			kept = append(kept, e)
+		}
+	}
+	if kept == nil {
+		kept = make([]*Edge, 0)
+	}
+	g.Edges = kept
 }
 
 // ToJSON serializes the graph to its JSON representation.

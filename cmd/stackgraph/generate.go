@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/michielvha/logger"
 	"github.com/spf13/cobra"
@@ -18,14 +19,14 @@ import (
 
 func newGenerateCmd() *cobra.Command {
 	var (
-		inputFile  string
-		sourceDir  string
-		formatFlag string
-		outputFile string
-		inputType  string
-		terragrunt bool
-		inferFlows bool
-		layout     string
+		inputFile   string
+		sourceDir   string
+		formatFlag  string
+		outputFile  string
+		inputType   string
+		terragrunt  bool
+		inferFlows  bool
+		mappingsDir string
 	)
 
 	cmd := &cobra.Command{
@@ -36,6 +37,11 @@ func newGenerateCmd() *cobra.Command {
 			registry, err := mapping.LoadEmbedded()
 			if err != nil {
 				return fmt.Errorf("failed to load mappings: %w", err)
+			}
+			if mappingsDir != "" {
+				if err := registry.LoadDir(mappingsDir); err != nil {
+					return fmt.Errorf("failed to load mappings from %s: %w", mappingsDir, err)
+				}
 			}
 
 			var g *graph.Graph
@@ -81,12 +87,18 @@ func newGenerateCmd() *cobra.Command {
 				return fmt.Errorf("failed to parse input: %w", err)
 			}
 
+			g.Metadata.GeneratorVersion = version
+			g.Metadata.GeneratedAt = time.Now().UTC().Format(time.RFC3339)
+
 			// Reference edges must exist before grouping so the edge-based
 			// containment fallback (DOT/HCL inputs) has something to work with;
 			// parent_ref containment reads attributes directly either way.
 			g.ApplyMappings(registry)
 			g.DetectImplicitEdges()
 			g.ApplyGrouping()
+			// Grouping synthesizes cloud-boundary nodes (aws_cloud, …); a second
+			// mapping pass gives them their icon and style from the registry.
+			g.ApplyMappings(registry)
 			if inferFlows {
 				g.InferFlowEdges()
 			}
@@ -100,16 +112,11 @@ func newGenerateCmd() *cobra.Command {
 			case "dot":
 				out, err = output.RenderDOT(g)
 			case "svg":
-				switch layout {
-				case "elk":
-					out, err = output.RenderElkSVG(g)
-				case "dagre":
-					out, err = output.RenderDagreSVG(g)
-				default:
-					return fmt.Errorf("unsupported layout: %s (supported: elk, dagre)", layout)
-				}
+				out, err = output.RenderSVG(g)
+			case "html":
+				out, err = output.RenderHTML(g)
 			default:
-				return fmt.Errorf("unsupported format: %s (supported: json, dot, svg)", formatFlag)
+				return fmt.Errorf("unsupported format: %s (supported: json, dot, svg, html)", formatFlag)
 			}
 			if err != nil {
 				return fmt.Errorf("failed to render output: %w", err)
@@ -125,12 +132,12 @@ func newGenerateCmd() *cobra.Command {
 
 	cmd.Flags().StringVarP(&inputFile, "input", "i", "", "Input file (state JSON, plan JSON, or DOT)")
 	cmd.Flags().StringVarP(&sourceDir, "source", "s", "", "Source directory (HCL .tf files or Terragrunt project)")
-	cmd.Flags().StringVarP(&formatFlag, "format", "f", "json", "Output format: json, dot, svg")
+	cmd.Flags().StringVarP(&formatFlag, "format", "f", "json", "Output format: json, dot, svg, html")
 	cmd.Flags().StringVarP(&outputFile, "output", "o", "", "Output file (default: stdout)")
 	cmd.Flags().StringVar(&inputType, "input-type", "", "Explicit input type: state, plan, dot (default: auto-detect)")
 	cmd.Flags().BoolVar(&terragrunt, "terragrunt", false, "Parse source directory as a Terragrunt project")
-	cmd.Flags().StringVar(&layout, "layout", "elk", "Layout engine: elk (default, orthogonal edges) or dagre")
 	cmd.Flags().BoolVar(&inferFlows, "infer-flows", false, "Add heuristic data-flow edges (ALB->EC2, EC2->RDS, ...) scoped to the same network container")
+	cmd.Flags().StringVar(&mappingsDir, "mappings", "", "Directory of additional mapping YAML files (override embedded mappings by resource type)")
 
 	return cmd
 }

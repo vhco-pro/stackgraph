@@ -3,6 +3,7 @@ package mapping
 import (
 	"fmt"
 	"io/fs"
+	"os"
 	"strings"
 
 	"github.com/vhco-pro/stackgraph/pkg/graph"
@@ -63,6 +64,20 @@ func LoadEmbedded() (*Registry, error) {
 	return LoadFromFS(embeddedMappings, "mappings")
 }
 
+// LoadDir merges mapping YAML files from a directory on disk into the registry.
+// Entries override embedded mappings with the same resource type, so users can
+// extend or restyle without recompiling.
+func (r *Registry) LoadDir(dir string) error {
+	overlay, err := LoadFromFS(os.DirFS(dir), ".")
+	if err != nil {
+		return err
+	}
+	for resourceType, entry := range overlay.mappings {
+		r.mappings[resourceType] = entry
+	}
+	return nil
+}
+
 // Lookup returns the mapping result for a given resource type, or nil if not found.
 func (r *Registry) Lookup(resourceType string) *graph.MappingResult {
 	entry, ok := r.mappings[resourceType]
@@ -78,6 +93,15 @@ func (r *Registry) Lookup(resourceType string) *graph.MappingResult {
 		GroupLevel:  entry.mapping.GroupLevel,
 		GroupParent: entry.mapping.GroupParent,
 		ParentRef:   entry.mapping.ParentRef,
+	}
+	if s := entry.mapping.Style; s != nil {
+		result.Style = &graph.NodeStyle{
+			Fill:   s.Fill,
+			Stroke: s.Stroke,
+			Label:  s.Label,
+			Role:   s.Role,
+			Dashed: s.Dashed,
+		}
 	}
 
 	for _, v := range entry.mapping.Variants {
