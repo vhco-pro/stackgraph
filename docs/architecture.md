@@ -134,19 +134,28 @@ list values. A name match is only accepted for the declared `group_parent` type
 (names collide across types; ids don't). This is deterministic, works with zero
 `depends_on`, and disambiguates any number of VPCs.
 
-Fallbacks, in order: edge-based placement (DOT/HCL inputs), security-group
-containment via `vpc_security_group_ids`, and a synthesized per-provider cloud
-boundary. Edges that merely restate containment are suppressed. Count/for_each
-collapse preserves the members' parent and rewrites all links.
+A second vocabulary, `member_ref`, covers member-list containment: a container
+names the attribute other resources use to reference it (security groups via
+`vpc_security_group_ids`), and listing resources become its children while the
+container moves into their subnet. `network_scope: true` marks network
+boundaries that heuristic flow edges may never cross.
+
+Fallbacks, in order: edge-based placement (DOT/HCL inputs), member-list
+containment, and a synthesized per-provider cloud boundary (any provider —
+style it via a `<provider>_cloud` mapping entry). Edges that merely restate
+containment are suppressed. Count/for_each collapse preserves the members'
+parent and rewrites all links; members spread across different parents stay
+expanded.
 
 ## Edge Model
 
 1. `depends_on` edges from the state.
 2. Implicit reference edges: any curated attribute (scalar or list of strings)
    whose value equals another node's id — typed by attribute name.
-3. Optional `--infer-flows`: heuristic type-pair flows (ALB→EC2, EC2→RDS, …),
-   connected **only within the same network container** so multi-environment
-   states never get invented cross-environment traffic.
+3. Optional `--infer-flows`: heuristic type-pair flows declared in the mapping
+   YAML `flows:` sections, connected **only within the same network container**
+   (declared via `network_scope`) so multi-environment states never get
+   invented cross-environment traffic.
 
 Edges are deduplicated per source→target pair regardless of type.
 
@@ -182,6 +191,5 @@ versioned structs independent of the terraform version.
 - Evidence-based flow edges (target-group attachments, SG rule pairs, IAM ARNs)
 - Global-services partition band in the layout (Route53/IAM/S3 cluster)
 - Node consolidation rules (merge Route53 records, S3 bucket sub-resources)
-- Icon pruning to the used set (binary size)
 - Region/zone containers for Azure/GCP
 - Optional server mode (`stackgraph serve --port 8080`)

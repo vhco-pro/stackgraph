@@ -114,6 +114,7 @@ resources:
       stroke: '#50E6FF'
       label: '#0078D4'
       role: vpc
+    network_scope: true
   azurerm_subnet:
     service: Subnet
     category: Networking
@@ -487,3 +488,16 @@ resources:
       stroke: '#0078D4'
       label: '#0078D4'
       role: cloud
+
+flows:
+  - { from: azurerm_linux_virtual_machine, to: azurerm_mssql_server }
+  - { from: azurerm_linux_virtual_machine, to: azurerm_mssql_database }
+  - { from: azurerm_linux_virtual_machine, to: azurerm_storage_account }
+  - { from: azurerm_windows_virtual_machine, to: azurerm_mssql_server }
+  - { from: azurerm_virtual_machine, to: azurerm_mssql_server }
+  - { from: azurerm_virtual_machine, to: azurerm_storage_account }
+  - { from: azurerm_kubernetes_cluster, to: azurerm_mssql_server }
+  - { from: azurerm_kubernetes_cluster, to: azurerm_storage_account }
+  - { from: azurerm_kubernetes_cluster, to: azurerm_cosmosdb_account }
+  - { from: azurerm_application_gateway, to: azurerm_linux_virtual_machine }
+  - { from: azurerm_application_gateway, to: azurerm_kubernetes_cluster }

@@ -189,6 +189,7 @@ resources:
       stroke: '#8C4FFF'
       label: '#6B21A8'
       role: vpc
+    network_scope: true
   aws_subnet:
     service: Subnet
     category: Networking
@@ -216,6 +217,7 @@ resources:
       label: '#C62828'
       role: sg
       dashed: true
+    member_ref: vpc_security_group_ids
   aws_security_group_rule:
     service: SG Rule
     category: Security
@@ -1047,3 +1049,28 @@ consolidate:
   - aws_s3_bucket_acl
   - aws_s3_bucket_lifecycle_configuration
   label: S3 Bucket
+
+# Heuristic data-flow patterns (--infer-flows). Direction is data/traffic
+# flow, not dependency; pairs only connect inside one network container.
+flows:
+  - { from: aws_lb, to: aws_instance }
+  - { from: aws_lb, to: aws_ecs_service }
+  - { from: aws_cloudfront_distribution, to: aws_lb }
+  - { from: aws_cloudfront_distribution, to: aws_s3_bucket }
+  - { from: aws_route53_record, to: aws_lb }
+  - { from: aws_route53_record, to: aws_cloudfront_distribution }
+  - { from: aws_api_gateway_rest_api, to: aws_lambda_function }
+  - { from: aws_apigatewayv2_api, to: aws_lambda_function }
+  - { from: aws_instance, to: aws_db_instance }
+  - { from: aws_instance, to: aws_rds_cluster }
+  - { from: aws_instance, to: aws_dynamodb_table }
+  - { from: aws_instance, to: aws_elasticache_cluster }
+  - { from: aws_ecs_service, to: aws_db_instance }
+  - { from: aws_ecs_service, to: aws_rds_cluster }
+  - { from: aws_lambda_function, to: aws_dynamodb_table }
+  - { from: aws_lambda_function, to: aws_db_instance }
+  - { from: aws_instance, to: aws_s3_bucket }
+  - { from: aws_lambda_function, to: aws_s3_bucket }
+  - { from: aws_lambda_function, to: aws_sqs_queue }
+  - { from: aws_lambda_function, to: aws_sns_topic }
+  - { from: aws_instance, to: aws_sqs_queue }

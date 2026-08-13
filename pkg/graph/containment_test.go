@@ -172,3 +172,77 @@ func TestCollapseSkipsMembersInDifferentParents(t *testing.T) {
 		}
 	}
 }
+
+func TestMemberRefContainment(t *testing.T) {
+	g := NewGraph("state")
+	g.AddNode(&Node{
+		ID: "aws_subnet.web", ResourceType: "aws_subnet", Label: "web", Provider: "aws",
+		IsGroupNode: true, GroupLevel: 2,
+		Attributes: map[string]any{"id": "subnet-1"},
+	})
+	g.AddNode(&Node{
+		ID: "aws_security_group.web", ResourceType: "aws_security_group", Label: "web",
+		Provider: "aws", IsGroupNode: true, GroupLevel: 3,
+		MemberRef:  "vpc_security_group_ids",
+		Attributes: map[string]any{"id": "sg-1"},
+	})
+	g.AddNode(&Node{
+		ID: "aws_instance.web", ResourceType: "aws_instance", Label: "web", Provider: "aws",
+		ParentRef: "subnet_id", GroupParent: "aws_subnet",
+		Attributes: map[string]any{"id": "i-1", "subnet_id": "subnet-1", "vpc_security_group_ids": []any{"sg-1"}},
+	})
+
+	g.ApplyGrouping()
+
+	inst := g.NodeByID("aws_instance.web")
+	sg := g.NodeByID("aws_security_group.web")
+	if inst.Parent != "aws_security_group.web" {
+		t.Errorf("instance parent = %q, want the security group", inst.Parent)
+	}
+	if sg.Parent != "aws_subnet.web" {
+		t.Errorf("security group parent = %q, want the member's subnet", sg.Parent)
+	}
+}
+
+func TestNetworkScopeBoundsFlowEdges(t *testing.T) {
+	g := NewGraph("state")
+	for _, env := range []string{"prod", "staging"} {
+		g.AddNode(&Node{
+			ID: "aws_vpc." + env, ResourceType: "aws_vpc", Label: env, Provider: "aws",
+			IsGroupNode: true, GroupLevel: 1, NetworkScope: true,
+			Attributes: map[string]any{"id": "vpc-" + env},
+		})
+		g.AddNode(&Node{
+			ID: "aws_instance." + env, Type: NodeTypeResource, ResourceType: "aws_instance",
+			Label: env, Provider: "aws", ParentRef: "vpc_id", GroupParent: "aws_vpc",
+			Attributes: map[string]any{"id": "i-" + env, "vpc_id": "vpc-" + env},
+		})
+		g.AddNode(&Node{
+			ID: "aws_db_instance." + env, Type: NodeTypeResource, ResourceType: "aws_db_instance",
+			Label: env, Provider: "aws", ParentRef: "vpc_id", GroupParent: "aws_vpc",
+			Attributes: map[string]any{"id": "db-" + env, "vpc_id": "vpc-" + env},
+		})
+	}
+	g.ApplyGrouping()
+	g.InferFlowEdges([][2]string{{"aws_instance", "aws_db_instance"}})
+
+	for _, e := range g.Edges {
+		if e.Type != "flow" {
+			continue
+		}
+		srcEnv := e.Source[len(e.Source)-4:]
+		tgtEnv := e.Target[len(e.Target)-4:]
+		if srcEnv != tgtEnv {
+			t.Errorf("flow edge crosses network scopes: %s -> %s", e.Source, e.Target)
+		}
+	}
+	flowCount := 0
+	for _, e := range g.Edges {
+		if e.Type == "flow" {
+			flowCount++
+		}
+	}
+	if flowCount != 2 {
+		t.Errorf("expected 2 same-scope flow edges, got %d", flowCount)
+	}
+}

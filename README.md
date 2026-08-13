@@ -92,6 +92,14 @@ aws_vpc:
   group_level: 1
   style: { fill: "#F8F4FF", stroke: "#8C4FFF", label: "#6B21A8", role: vpc }
 
+aws_security_group:
+  service: Security Group
+  category: Security
+  is_group: true
+  group_level: 3
+  member_ref: vpc_security_group_ids   # resources listing this SG become its children
+  style: { fill: "#FFF5F5", stroke: "#E53935", label: "#C62828", role: sg, dashed: true }
+
 aws_ecs_service:
   service: ECS
   category: Containers
@@ -100,7 +108,16 @@ aws_ecs_service:
     - match: { attribute: launch_type, value: FARGATE }
       icon: aws/Arch_Containers/Arch_AWS-Fargate_64.png
       service: Fargate
+
+# Heuristic data-flow patterns for --infer-flows, scoped by network_scope containers
+flows:
+  - { from: aws_lb, to: aws_instance }
 ```
+
+Containers can declare `network_scope: true` (VPC, VNet) — heuristic flows
+never cross such a boundary — and `dark_fill`/`dark_stroke`/`dark_label` in
+their style block to retune dark mode. All of this works from a `--mappings`
+overlay directory too, without recompiling.
 
 Adding a resource type really is a few lines of YAML — a test validates every icon path against the embedded icon set, and `--mappings` loads user mappings at runtime.
 

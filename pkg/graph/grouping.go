@@ -70,9 +70,10 @@ func (g *Graph) ApplyGrouping() {
 	// Phase 3: Resolve nested parents — push resources to most specific container
 	g.resolveNestedParents()
 
-	// Phase 4: Assign resources to security groups via attribute matching.
-	// This runs AFTER subnet assignment so SG inherits the subnet context.
-	g.assignSecurityGroupContainment()
+	// Phase 4: member-list containment (security groups and any container
+	// declaring member_ref). Runs AFTER subnet assignment so the container
+	// inherits the member's subnet context.
+	g.assignMemberContainment()
 
 	// Phase 5: Drop edges that merely restate containment — nesting already
 	// shows them, and drawn arrows into container walls read as noise.
@@ -221,7 +222,9 @@ func (g *Graph) suppressContainmentEdges() {
 // network container (VPC/VNet), or both live outside any network container.
 // Without that scope a prod instance would get a drawn edge to a staging
 // database purely because the types match.
-func (g *Graph) InferFlowEdges() {
+// Patterns come from the mapping registry's flows: sections, so providers
+// added purely via --mappings can declare their own.
+func (g *Graph) InferFlowEdges(patterns [][2]string) {
 	g.ensureIndex()
 
 	// Collect resources by type for pairing
@@ -232,66 +235,6 @@ func (g *Graph) InferFlowEdges() {
 		}
 	}
 
-	// Common flow patterns: source type → target type
-	// Direction represents data/traffic flow, not dependency
-	patterns := []struct {
-		srcType string
-		tgtType string
-		label   string
-	}{
-		// Web tier flows
-		{"aws_lb", "aws_instance", ""},
-		{"aws_lb", "aws_ecs_service", ""},
-		{"aws_cloudfront_distribution", "aws_lb", ""},
-		{"aws_cloudfront_distribution", "aws_s3_bucket", ""},
-		{"aws_route53_record", "aws_lb", ""},
-		{"aws_route53_record", "aws_cloudfront_distribution", ""},
-		{"aws_api_gateway_rest_api", "aws_lambda_function", ""},
-		{"aws_apigatewayv2_api", "aws_lambda_function", ""},
-
-		// App → Database flows
-		{"aws_instance", "aws_db_instance", ""},
-		{"aws_instance", "aws_rds_cluster", ""},
-		{"aws_instance", "aws_dynamodb_table", ""},
-		{"aws_instance", "aws_elasticache_cluster", ""},
-		{"aws_ecs_service", "aws_db_instance", ""},
-		{"aws_ecs_service", "aws_rds_cluster", ""},
-		{"aws_lambda_function", "aws_dynamodb_table", ""},
-		{"aws_lambda_function", "aws_db_instance", ""},
-
-		// Storage flows
-		{"aws_instance", "aws_s3_bucket", ""},
-		{"aws_lambda_function", "aws_s3_bucket", ""},
-
-		// Messaging flows
-		{"aws_lambda_function", "aws_sqs_queue", ""},
-		{"aws_lambda_function", "aws_sns_topic", ""},
-		{"aws_instance", "aws_sqs_queue", ""},
-
-		// Azure flows
-		{"azurerm_linux_virtual_machine", "azurerm_mssql_server", ""},
-		{"azurerm_linux_virtual_machine", "azurerm_mssql_database", ""},
-		{"azurerm_linux_virtual_machine", "azurerm_storage_account", ""},
-		{"azurerm_windows_virtual_machine", "azurerm_mssql_server", ""},
-		{"azurerm_virtual_machine", "azurerm_mssql_server", ""},
-		{"azurerm_virtual_machine", "azurerm_storage_account", ""},
-		{"azurerm_kubernetes_cluster", "azurerm_mssql_server", ""},
-		{"azurerm_kubernetes_cluster", "azurerm_storage_account", ""},
-		{"azurerm_kubernetes_cluster", "azurerm_cosmosdb_account", ""},
-		{"azurerm_application_gateway", "azurerm_linux_virtual_machine", ""},
-		{"azurerm_application_gateway", "azurerm_kubernetes_cluster", ""},
-
-		// GCP flows
-		{"google_compute_instance", "google_sql_database_instance", ""},
-		{"google_compute_instance", "google_storage_bucket", ""},
-		{"google_container_cluster", "google_sql_database_instance", ""},
-		{"google_container_cluster", "google_storage_bucket", ""},
-		{"google_cloudfunctions_function", "google_sql_database_instance", ""},
-		{"google_cloudfunctions_function", "google_storage_bucket", ""},
-		{"google_cloudfunctions2_function", "google_sql_database_instance", ""},
-		{"google_cloudfunctions2_function", "google_storage_bucket", ""},
-	}
-
 	existingEdges := make(map[string]bool)
 	for _, e := range g.Edges {
 		existingEdges[e.Source+"->"+e.Target] = true
@@ -299,8 +242,8 @@ func (g *Graph) InferFlowEdges() {
 	}
 
 	for _, p := range patterns {
-		srcs := byType[p.srcType]
-		tgts := byType[p.tgtType]
+		srcs := byType[p[0]]
+		tgts := byType[p[1]]
 		if len(srcs) == 0 || len(tgts) == 0 {
 			continue
 		}
@@ -319,7 +262,6 @@ func (g *Graph) InferFlowEdges() {
 					Source: src.ID,
 					Target: tgt.ID,
 					Type:   "flow",
-					Label:  p.label,
 				})
 				existingEdges[key] = true
 				existingEdges[tgt.ID+"->"+src.ID] = true
@@ -328,98 +270,113 @@ func (g *Graph) InferFlowEdges() {
 	}
 }
 
-// networkAncestor returns the ID of the level-1 group container (VPC, VNet,
-// VPC network) enclosing the node, or "" when the node lives outside one.
+// networkAncestor returns the ID of the network container (VPC, VNet, …)
+// enclosing the node, or "" when the node lives outside one. Network scope is
+// declared in mappings (network_scope: true); when no ancestor declares it,
+// group level 1 is the fallback so undeclared hierarchies keep working.
 func (g *Graph) networkAncestor(n *Node) string {
+	fallback := ""
 	for cur, hops := n, 0; cur != nil && hops < len(g.Nodes)+1; hops++ {
-		if cur.IsGroupNode && cur.GroupLevel == 1 {
-			return cur.ID
+		if cur.IsGroupNode {
+			if cur.NetworkScope {
+				return cur.ID
+			}
+			if cur.GroupLevel == 1 && fallback == "" {
+				fallback = cur.ID
+			}
 		}
 		cur = g.NodeByID(cur.Parent)
 	}
-	return ""
+	return fallback
 }
 
-// assignSecurityGroupContainment moves resources inside their security groups.
-// Runs AFTER subnet assignment so we know where resources are placed.
-// The SG is moved to the same subnet as the resources it contains.
-func (g *Graph) assignSecurityGroupContainment() {
+// assignMemberContainment implements member-list containment: a container type
+// declares member_ref (e.g. aws_security_group: vpc_security_group_ids), and
+// any resource whose member_ref attribute lists the container's id becomes its
+// child. The container itself moves into the member's parent (subnet) so the
+// SG → Subnet → VPC hierarchy holds. Runs AFTER parent_ref assignment so
+// member parents are known.
+func (g *Graph) assignMemberContainment() {
 	g.ensureIndex()
 
-	// Build SG ID value -> SG node index
-	sgByID := make(map[string]*Node)
+	// container type -> member attribute; container id value -> container node
+	memberAttrByType := make(map[string]string)
+	containerByID := make(map[string]*Node)
 	for _, n := range g.Nodes {
-		if n.ResourceType != "aws_security_group" {
+		if !n.IsGroupNode || n.MemberRef == "" {
 			continue
 		}
+		memberAttrByType[n.ResourceType] = n.MemberRef
 		if n.Attributes != nil {
-			if sgID, ok := n.Attributes["id"].(string); ok {
-				sgByID[sgID] = n
+			if id, ok := n.Attributes["id"].(string); ok && id != "" {
+				containerByID[id] = n
 			}
 		}
 	}
 
-	if len(sgByID) == 0 {
+	if len(containerByID) == 0 {
 		return
 	}
 
-	// For each resource with vpc_security_group_ids, move it inside the SG.
-	// Also move the SG to the resource's current parent (subnet) if not already placed.
+	// Iterate member attributes in sorted order for deterministic placement
+	memberAttrs := make([]string, 0, len(memberAttrByType))
+	seenAttr := make(map[string]bool)
+	for _, attr := range memberAttrByType {
+		if !seenAttr[attr] {
+			seenAttr[attr] = true
+			memberAttrs = append(memberAttrs, attr)
+		}
+	}
+	sort.Strings(memberAttrs)
+
 	for _, n := range g.Nodes {
-		if n.IsGroupNode {
-			continue
-		}
-		if n.Attributes == nil {
+		if n.IsGroupNode || n.Attributes == nil {
 			continue
 		}
 
-		sgIDs, ok := n.Attributes["vpc_security_group_ids"]
-		if !ok {
-			continue
-		}
-
-		sgList, ok := sgIDs.([]interface{})
-		if !ok {
-			continue
-		}
-
-		for _, sgIDRaw := range sgList {
-			sgIDStr, ok := sgIDRaw.(string)
+		placed := false
+		for _, attr := range memberAttrs {
+			if placed {
+				break
+			}
+			raw, ok := n.Attributes[attr]
 			if !ok {
 				continue
 			}
-			sgNode, found := sgByID[sgIDStr]
-			if !found {
-				continue
-			}
 
-			// Move the SG into the same subnet as the resource it contains.
-			// This ensures SG → Subnet → VPC nesting hierarchy.
-			resourceParent := n.Parent
-			if resourceParent != "" && resourceParent != sgNode.ID {
-				sgCurrentParent := g.NodeByID(sgNode.Parent)
-				resourceParentNode := g.NodeByID(resourceParent)
-
-				// Only move if the resource's parent is more specific (deeper) than the SG's
-				if resourceParentNode != nil && sgCurrentParent != nil &&
-					resourceParentNode.GroupLevel > sgCurrentParent.GroupLevel {
-					// Remove SG from its current parent
-					sgCurrentParent.Children = removeString(sgCurrentParent.Children, sgNode.ID)
-					// Place SG in the resource's parent (subnet)
-					sgNode.Parent = resourceParent
-					resourceParentNode.Children = appendUnique(resourceParentNode.Children, sgNode.ID)
+			for _, idStr := range attrStringValues(raw) {
+				container, found := containerByID[idStr]
+				if !found {
+					continue
 				}
-			}
 
-			// Remove resource from its current parent's children list
-			if oldParent := g.NodeByID(n.Parent); oldParent != nil {
-				oldParent.Children = removeString(oldParent.Children, n.ID)
-			}
+				// Move the container into the same parent as the member it
+				// contains, when the member's parent is more specific (or the
+				// container isn't placed anywhere yet).
+				memberParent := n.Parent
+				if memberParent != "" && memberParent != container.ID {
+					containerParent := g.NodeByID(container.Parent)
+					memberParentNode := g.NodeByID(memberParent)
 
-			// Place resource inside the SG
-			n.Parent = sgNode.ID
-			sgNode.Children = appendUnique(sgNode.Children, n.ID)
-			break // use first matching SG
+					if memberParentNode != nil &&
+						(containerParent == nil || memberParentNode.GroupLevel > containerParent.GroupLevel) {
+						if containerParent != nil {
+							containerParent.Children = removeString(containerParent.Children, container.ID)
+						}
+						container.Parent = ""
+						g.setParent(container, memberParentNode)
+					}
+				}
+
+				// Re-home the member inside the container
+				if oldParent := g.NodeByID(n.Parent); oldParent != nil {
+					oldParent.Children = removeString(oldParent.Children, n.ID)
+				}
+				n.Parent = ""
+				g.setParent(n, container)
+				placed = true
+				break // use first matching container
+			}
 		}
 	}
 }

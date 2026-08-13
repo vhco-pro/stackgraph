@@ -260,7 +260,7 @@
   "metadata": {
     "provider": "aws",
     "resource_count": 11,
-    "generated_at": "2026-08-13T19:49:01Z",
+    "generated_at": "2026-08-13T20:14:24Z",
     "generator_version": "dev",
     "input_mode": "state"
   }

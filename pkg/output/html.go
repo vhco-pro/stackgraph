@@ -32,11 +32,15 @@ func RenderHTML(g *sgraph.Graph) ([]byte, error) {
 	b.WriteString("<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n")
 	b.WriteString(`<meta name="viewport" content="width=device-width, initial-scale=1">` + "\n")
 	fmt.Fprintf(&b, "<title>%s</title>\n", escapeXMLStr(title))
-	b.WriteString(`<style>
-  :root { --bg: #FFFFFF; --panel: #F8F9FA; --border: #DEE2E6; --text: #2D3436; --muted: #6C757D; --accent: #5352C7; }
+	// Page chrome shares the SVG renderer's palette so the canvas never floats
+	// on a mismatched ground when the dark theme is retuned.
+	fmt.Fprintf(&b, `<style>
+  :root { --bg: %s; --panel: #F8F9FA; --border: %s; --text: %s; --muted: #6C757D; --accent: #5352C7; }
   @media (prefers-color-scheme: dark) {
-    :root { --bg: #1a1a2e; --panel: #22223A; --border: #3A3A55; --text: #E0E0E0; --muted: #9CA3AF; --accent: #8B8AF0; }
-  }
+    :root { --bg: %s; --panel: #22223A; --border: %s; --text: %s; --muted: %s; --accent: #8B8AF0; }
+  }`, paletteLightBG, paletteLightBorder, paletteLightText,
+		paletteDarkBG, paletteDarkBorder, paletteDarkText, paletteDarkEdge)
+	b.WriteString(`
   * { box-sizing: border-box; }
   body { margin: 0; height: 100vh; display: flex; flex-direction: column; background: var(--bg); color: var(--text);
          font-family: system-ui, sans-serif; overflow: hidden; }

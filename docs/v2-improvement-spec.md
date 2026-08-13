@@ -298,23 +298,18 @@ coverage command, `--layout` kept as a deprecated no-op, icon data-URI cache,
 provider boundaries (any provider gets one; style via `<provider>_cloud`
 mapping entry).
 
-Deferred (design work, tracked here):
+All previously-deferred design items have since landed as well:
 
-- **Flow patterns in YAML.** `InferFlowEdges`' type-pair table is the last
-  provider knowledge living in Go — a `flows:` mapping section would open it
-  to `--mappings` users.
-- **Role/dark-mode vocabulary.** Container roles {cloud,vpc,subnet,sg} are
-  clamped in Go and mirrored in the SVG CSS; declaring new role families (and
-  their dark palettes) should be data, with light/dark pairs in the style
-  block.
-- **Member-list containment vocabulary.** `vpc_security_group_ids`-style
-  grouping (resource lists its containers) is an AWS-only Go special case;
-  a `member_ref:` mapping field would generalize it.
-- **Network-scope declaration.** `networkAncestor` treats `group_level == 1`
-  as "network container"; a `network_scope: true` style/mapping flag would
-  survive hierarchy changes (regions, projects above VPCs).
-- **Icon `<defs>`/`<use>` dedup.** The data-URI cache removes repeated
-  encoding; emitting each icon once and referencing it would also shrink SVG
-  output for icon-heavy diagrams.
-- **Shared palette constants** between the SVG stylesheet and the HTML
-  viewer chrome so dark-mode retunes stay in sync.
+- **Flow patterns in YAML** — done: `flows:` sections per provider file feed
+  `InferFlowEdges` through the registry; `--mappings` users can declare their own.
+- **Role/dark-mode vocabulary** — done: the role clamp is gone (any CSS-safe
+  role name works), dark rules are generated from the styles the graph uses,
+  and `dark_fill`/`dark_stroke`/`dark_label` override the built-in palette.
+- **Member-list containment** — done: `member_ref:` on the container mapping
+  generalizes the security-group special case; the hardcoded function is gone.
+- **Network-scope declaration** — done: `network_scope: true` on VPC/VNet/
+  network mappings drives flow scoping, with group-level 1 as fallback.
+- **Icon `<defs>`/`<use>` dedup** — done: each icon embeds once per document
+  (~35% smaller SVGs on the realistic fixture).
+- **Shared palette constants** — done: one Go palette drives the SVG
+  stylesheet and the HTML viewer chrome.

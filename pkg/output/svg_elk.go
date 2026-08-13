@@ -441,39 +441,36 @@ func generateElkSVG(g *sgraph.Graph, positions map[string]NodePosition, elkEdges
 	fmt.Fprintf(&b, `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="%d" height="%d" font-family="Sans-Serif">`, canvasW, canvasH)
 	b.WriteString("\n")
 
-	// Dark mode CSS — auto-detects prefers-color-scheme
-	b.WriteString(`<style>
-  .sg-bg { fill: #FFFFFF; }
-  .sg-text { fill: #2D3436; }
-  .sg-text-sm { fill: #2D3436; }
-  .sg-edge { stroke: #7B8894; }
-  .sg-arrow { fill: #7B8894; }
-  .sg-node-box { fill: #FFFFFF; stroke: #DEE2E6; }
+	// Dark mode CSS — auto-detects prefers-color-scheme. Base colors come from
+	// the shared palette; container role rules are generated from the styles
+	// the graph's mappings actually declare.
+	fmt.Fprintf(&b, `<style>
+  .sg-bg { fill: %s; }
+  .sg-text { fill: %s; }
+  .sg-text-sm { fill: %s; }
+  .sg-edge { stroke: %s; }
+  .sg-arrow { fill: %s; }
+  .sg-node-box { fill: %s; stroke: %s; }
   @media (prefers-color-scheme: dark) {
-    .sg-bg { fill: #1a1a2e; }
-    .sg-text { fill: #E0E0E0; }
-    .sg-text-sm { fill: #B0B0B0; }
-    .sg-edge { stroke: #9CA3AF; }
-    .sg-arrow { fill: #9CA3AF; }
-    .sg-node-box { fill: #2a2a3e; stroke: #4A5568; }
-    .sg-container-cloud { fill: #1e1e32; stroke: #4A90D9; }
-    .sg-container-vpc { fill: #1e1530; stroke: #A855F7; }
-    .sg-container-subnet { fill: #1a2e1a; stroke: #8BC34A; }
-    .sg-container-sg { fill: #2e1a1a; stroke: #EF5350; }
-    .sg-container-default { fill: #1e1e2e; stroke: #6B7280; }
-    .sg-label-cloud { fill: #4A90D9; }
-    .sg-label-vpc { fill: #C084FC; }
-    .sg-label-subnet { fill: #8BC34A; }
-    .sg-label-sg { fill: #EF5350; }
-    .sg-label-default { fill: #9CA3AF; }
-  }
-</style>`)
+    .sg-bg { fill: %s; }
+    .sg-text { fill: %s; }
+    .sg-text-sm { fill: %s; }
+    .sg-edge { stroke: %s; }
+    .sg-arrow { fill: %s; }
+    .sg-node-box { fill: %s; stroke: %s; }
+%s  }
+</style>`,
+		paletteLightBG, paletteLightText, paletteLightText, paletteLightEdge, paletteLightEdge, paletteLightBG, paletteLightBorder,
+		paletteDarkBG, paletteDarkText, paletteDarkTextSm, paletteDarkEdge, paletteDarkEdge, paletteDarkBox, paletteDarkBorder,
+		roleDarkCSS(g))
 	b.WriteString("\n")
 
-	fmt.Fprintf(&b, `<rect class="sg-bg" width="%d" height="%d" fill="#FFFFFF"/>`, canvasW, canvasH)
+	fmt.Fprintf(&b, `<rect class="sg-bg" width="%d" height="%d" fill="%s"/>`, canvasW, canvasH, paletteLightBG)
 	b.WriteString("\n")
-	b.WriteString(`<defs><marker id="arrowhead" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto"><polygon class="sg-arrow" points="0 0, 10 3.5, 0 7" fill="#7B8894"/></marker></defs>`)
-	b.WriteString("\n")
+
+	// Defs: arrowhead marker plus one shared <image> per distinct icon —
+	// nodes reference them with <use> instead of re-embedding the data URI.
+	iconRefs := buildIconDefs(&b, g)
 
 	nodeIdx := make(map[string]*sgraph.Node)
 	for _, n := range g.Nodes {
@@ -540,7 +537,7 @@ func generateElkSVG(g *sgraph.Graph, positions map[string]NodePosition, elkEdges
 
 	// Layer 3: Container labels + icons (on top of edges so labels are never obscured)
 	for _, c := range containers {
-		renderContainerLabel(&b, c.node, c.pos)
+		renderContainerLabel(&b, c.node, c.pos, iconRefs)
 	}
 
 	// Layer 4: Leaf nodes (on top of everything)
@@ -550,7 +547,7 @@ func generateElkSVG(g *sgraph.Graph, positions map[string]NodePosition, elkEdges
 			continue
 		}
 		if n.Type != sgraph.NodeTypeGroup && len(n.Children) == 0 {
-			renderNode(&b, n, pos)
+			renderNode(&b, n, pos, iconRefs)
 		}
 	}
 

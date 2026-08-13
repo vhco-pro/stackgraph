@@ -69,3 +69,44 @@ func TestCategoryVocabulary(t *testing.T) {
 		seen[norm] = entry.Category
 	}
 }
+
+// TestFlowPatternsLoaded asserts the embedded YAML flows sections reach the
+// registry — the renderer's heuristic edges depend on them.
+func TestFlowPatternsLoaded(t *testing.T) {
+	r, err := LoadEmbedded()
+	if err != nil {
+		t.Fatalf("LoadEmbedded failed: %v", err)
+	}
+	patterns := r.FlowPatterns()
+	if len(patterns) < 30 {
+		t.Fatalf("expected 30+ flow patterns from embedded YAML, got %d", len(patterns))
+	}
+	found := false
+	for _, p := range patterns {
+		if p[0] == "aws_lb" && p[1] == "aws_instance" {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("expected aws_lb -> aws_instance flow pattern")
+	}
+}
+
+// TestContainmentDeclarationsLoaded asserts member_ref and network_scope
+// survive the YAML round-trip into lookup results.
+func TestContainmentDeclarationsLoaded(t *testing.T) {
+	r, err := LoadEmbedded()
+	if err != nil {
+		t.Fatalf("LoadEmbedded failed: %v", err)
+	}
+	sg := r.Lookup("aws_security_group")
+	if sg == nil || sg.MemberRef != "vpc_security_group_ids" {
+		t.Error("aws_security_group must declare member_ref vpc_security_group_ids")
+	}
+	for _, network := range []string{"aws_vpc", "azurerm_virtual_network", "google_compute_network"} {
+		m := r.Lookup(network)
+		if m == nil || !m.NetworkScope {
+			t.Errorf("%s must declare network_scope", network)
+		}
+	}
+}

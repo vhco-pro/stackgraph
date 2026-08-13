@@ -82,6 +82,7 @@ resources:
       stroke: '#34A853'
       label: '#34A853'
       role: vpc
+    network_scope: true
   google_compute_subnetwork:
     service: Subnet
     category: Networking
@@ -363,3 +364,13 @@ resources:
       stroke: '#4285F4'
       label: '#4285F4'
       role: cloud
+
+flows:
+  - { from: google_compute_instance, to: google_sql_database_instance }
+  - { from: google_compute_instance, to: google_storage_bucket }
+  - { from: google_container_cluster, to: google_sql_database_instance }
+  - { from: google_container_cluster, to: google_storage_bucket }
+  - { from: google_cloudfunctions_function, to: google_sql_database_instance }
+  - { from: google_cloudfunctions_function, to: google_storage_bucket }
+  - { from: google_cloudfunctions2_function, to: google_sql_database_instance }
+  - { from: google_cloudfunctions2_function, to: google_storage_bucket }

@@ -51,18 +51,24 @@ type Node struct {
 	GroupLevel   int                    `json:"-"` // internal: nesting depth
 	GroupParent  string                 `json:"-"` // internal: expected parent resource type
 	ParentRef    string                 `json:"-"` // internal: attribute naming the containing resource
+	MemberRef    string                 `json:"-"` // internal: list attribute on members referencing this container
+	NetworkScope bool                   `json:"-"` // internal: flow edges never cross this group
 }
 
 // NodeStyle carries container rendering colors resolved from the mapping registry.
-// Role selects the dark-mode CSS class family (cloud, vpc, subnet, sg, default).
-// The yaml tags let mapping files unmarshal directly into this type — one
-// struct from YAML through the registry to the renderer and the JSON contract.
+// Role names the CSS class family; dark_* fields override the built-in dark
+// palette for that role. The yaml tags let mapping files unmarshal directly
+// into this type — one struct from YAML through the registry to the renderer
+// and the JSON contract.
 type NodeStyle struct {
-	Fill   string `json:"fill,omitempty"   yaml:"fill,omitempty"`
-	Stroke string `json:"stroke,omitempty" yaml:"stroke,omitempty"`
-	Label  string `json:"label,omitempty"  yaml:"label,omitempty"`
-	Role   string `json:"role,omitempty"   yaml:"role,omitempty"`
-	Dashed bool   `json:"dashed,omitempty" yaml:"dashed,omitempty"`
+	Fill       string `json:"fill,omitempty"        yaml:"fill,omitempty"`
+	Stroke     string `json:"stroke,omitempty"      yaml:"stroke,omitempty"`
+	Label      string `json:"label,omitempty"       yaml:"label,omitempty"`
+	Role       string `json:"role,omitempty"        yaml:"role,omitempty"`
+	Dashed     bool   `json:"dashed,omitempty"      yaml:"dashed,omitempty"`
+	DarkFill   string `json:"dark_fill,omitempty"   yaml:"dark_fill,omitempty"`
+	DarkStroke string `json:"dark_stroke,omitempty" yaml:"dark_stroke,omitempty"`
+	DarkLabel  string `json:"dark_label,omitempty"  yaml:"dark_label,omitempty"`
 }
 
 // Edge represents a dependency or relationship between two nodes.
@@ -145,6 +151,8 @@ func (g *Graph) ApplyMappings(registry interface{ Lookup(string) *MappingResult 
 		n.GroupLevel = result.GroupLevel
 		n.GroupParent = result.GroupParent
 		n.ParentRef = result.ParentRef
+		n.MemberRef = result.MemberRef
+		n.NetworkScope = result.NetworkScope
 		if result.Style != nil {
 			style := *result.Style
 			n.Style = &style
@@ -176,15 +184,17 @@ func (g *Graph) ApplyMappings(registry interface{ Lookup(string) *MappingResult 
 
 // MappingResult is the result of looking up a resource type in the mapping registry.
 type MappingResult struct {
-	Service     string
-	Category    string
-	Icon        string
-	IsGroup     bool
-	GroupLevel  int
-	GroupParent string
-	ParentRef   string
-	Style       *NodeStyle
-	Variants    []MappingVariant
+	Service      string
+	Category     string
+	Icon         string
+	IsGroup      bool
+	GroupLevel   int
+	GroupParent  string
+	ParentRef    string
+	MemberRef    string
+	NetworkScope bool
+	Style        *NodeStyle
+	Variants     []MappingVariant
 }
 
 // MappingVariant represents an alternative icon/service based on a resource attribute value.
@@ -375,6 +385,9 @@ type ProcessOptions struct {
 	// InferFlows adds heuristic data-flow edges (ALB→EC2, …) scoped to a
 	// single network container. Off by default: these edges are guesses.
 	InferFlows bool
+	// FlowPatterns are the [from, to] resource-type pairs to infer flows
+	// from — typically the mapping registry's declared flows.
+	FlowPatterns [][2]string
 }
 
 // Process runs the standard pipeline every consumer (CLI, library, tests)
@@ -388,7 +401,7 @@ func Process(g *Graph, registry interface{ Lookup(string) *MappingResult }, opts
 	g.ApplyGrouping()
 	g.ApplyMappings(registry)
 	if opts.InferFlows {
-		g.InferFlowEdges()
+		g.InferFlowEdges(opts.FlowPatterns)
 	}
 	g.CollapseCountInstances()
 	g.FilterInternal()

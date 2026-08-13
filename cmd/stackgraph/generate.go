@@ -86,7 +86,10 @@ func newGenerateCmd() *cobra.Command {
 			g.Metadata.GeneratorVersion = version
 			g.Metadata.GeneratedAt = time.Now().UTC().Format(time.RFC3339)
 
-			graph.Process(g, registry, graph.ProcessOptions{InferFlows: inferFlows})
+			graph.Process(g, registry, graph.ProcessOptions{
+				InferFlows:   inferFlows,
+				FlowPatterns: registry.FlowPatterns(),
+			})
 
 			var out []byte
 			switch formatFlag {

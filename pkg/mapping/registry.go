@@ -13,6 +13,7 @@ import (
 // Registry holds all loaded resource type mappings indexed by resource type.
 type Registry struct {
 	mappings map[string]*registryEntry
+	flows    [][2]string // declared flow patterns: [from, to] resource types
 }
 
 type registryEntry struct {
@@ -54,9 +55,19 @@ func LoadFromFS(fsys fs.FS, dir string) (*Registry, error) {
 				mapping:  m,
 			}
 		}
+		for _, f := range pm.Flows {
+			if f.From != "" && f.To != "" {
+				r.flows = append(r.flows, [2]string{f.From, f.To})
+			}
+		}
 	}
 
 	return r, nil
+}
+
+// FlowPatterns returns the declared heuristic flow patterns as [from, to] pairs.
+func (r *Registry) FlowPatterns() [][2]string {
+	return r.flows
 }
 
 // LoadEmbedded loads all mapping YAML files from the embedded filesystem.
@@ -75,6 +86,7 @@ func (r *Registry) LoadDir(dir string) error {
 	for resourceType, entry := range overlay.mappings {
 		r.mappings[resourceType] = entry
 	}
+	r.flows = append(r.flows, overlay.flows...)
 	return nil
 }
 
@@ -86,13 +98,15 @@ func (r *Registry) Lookup(resourceType string) *graph.MappingResult {
 	}
 
 	result := &graph.MappingResult{
-		Service:     entry.mapping.Service,
-		Category:    entry.mapping.Category,
-		Icon:        entry.mapping.Icon,
-		IsGroup:     entry.mapping.IsGroup,
-		GroupLevel:  entry.mapping.GroupLevel,
-		GroupParent: entry.mapping.GroupParent,
-		ParentRef:   entry.mapping.ParentRef,
+		Service:      entry.mapping.Service,
+		Category:     entry.mapping.Category,
+		Icon:         entry.mapping.Icon,
+		IsGroup:      entry.mapping.IsGroup,
+		GroupLevel:   entry.mapping.GroupLevel,
+		GroupParent:  entry.mapping.GroupParent,
+		ParentRef:    entry.mapping.ParentRef,
+		MemberRef:    entry.mapping.MemberRef,
+		NetworkScope: entry.mapping.NetworkScope,
 	}
 	// ApplyMappings deep-copies the style per node, so sharing the pointer is safe.
 	result.Style = entry.mapping.Style
