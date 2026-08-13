@@ -1,319 +1,1049 @@
 resources:
-  # Compute
   aws_instance:
     service: EC2
     category: Compute
-    icon: aws/compute/ec2-instance.svg
+    icon: aws/Arch_Compute/Arch_Amazon-EC2_64.png
     group_parent: aws_subnet
     parent_ref: subnet_id
   aws_launch_template:
     service: EC2
     category: Compute
-    icon: aws/compute/ec2-instance.svg
+    icon: aws/Arch_Compute/Arch_Amazon-EC2_64.png
+  aws_launch_configuration:
+    service: EC2
+    category: Compute
+    icon: aws/Arch_Compute/Arch_Amazon-EC2_64.png
+  aws_ami:
+    service: AMI
+    category: Compute
+    icon: aws/Resources/Res_Compute/Res_Amazon-EC2_AMI_48.svg
+  aws_key_pair:
+    service: Key Pair
+    category: Compute
+    icon: aws/Arch_Compute/Arch_Amazon-EC2_64.png
+  aws_placement_group:
+    service: Placement Group
+    category: Compute
+    icon: aws/Arch_Compute/Arch_Amazon-EC2_64.png
+  aws_spot_instance_request:
+    service: Spot Instance
+    category: Compute
+    icon: aws/Resources/Res_Compute/Res_Amazon-EC2_Spot-Instance_48.svg
+    group_parent: aws_subnet
+    parent_ref: subnet_id
   aws_autoscaling_group:
     service: Auto Scaling
     category: Compute
-    icon: aws/compute/auto-scaling.svg
+    icon: aws/Arch_Compute/Arch_Amazon-EC2-Auto-Scaling_64.png
     is_group: true
     group_level: 4
     group_parent: aws_subnet
     parent_ref: vpc_zone_identifier
+    style:
+      fill: '#DEEBF7'
+      stroke: '#FF69B4'
+      label: '#495057'
+      role: default
+      dashed: true
+  aws_autoscaling_policy:
+    service: Auto Scaling
+    category: Compute
+    icon: aws/Arch_Compute/Arch_Amazon-EC2-Auto-Scaling_64.png
+  aws_autoscaling_attachment:
+    service: Auto Scaling
+    category: Compute
+    icon: aws/Arch_Compute/Arch_Amazon-EC2-Auto-Scaling_64.png
+  aws_autoscaling_schedule:
+    service: Auto Scaling
+    category: Compute
+    icon: aws/Arch_Compute/Arch_Amazon-EC2-Auto-Scaling_64.png
   aws_lambda_function:
     service: Lambda
     category: Compute
-    icon: aws/compute/lambda.svg
+    icon: aws/Arch_Compute/Arch_AWS-Lambda_64.png
   aws_lambda_layer_version:
     service: Lambda Layer
     category: Compute
-    icon: aws/compute/lambda.svg
-
-  # Containers
+    icon: aws/Arch_Compute/Arch_AWS-Lambda_64.png
+  aws_lambda_permission:
+    service: Lambda Permission
+    category: Compute
+    icon: aws/Arch_Compute/Arch_AWS-Lambda_64.png
+  aws_lambda_alias:
+    service: Lambda Alias
+    category: Compute
+    icon: aws/Arch_Compute/Arch_AWS-Lambda_64.png
+  aws_lambda_event_source_mapping:
+    service: Lambda Event Source
+    category: Compute
+    icon: aws/Arch_Compute/Arch_AWS-Lambda_64.png
+  aws_lambda_function_url:
+    service: Lambda URL
+    category: Compute
+    icon: aws/Arch_Compute/Arch_AWS-Lambda_64.png
+  aws_lightsail_instance:
+    service: Lightsail
+    category: Compute
+    icon: aws/Arch_Compute/Arch_Amazon-Lightsail_64.png
+  aws_apprunner_service:
+    service: App Runner
+    category: Compute
+    icon: aws/Arch_Compute/Arch_AWS-App-Runner_64.png
+  aws_elastic_beanstalk_application:
+    service: Elastic Beanstalk
+    category: Compute
+    icon: aws/Resources/Res_Compute/Res_AWS-Elastic-Beanstalk_Application_48.svg
+  aws_elastic_beanstalk_environment:
+    service: Elastic Beanstalk
+    category: Compute
+    icon: aws/Arch_Compute/Arch_AWS-Elastic-Beanstalk_64.png
+  aws_batch_compute_environment:
+    service: Batch
+    category: Compute
+    icon: aws/Arch_Compute/Arch_AWS-Batch_64.png
+  aws_batch_job_queue:
+    service: Batch
+    category: Compute
+    icon: aws/Arch_Compute/Arch_AWS-Batch_64.png
+  aws_batch_job_definition:
+    service: Batch
+    category: Compute
+    icon: aws/Arch_Compute/Arch_AWS-Batch_64.png
   aws_ecs_cluster:
     service: ECS
     category: Containers
-    icon: aws/containers/ecs.svg
+    icon: aws/Arch_Containers/Arch_Amazon-Elastic-Container-Service_64.png
     is_group: true
     group_level: 4
     group_parent: aws_subnet
+    style:
+      fill: '#FFF8E1'
+      stroke: '#FF9900'
+      label: '#495057'
+      role: default
+      dashed: true
   aws_ecs_service:
     service: ECS
     category: Containers
-    icon: aws/containers/ecs-service.svg
+    icon: aws/Arch_Containers/Arch_Amazon-Elastic-Container-Service_64.png
     variants:
-      - match: { attribute: launch_type, value: FARGATE }
-        icon: aws/containers/fargate.svg
-        service: Fargate
+    - match:
+        attribute: launch_type
+        value: FARGATE
+      icon: aws/Arch_Containers/Arch_AWS-Fargate_64.png
+      service: Fargate
   aws_ecs_task_definition:
     service: ECS Task
     category: Containers
-    icon: aws/containers/ecs.svg
+    icon: aws/Arch_Containers/Arch_Amazon-Elastic-Container-Service_64.png
+  aws_ecs_capacity_provider:
+    service: ECS
+    category: Containers
+    icon: aws/Arch_Containers/Arch_Amazon-Elastic-Container-Service_64.png
   aws_ecr_repository:
     service: ECR
     category: Containers
-    icon: aws/containers/ecr.svg
+    icon: aws/Arch_Containers/Arch_Amazon-Elastic-Container-Registry_64.png
+  aws_ecr_lifecycle_policy:
+    service: ECR
+    category: Containers
+    icon: aws/Arch_Containers/Arch_Amazon-Elastic-Container-Registry_64.png
+  aws_ecr_repository_policy:
+    service: ECR
+    category: Containers
+    icon: aws/Arch_Containers/Arch_Amazon-Elastic-Container-Registry_64.png
   aws_eks_cluster:
     service: EKS
     category: Containers
-    icon: aws/containers/eks.svg
+    icon: aws/Arch_Containers/Arch_Amazon-Elastic-Kubernetes-Service_64.png
     is_group: true
     group_level: 4
+    style:
+      fill: '#FFF8E1'
+      stroke: '#FF9900'
+      label: '#495057'
+      role: default
+      dashed: true
   aws_eks_node_group:
     service: EKS Node Group
     category: Containers
-    icon: aws/containers/eks.svg
-
-  # Networking
+    icon: aws/Arch_Containers/Arch_Amazon-Elastic-Kubernetes-Service_64.png
+  aws_eks_addon:
+    service: EKS Add-on
+    category: Containers
+    icon: aws/Arch_Containers/Arch_Amazon-Elastic-Kubernetes-Service_64.png
+  aws_eks_fargate_profile:
+    service: EKS Fargate Profile
+    category: Containers
+    icon: aws/Arch_Containers/Arch_AWS-Fargate_64.png
+    group_parent: aws_subnet
+    parent_ref: subnet_ids
   aws_vpc:
     service: VPC
     category: Networking
-    icon: aws/networking/vpc.svg
+    icon: aws/Arch_Networking-Content-Delivery/Arch_Amazon-Virtual-Private-Cloud_64.png
     is_group: true
     group_level: 1
+    style:
+      fill: '#F8F4FF'
+      stroke: '#8C4FFF'
+      label: '#6B21A8'
+      role: vpc
   aws_subnet:
     service: Subnet
     category: Networking
-    icon: aws/networking/subnet.svg
+    icon: aws/Groups/Public-subnet_32.png
     is_group: true
     group_parent: aws_vpc
     group_level: 2
     parent_ref: vpc_id
+    style:
+      fill: '#F2F7EE'
+      stroke: '#7CB342'
+      label: '#558B2F'
+      role: subnet
   aws_security_group:
     service: Security Group
     category: Security
-    icon: aws/security/security-group.svg
+    icon: aws/Arch_Security-Identity/Arch_AWS-Shield_64.png
     is_group: true
     group_parent: aws_vpc
     group_level: 3
     parent_ref: vpc_id
+    style:
+      fill: '#FFF5F5'
+      stroke: '#E53935'
+      label: '#C62828'
+      role: sg
+      dashed: true
   aws_security_group_rule:
     service: SG Rule
     category: Security
-    icon: aws/security/security-group.svg
+    icon: aws/Arch_Security-Identity/Arch_AWS-Shield_64.png
+  aws_vpc_security_group_ingress_rule:
+    service: SG Ingress Rule
+    category: Security
+    icon: aws/Arch_Security-Identity/Arch_AWS-Shield_64.png
+  aws_vpc_security_group_egress_rule:
+    service: SG Egress Rule
+    category: Security
+    icon: aws/Arch_Security-Identity/Arch_AWS-Shield_64.png
   aws_internet_gateway:
     service: Internet Gateway
     category: Networking
-    icon: aws/networking/internet-gateway.svg
+    icon: aws/Resources/Res_Networking-Content-Delivery/Res_Amazon-VPC_Internet-Gateway_48.svg
+    group_parent: aws_vpc
+    parent_ref: vpc_id
+  aws_egress_only_internet_gateway:
+    service: Egress-Only IGW
+    category: Networking
+    icon: aws/Resources/Res_Networking-Content-Delivery/Res_Amazon-VPC_Internet-Gateway_48.svg
     group_parent: aws_vpc
     parent_ref: vpc_id
   aws_nat_gateway:
     service: NAT Gateway
     category: Networking
-    icon: aws/networking/nat-gateway.svg
+    icon: aws/Resources/Res_Networking-Content-Delivery/Res_Amazon-VPC_NAT-Gateway_48.svg
     group_parent: aws_subnet
     parent_ref: subnet_id
   aws_eip:
     service: Elastic IP
     category: Networking
-    icon: aws/networking/elastic-ip.svg
+    icon: aws/Resources/Res_Compute/Res_Amazon-EC2_Elastic-IP-Address_48.svg
   aws_route_table:
     service: Route Table
     category: Networking
-    icon: aws/networking/route-table.svg
+    icon: aws/Resources/Res_Networking-Content-Delivery/Res_Amazon-Route-53_Route-Table_48.svg
   aws_route_table_association:
     service: Route Association
     category: Networking
-    icon: aws/networking/route-table.svg
+    icon: aws/Resources/Res_Networking-Content-Delivery/Res_Amazon-Route-53_Route-Table_48.svg
   aws_route:
     service: Route
     category: Networking
-    icon: aws/networking/route-table.svg
+    icon: aws/Resources/Res_Networking-Content-Delivery/Res_Amazon-Route-53_Route-Table_48.svg
   aws_network_interface:
     service: ENI
     category: Networking
-    icon: aws/networking/elastic-network-interface.svg
+    icon: aws/Resources/Res_Networking-Content-Delivery/Res_Amazon-VPC_Elastic-Network-Interface_48.svg
+    group_parent: aws_subnet
+    parent_ref: subnet_id
+  aws_network_acl:
+    service: Network ACL
+    category: Networking
+    icon: aws/Resources/Res_Networking-Content-Delivery/Res_Amazon-VPC_Network-Access-Control-List_48.svg
+    group_parent: aws_vpc
+    parent_ref: vpc_id
+  aws_network_acl_rule:
+    service: NACL Rule
+    category: Networking
+    icon: aws/Resources/Res_Networking-Content-Delivery/Res_Amazon-VPC_Network-Access-Control-List_48.svg
+  aws_flow_log:
+    service: VPC Flow Log
+    category: Networking
+    icon: aws/Resources/Res_Networking-Content-Delivery/Res_Amazon-VPC_Flow-Logs_48.svg
+    group_parent: aws_vpc
+    parent_ref: vpc_id
   aws_vpc_peering_connection:
     service: VPC Peering
     category: Networking
-    icon: aws/networking/peering.svg
+    icon: aws/Resources/Res_Networking-Content-Delivery/Res_Amazon-VPC_Peering-Connection_48.svg
   aws_vpc_endpoint:
     service: VPC Endpoint
     category: Networking
-    icon: aws/networking/endpoint.svg
-
-  # Load Balancing
+    icon: aws/Resources/Res_Networking-Content-Delivery/Res_Amazon-VPC_Endpoints_48.svg
+    group_parent: aws_vpc
+    parent_ref: vpc_id
+  aws_vpn_gateway:
+    service: VPN Gateway
+    category: Networking
+    icon: aws/Resources/Res_Networking-Content-Delivery/Res_Amazon-VPC_VPN-Gateway_48.svg
+    group_parent: aws_vpc
+    parent_ref: vpc_id
+  aws_vpn_connection:
+    service: VPN Connection
+    category: Networking
+    icon: aws/Resources/Res_Networking-Content-Delivery/Res_Amazon-VPC_VPN-Connection_48.svg
+  aws_customer_gateway:
+    service: Customer Gateway
+    category: Networking
+    icon: aws/Resources/Res_Networking-Content-Delivery/Res_Amazon-VPC_Customer-Gateway_48.svg
+  aws_ec2_transit_gateway:
+    service: Transit Gateway
+    category: Networking
+    icon: aws/Arch_Networking-Content-Delivery/Arch_AWS-Transit-Gateway_64.png
+  aws_ec2_transit_gateway_vpc_attachment:
+    service: TGW Attachment
+    category: Networking
+    icon: aws/Resources/Res_Networking-Content-Delivery/Res_AWS-Transit-Gateway_Attachment_48.svg
+    group_parent: aws_vpc
+    parent_ref: vpc_id
   aws_lb:
     service: ALB
     category: Networking
-    icon: aws/networking/alb.svg
+    icon: aws/Resources/Res_Networking-Content-Delivery/Res_Elastic-Load-Balancing_Application-Load-Balancer_48.svg
     group_parent: aws_subnet
     parent_ref: subnets
     variants:
-      - match: { attribute: load_balancer_type, value: network }
-        icon: aws/networking/nlb.svg
-        service: NLB
+    - match:
+        attribute: load_balancer_type
+        value: network
+      icon: aws/Resources/Res_Networking-Content-Delivery/Res_Elastic-Load-Balancing_Network-Load-Balancer_48.svg
+      service: NLB
+  aws_alb:
+    service: ALB
+    category: Networking
+    icon: aws/Resources/Res_Networking-Content-Delivery/Res_Elastic-Load-Balancing_Application-Load-Balancer_48.svg
+    group_parent: aws_subnet
+    parent_ref: subnets
+  aws_elb:
+    service: Classic ELB
+    category: Networking
+    icon: aws/Resources/Res_Networking-Content-Delivery/Res_Elastic-Load-Balancing_Classic-Load-Balancer_48.svg
+    group_parent: aws_subnet
+    parent_ref: subnets
   aws_lb_target_group:
     service: Target Group
     category: Networking
-    icon: aws/networking/alb.svg
+    icon: aws/Arch_Networking-Content-Delivery/Arch_Elastic-Load-Balancing_64.png
+    group_parent: aws_vpc
+    parent_ref: vpc_id
+  aws_lb_target_group_attachment:
+    service: Target Attachment
+    category: Networking
+    icon: aws/Arch_Networking-Content-Delivery/Arch_Elastic-Load-Balancing_64.png
   aws_lb_listener:
     service: LB Listener
     category: Networking
-    icon: aws/networking/alb.svg
-
-  # Storage
+    icon: aws/Arch_Networking-Content-Delivery/Arch_Elastic-Load-Balancing_64.png
+  aws_lb_listener_rule:
+    service: Listener Rule
+    category: Networking
+    icon: aws/Arch_Networking-Content-Delivery/Arch_Elastic-Load-Balancing_64.png
+  aws_globalaccelerator_accelerator:
+    service: Global Accelerator
+    category: Networking
+    icon: aws/Arch_Networking-Content-Delivery/Arch_AWS-Global-Accelerator_64.png
+  aws_service_discovery_private_dns_namespace:
+    service: Cloud Map
+    category: Networking
+    icon: aws/Resources/Res_Networking-Content-Delivery/Res_AWS-Cloud-Map_Namespace_48.svg
+  aws_service_discovery_service:
+    service: Cloud Map
+    category: Networking
+    icon: aws/Resources/Res_Networking-Content-Delivery/Res_AWS-Cloud-Map_Service_48.svg
   aws_s3_bucket:
     service: S3
     category: Storage
-    icon: aws/storage/s3.svg
+    icon: aws/Arch_Storage/Arch_Amazon-Simple-Storage-Service_64.png
+  aws_s3_object:
+    service: S3 Object
+    category: Storage
+    icon: aws/Resources/Res_Storage/Res_Amazon-Simple-Storage-Service_Object_48.svg
   aws_s3_bucket_policy:
     service: S3 Policy
     category: Storage
-    icon: aws/storage/s3.svg
+    icon: aws/Arch_Storage/Arch_Amazon-Simple-Storage-Service_64.png
   aws_s3_bucket_versioning:
     service: S3 Versioning
     category: Storage
-    icon: aws/storage/s3.svg
+    icon: aws/Arch_Storage/Arch_Amazon-Simple-Storage-Service_64.png
+  aws_s3_bucket_public_access_block:
+    service: S3 Access Block
+    category: Storage
+    icon: aws/Arch_Storage/Arch_Amazon-Simple-Storage-Service_64.png
+  aws_s3_bucket_lifecycle_configuration:
+    service: S3 Lifecycle
+    category: Storage
+    icon: aws/Arch_Storage/Arch_Amazon-Simple-Storage-Service_64.png
+  aws_s3_bucket_server_side_encryption_configuration:
+    service: S3 Encryption
+    category: Storage
+    icon: aws/Arch_Storage/Arch_Amazon-Simple-Storage-Service_64.png
+  aws_s3_bucket_acl:
+    service: S3 ACL
+    category: Storage
+    icon: aws/Arch_Storage/Arch_Amazon-Simple-Storage-Service_64.png
+  aws_s3_bucket_notification:
+    service: S3 Notification
+    category: Storage
+    icon: aws/Arch_Storage/Arch_Amazon-Simple-Storage-Service_64.png
+  aws_s3_bucket_cors_configuration:
+    service: S3 CORS
+    category: Storage
+    icon: aws/Arch_Storage/Arch_Amazon-Simple-Storage-Service_64.png
+  aws_s3_bucket_website_configuration:
+    service: S3 Website
+    category: Storage
+    icon: aws/Arch_Storage/Arch_Amazon-Simple-Storage-Service_64.png
+  aws_s3_bucket_ownership_controls:
+    service: S3 Ownership
+    category: Storage
+    icon: aws/Arch_Storage/Arch_Amazon-Simple-Storage-Service_64.png
+  aws_s3_bucket_logging:
+    service: S3 Logging
+    category: Storage
+    icon: aws/Arch_Storage/Arch_Amazon-Simple-Storage-Service_64.png
   aws_ebs_volume:
     service: EBS
     category: Storage
-    icon: aws/storage/ebs.svg
+    icon: aws/Arch_Storage/Arch_Amazon-Elastic-Block-Store_64.png
+  aws_ebs_snapshot:
+    service: EBS Snapshot
+    category: Storage
+    icon: aws/Resources/Res_Storage/Res_Amazon-Elastic-Block-Store_Snapshot_48.svg
+  aws_volume_attachment:
+    service: EBS Attachment
+    category: Storage
+    icon: aws/Arch_Storage/Arch_Amazon-Elastic-Block-Store_64.png
   aws_efs_file_system:
     service: EFS
     category: Storage
-    icon: aws/storage/efs.svg
-
-  # Database
+    icon: aws/Arch_Storage/Arch_Amazon-EFS_64.png
+  aws_efs_mount_target:
+    service: EFS Mount Target
+    category: Storage
+    icon: aws/Arch_Storage/Arch_Amazon-EFS_64.png
+    group_parent: aws_subnet
+    parent_ref: subnet_id
+  aws_efs_access_point:
+    service: EFS Access Point
+    category: Storage
+    icon: aws/Arch_Storage/Arch_Amazon-EFS_64.png
+  aws_fsx_lustre_file_system:
+    service: FSx for Lustre
+    category: Storage
+    icon: aws/Arch_Storage/Arch_Amazon-FSx-for-Lustre_64.png
+  aws_fsx_windows_file_system:
+    service: FSx for Windows
+    category: Storage
+    icon: aws/Arch_Storage/Arch_Amazon-FSx-for-WFS_64.png
+  aws_backup_vault:
+    service: Backup Vault
+    category: Storage
+    icon: aws/Resources/Res_Storage/Res_AWS-Backup_Backup-Vault_48.svg
+  aws_backup_plan:
+    service: Backup Plan
+    category: Storage
+    icon: aws/Resources/Res_Storage/Res_AWS-Backup_Backup-Plan_48.svg
+  aws_backup_selection:
+    service: Backup Selection
+    category: Storage
+    icon: aws/Arch_Storage/Arch_AWS-Backup_64.png
+  aws_dlm_lifecycle_policy:
+    service: DLM Policy
+    category: Storage
+    icon: aws/Resources/Res_Storage/Res_Amazon-Elastic-Block-Store_Amazon-Data-Lifecycle-Manager_48.svg
   aws_db_instance:
     service: RDS
     category: Database
-    icon: aws/database/rds.svg
+    icon: aws/Arch_Databases/Arch_Amazon-RDS_64.png
   aws_db_subnet_group:
     service: DB Subnet Group
     category: Database
-    icon: aws/database/rds.svg
+    icon: aws/Arch_Databases/Arch_Amazon-RDS_64.png
+    group_parent: aws_subnet
+    parent_ref: subnet_ids
+  aws_db_parameter_group:
+    service: DB Parameter Group
+    category: Database
+    icon: aws/Arch_Databases/Arch_Amazon-RDS_64.png
+  aws_db_option_group:
+    service: DB Option Group
+    category: Database
+    icon: aws/Arch_Databases/Arch_Amazon-RDS_64.png
+  aws_db_snapshot:
+    service: DB Snapshot
+    category: Database
+    icon: aws/Arch_Databases/Arch_Amazon-RDS_64.png
   aws_rds_cluster:
     service: Aurora
     category: Database
-    icon: aws/database/aurora.svg
+    icon: aws/Arch_Databases/Arch_Amazon-RDS_64.png
+  aws_rds_cluster_instance:
+    service: Aurora Instance
+    category: Database
+    icon: aws/Resources/Res_Databases/Res_Amazon-Aurora-Instance_48.svg
+  aws_rds_cluster_parameter_group:
+    service: Aurora Parameter Group
+    category: Database
+    icon: aws/Arch_Databases/Arch_Amazon-RDS_64.png
   aws_dynamodb_table:
     service: DynamoDB
     category: Database
-    icon: aws/database/dynamodb.svg
+    icon: aws/Arch_Databases/Arch_Amazon-DynamoDB_64.png
   aws_elasticache_cluster:
     service: ElastiCache
     category: Database
-    icon: aws/database/elasticache.svg
+    icon: aws/Arch_Databases/Arch_Amazon-ElastiCache_64.png
   aws_elasticache_replication_group:
     service: ElastiCache
     category: Database
-    icon: aws/database/elasticache.svg
-
-  # DNS & CDN
+    icon: aws/Arch_Databases/Arch_Amazon-ElastiCache_64.png
+  aws_elasticache_subnet_group:
+    service: ElastiCache Subnet Group
+    category: Database
+    icon: aws/Arch_Databases/Arch_Amazon-ElastiCache_64.png
+    group_parent: aws_subnet
+    parent_ref: subnet_ids
+  aws_elasticache_parameter_group:
+    service: ElastiCache Parameter Group
+    category: Database
+    icon: aws/Arch_Databases/Arch_Amazon-ElastiCache_64.png
+  aws_memorydb_cluster:
+    service: MemoryDB
+    category: Database
+    icon: aws/Arch_Databases/Arch_Amazon-MemoryDB_64.png
+  aws_docdb_cluster:
+    service: DocumentDB
+    category: Database
+    icon: aws/Arch_Databases/Arch_Amazon-DocumentDB_64.png
+  aws_docdb_cluster_instance:
+    service: DocumentDB Instance
+    category: Database
+    icon: aws/Arch_Databases/Arch_Amazon-DocumentDB_64.png
+  aws_neptune_cluster:
+    service: Neptune
+    category: Database
+    icon: aws/Arch_Databases/Arch_Amazon-Neptune_64.png
+  aws_neptune_cluster_instance:
+    service: Neptune Instance
+    category: Database
+    icon: aws/Arch_Databases/Arch_Amazon-Neptune_64.png
+  aws_qldb_ledger:
+    service: QLDB
+    category: Database
+  aws_timestreamwrite_database:
+    service: Timestream
+    category: Database
+    icon: aws/Arch_Databases/Arch_Amazon-Timestream_64.png
+  aws_timestreamwrite_table:
+    service: Timestream Table
+    category: Database
+    icon: aws/Arch_Databases/Arch_Amazon-Timestream_64.png
+  aws_dms_replication_instance:
+    service: DMS
+    category: Database
+    icon: aws/Arch_Databases/Arch_AWS-Database-Migration-Service_64.png
+  aws_opensearch_domain:
+    service: OpenSearch
+    category: Analytics
+    icon: aws/Arch_Analytics/Arch_Amazon-OpenSearch-Service_64.png
+  aws_elasticsearch_domain:
+    service: Elasticsearch
+    category: Analytics
+    icon: aws/Arch_Analytics/Arch_Amazon-OpenSearch-Service_64.png
+  aws_redshift_cluster:
+    service: Redshift
+    category: Analytics
+    icon: aws/Arch_Analytics/Arch_Amazon-Redshift_64.png
+  aws_redshift_subnet_group:
+    service: Redshift Subnet Group
+    category: Analytics
+    icon: aws/Arch_Analytics/Arch_Amazon-Redshift_64.png
+    group_parent: aws_subnet
+    parent_ref: subnet_ids
+  aws_athena_database:
+    service: Athena
+    category: Analytics
+    icon: aws/Arch_Analytics/Arch_Amazon-Athena_64.png
+  aws_athena_workgroup:
+    service: Athena Workgroup
+    category: Analytics
+    icon: aws/Arch_Analytics/Arch_Amazon-Athena_64.png
+  aws_glue_catalog_database:
+    service: Glue Catalog
+    category: Analytics
+    icon: aws/Resources/Res_Analytics/Res_AWS-Glue_Data-Catalog_48.svg
+  aws_glue_catalog_table:
+    service: Glue Table
+    category: Analytics
+    icon: aws/Resources/Res_Analytics/Res_AWS-Glue_Data-Catalog_48.svg
+  aws_glue_crawler:
+    service: Glue Crawler
+    category: Analytics
+    icon: aws/Resources/Res_Analytics/Res_AWS-Glue_Crawler_48.svg
+  aws_glue_job:
+    service: Glue Job
+    category: Analytics
+    icon: aws/Arch_Analytics/Arch_AWS-Glue_64.png
+  aws_emr_cluster:
+    service: EMR
+    category: Analytics
+    icon: aws/Arch_Analytics/Arch_Amazon-EMR_64.png
+  aws_kinesis_stream:
+    service: Kinesis
+    category: Analytics
+    icon: aws/Arch_Analytics/Arch_Amazon-Kinesis-Data-Streams_64.png
+  aws_kinesis_firehose_delivery_stream:
+    service: Data Firehose
+    category: Analytics
+    icon: aws/Arch_Analytics/Arch_Amazon-Data-Firehose_64.png
+  aws_msk_cluster:
+    service: MSK
+    category: Messaging
+    icon: aws/Arch_Analytics/Arch_Amazon-Managed-Streaming-for-Apache-Kafka_64.png
+  aws_mq_broker:
+    service: Amazon MQ
+    category: Messaging
+    icon: aws/Arch_Application-Integration/Arch_Amazon-MQ_64.png
+    group_parent: aws_subnet
+    parent_ref: subnet_ids
   aws_route53_zone:
     service: Route 53
     category: Networking
-    icon: aws/networking/route53.svg
+    icon: aws/Arch_Networking-Content-Delivery/Arch_Amazon-Route-53_64.png
   aws_route53_record:
     service: Route 53
     category: Networking
-    icon: aws/networking/route53.svg
+    icon: aws/Arch_Networking-Content-Delivery/Arch_Amazon-Route-53_64.png
+  aws_route53_health_check:
+    service: Route 53
+    category: Networking
+    icon: aws/Arch_Networking-Content-Delivery/Arch_Amazon-Route-53_64.png
   aws_cloudfront_distribution:
     service: CloudFront
     category: Networking
-    icon: aws/networking/cloudfront.svg
+    icon: aws/Arch_Networking-Content-Delivery/Arch_Amazon-CloudFront_64.png
   aws_cloudfront_origin_access_identity:
     service: CloudFront OAI
     category: Networking
-    icon: aws/networking/cloudfront.svg
+    icon: aws/Arch_Networking-Content-Delivery/Arch_Amazon-CloudFront_64.png
+  aws_cloudfront_origin_access_control:
+    service: CloudFront OAC
+    category: Networking
+    icon: aws/Arch_Networking-Content-Delivery/Arch_Amazon-CloudFront_64.png
+  aws_cloudfront_function:
+    service: CloudFront Function
+    category: Networking
+    icon: aws/Resources/Res_Networking-Content-Delivery/Res_Amazon-CloudFront_Functions_48.svg
+  aws_cloudfront_cache_policy:
+    service: CloudFront Policy
+    category: Networking
+    icon: aws/Arch_Networking-Content-Delivery/Arch_Amazon-CloudFront_64.png
   aws_acm_certificate:
     service: ACM
     category: Security
-    icon: aws/security/acm.svg
-
-  # IAM
+    icon: aws/Arch_Security-Identity/Arch_AWS-Certificate-Manager_64.png
+  aws_acm_certificate_validation:
+    service: ACM Validation
+    category: Security
+    icon: aws/Arch_Security-Identity/Arch_AWS-Certificate-Manager_64.png
   aws_iam_role:
     service: IAM Role
     category: Security
-    icon: aws/security/iam-role.svg
+    icon: aws/Arch_Security-Identity/Arch_AWS-Identity-and-Access-Management_64.png
   aws_iam_policy:
     service: IAM Policy
     category: Security
-    icon: aws/security/iam-policy.svg
+    icon: aws/Arch_Security-Identity/Arch_AWS-Identity-and-Access-Management_64.png
+  aws_iam_role_policy:
+    service: IAM Inline Policy
+    category: Security
+    icon: aws/Arch_Security-Identity/Arch_AWS-Identity-and-Access-Management_64.png
   aws_iam_role_policy_attachment:
     service: IAM Attachment
     category: Security
-    icon: aws/security/iam-policy.svg
+    icon: aws/Arch_Security-Identity/Arch_AWS-Identity-and-Access-Management_64.png
+  aws_iam_user_policy_attachment:
+    service: IAM Attachment
+    category: Security
+    icon: aws/Arch_Security-Identity/Arch_AWS-Identity-and-Access-Management_64.png
+  aws_iam_group_policy_attachment:
+    service: IAM Attachment
+    category: Security
+    icon: aws/Arch_Security-Identity/Arch_AWS-Identity-and-Access-Management_64.png
+  aws_iam_policy_document:
+    service: IAM Policy Document
+    category: Security
+    icon: aws/Arch_Security-Identity/Arch_AWS-Identity-and-Access-Management_64.png
+  aws_iam_openid_connect_provider:
+    service: IAM OIDC Provider
+    category: Security
+    icon: aws/Arch_Security-Identity/Arch_AWS-Identity-and-Access-Management_64.png
   aws_iam_user:
     service: IAM User
     category: Security
-    icon: aws/security/iam-user.svg
+    icon: aws/Arch_Security-Identity/Arch_AWS-Identity-and-Access-Management_64.png
   aws_iam_group:
     service: IAM Group
     category: Security
-    icon: aws/security/iam-group.svg
+    icon: aws/Arch_Security-Identity/Arch_AWS-Identity-and-Access-Management_64.png
+  aws_iam_access_key:
+    service: IAM Access Key
+    category: Security
+    icon: aws/Arch_Security-Identity/Arch_AWS-Identity-and-Access-Management_64.png
+  aws_iam_service_linked_role:
+    service: IAM Role
+    category: Security
+    icon: aws/Arch_Security-Identity/Arch_AWS-Identity-and-Access-Management_64.png
   aws_iam_instance_profile:
     service: Instance Profile
     category: Security
-    icon: aws/security/iam-role.svg
-
-  # Messaging
+    icon: aws/Arch_Security-Identity/Arch_AWS-Identity-and-Access-Management_64.png
+  aws_cognito_user_pool:
+    service: Cognito
+    category: Security
+    icon: aws/Arch_Security-Identity/Arch_Amazon-Cognito_64.png
+  aws_cognito_user_pool_client:
+    service: Cognito Client
+    category: Security
+    icon: aws/Arch_Security-Identity/Arch_Amazon-Cognito_64.png
+  aws_cognito_user_pool_domain:
+    service: Cognito Domain
+    category: Security
+    icon: aws/Arch_Security-Identity/Arch_Amazon-Cognito_64.png
+  aws_cognito_identity_pool:
+    service: Cognito Identity Pool
+    category: Security
+    icon: aws/Arch_Security-Identity/Arch_Amazon-Cognito_64.png
   aws_sqs_queue:
     service: SQS
     category: Messaging
-    icon: aws/messaging/sqs.svg
+    icon: aws/Arch_Application-Integration/Arch_Amazon-Simple-Queue-Service_64.png
+  aws_sqs_queue_policy:
+    service: SQS Policy
+    category: Messaging
+    icon: aws/Arch_Application-Integration/Arch_Amazon-Simple-Queue-Service_64.png
   aws_sns_topic:
     service: SNS
     category: Messaging
-    icon: aws/messaging/sns.svg
+    icon: aws/Arch_Application-Integration/Arch_Amazon-Simple-Notification-Service_64.png
   aws_sns_topic_subscription:
     service: SNS Subscription
     category: Messaging
-    icon: aws/messaging/sns.svg
-
-  # Monitoring
+    icon: aws/Arch_Application-Integration/Arch_Amazon-Simple-Notification-Service_64.png
+  aws_sns_topic_policy:
+    service: SNS Policy
+    category: Messaging
+    icon: aws/Arch_Application-Integration/Arch_Amazon-Simple-Notification-Service_64.png
+  aws_ses_domain_identity:
+    service: SES
+    category: Messaging
+    icon: aws/Arch_Business-Applications/Arch_Amazon-Simple-Email-Service_64.png
+  aws_ses_email_identity:
+    service: SES
+    category: Messaging
+    icon: aws/Arch_Business-Applications/Arch_Amazon-Simple-Email-Service_64.png
+  aws_sesv2_email_identity:
+    service: SES
+    category: Messaging
+    icon: aws/Arch_Business-Applications/Arch_Amazon-Simple-Email-Service_64.png
+  aws_cloudwatch_event_rule:
+    service: EventBridge Rule
+    category: Messaging
+    icon: aws/Resources/Res_Application-Integration/Res_Amazon-EventBridge_Rule_48.svg
+  aws_cloudwatch_event_target:
+    service: EventBridge Target
+    category: Messaging
+    icon: aws/Arch_Application-Integration/Arch_Amazon-EventBridge_64.png
+  aws_cloudwatch_event_bus:
+    service: EventBridge Bus
+    category: Messaging
+    icon: aws/Resources/Res_Application-Integration/Res_Amazon-EventBridge_Custom-Event-Bus_48.svg
+  aws_scheduler_schedule:
+    service: EventBridge Scheduler
+    category: Messaging
+    icon: aws/Resources/Res_Application-Integration/Res_Amazon-EventBridge_Scheduler_48.svg
   aws_cloudwatch_log_group:
     service: CloudWatch Logs
     category: Monitoring
-    icon: aws/monitoring/cloudwatch.svg
+    icon: aws/Arch_Management-Tools/Arch_Amazon-CloudWatch_64.png
+  aws_cloudwatch_log_stream:
+    service: CloudWatch Logs
+    category: Monitoring
+    icon: aws/Resources/Res_Management-Governance/Res_Amazon-CloudWatch_Logs_48.svg
+  aws_cloudwatch_log_metric_filter:
+    service: CloudWatch Logs
+    category: Monitoring
+    icon: aws/Resources/Res_Management-Governance/Res_Amazon-CloudWatch_Logs_48.svg
+  aws_cloudwatch_log_subscription_filter:
+    service: CloudWatch Logs
+    category: Monitoring
+    icon: aws/Resources/Res_Management-Governance/Res_Amazon-CloudWatch_Logs_48.svg
   aws_cloudwatch_metric_alarm:
     service: CloudWatch Alarm
     category: Monitoring
-    icon: aws/monitoring/cloudwatch.svg
-
-  # Secrets & Config
+    icon: aws/Arch_Management-Tools/Arch_Amazon-CloudWatch_64.png
+  aws_cloudwatch_composite_alarm:
+    service: CloudWatch Alarm
+    category: Monitoring
+    icon: aws/Resources/Res_Management-Governance/Res_Amazon-CloudWatch_Alarm_48.svg
+  aws_cloudwatch_dashboard:
+    service: CloudWatch Dashboard
+    category: Monitoring
+    icon: aws/Arch_Management-Tools/Arch_Amazon-CloudWatch_64.png
+  aws_prometheus_workspace:
+    service: Managed Prometheus
+    category: Monitoring
+    icon: aws/Arch_Management-Tools/Arch_Amazon-Managed-Service-for-Prometheus_64.png
+  aws_grafana_workspace:
+    service: Managed Grafana
+    category: Monitoring
+    icon: aws/Arch_Management-Tools/Arch_Amazon-Managed-Grafana_64.png
   aws_secretsmanager_secret:
     service: Secrets Manager
     category: Security
-    icon: aws/security/secrets-manager.svg
+    icon: aws/Arch_Security-Identity/Arch_AWS-Secrets-Manager_64.png
+  aws_secretsmanager_secret_version:
+    service: Secret Version
+    category: Security
+    icon: aws/Arch_Security-Identity/Arch_AWS-Secrets-Manager_64.png
+  aws_secretsmanager_secret_rotation:
+    service: Secret Rotation
+    category: Security
+    icon: aws/Arch_Security-Identity/Arch_AWS-Secrets-Manager_64.png
   aws_ssm_parameter:
     service: SSM Parameter
     category: Management
-    icon: aws/management/systems-manager.svg
+    icon: aws/Resources/Res_Management-Governance/Res_AWS-Systems-Manager_Parameter-Store_48.svg
+  aws_ssm_document:
+    service: SSM Document
+    category: Management
+    icon: aws/Resources/Res_Management-Governance/Res_AWS-Systems-Manager_Documents_48.svg
+  aws_ssm_association:
+    service: SSM Association
+    category: Management
+    icon: aws/Arch_Management-Tools/Arch_AWS-Systems-Manager_64.png
+  aws_ssm_maintenance_window:
+    service: SSM Maintenance Window
+    category: Management
+    icon: aws/Resources/Res_Management-Governance/Res_AWS-Systems-Manager_Maintenance-Windows_48.svg
   aws_kms_key:
     service: KMS
     category: Security
-    icon: aws/security/kms.svg
-
-  # API Gateway
+    icon: aws/Arch_Security-Identity/Arch_AWS-Key-Management-Service_64.png
+  aws_kms_alias:
+    service: KMS Alias
+    category: Security
+    icon: aws/Arch_Security-Identity/Arch_AWS-Key-Management-Service_64.png
+  aws_wafv2_web_acl:
+    service: WAF
+    category: Security
+    icon: aws/Arch_Security-Identity/Arch_AWS-WAF_64.png
+  aws_wafv2_web_acl_association:
+    service: WAF Association
+    category: Security
+    icon: aws/Arch_Security-Identity/Arch_AWS-WAF_64.png
+  aws_wafv2_ip_set:
+    service: WAF IP Set
+    category: Security
+    icon: aws/Arch_Security-Identity/Arch_AWS-WAF_64.png
+  aws_wafv2_rule_group:
+    service: WAF Rule Group
+    category: Security
+    icon: aws/Resources/Res_Security-Identity/Res_AWS-WAF_Rule_48.svg
+  aws_shield_protection:
+    service: Shield
+    category: Security
+    icon: aws/Arch_Security-Identity/Arch_AWS-Shield_64.png
+  aws_networkfirewall_firewall:
+    service: Network Firewall
+    category: Security
+    icon: aws/Arch_Security-Identity/Arch_AWS-Network-Firewall_64.png
+  aws_guardduty_detector:
+    service: GuardDuty
+    category: Security
+    icon: aws/Arch_Security-Identity/Arch_Amazon-GuardDuty_64.png
+  aws_inspector2_enabler:
+    service: Inspector
+    category: Security
+    icon: aws/Arch_Security-Identity/Arch_Amazon-Inspector_64.png
+  aws_securityhub_account:
+    service: Security Hub
+    category: Security
+    icon: aws/Arch_Security-Identity/Arch_AWS-Security-Hub_64.png
+  aws_macie2_account:
+    service: Macie
+    category: Security
+    icon: aws/Arch_Security-Identity/Arch_Amazon-Macie_64.png
+  aws_cloudtrail:
+    service: CloudTrail
+    category: Management
+    icon: aws/Arch_Management-Tools/Arch_AWS-CloudTrail_64.png
+  aws_config_config_rule:
+    service: Config Rule
+    category: Management
+    icon: aws/Arch_Management-Tools/Arch_AWS-Config_64.png
+  aws_config_configuration_recorder:
+    service: Config Recorder
+    category: Management
+    icon: aws/Arch_Management-Tools/Arch_AWS-Config_64.png
+  aws_cloudformation_stack:
+    service: CloudFormation
+    category: Management
+    icon: aws/Resources/Res_Management-Governance/Res_AWS-CloudFormation_Stack_48.svg
+  aws_organizations_account:
+    service: Organizations Account
+    category: Management
+    icon: aws/Resources/Res_Management-Governance/Res_AWS-Organizations_Account_48.svg
+  aws_organizations_organizational_unit:
+    service: Organizational Unit
+    category: Management
+    icon: aws/Resources/Res_Management-Governance/Res_AWS-Organizations_Organizational-Unit_48.svg
+  aws_organizations_policy:
+    service: Organizations Policy
+    category: Management
+    icon: aws/Arch_Management-Tools/Arch_AWS-Organizations_64.png
+  aws_budgets_budget:
+    service: Budgets
+    category: Management
+    icon: aws/Arch_Cloud-Financial-Management/Arch_AWS-Budgets_64.png
+  aws_appautoscaling_target:
+    service: Application Auto Scaling
+    category: Management
+    icon: aws/Arch_Management-Tools/Arch_AWS-Application-Auto-Scaling_64.png
+  aws_appautoscaling_policy:
+    service: Application Auto Scaling
+    category: Management
+    icon: aws/Arch_Management-Tools/Arch_AWS-Application-Auto-Scaling_64.png
+  aws_transfer_server:
+    service: Transfer Family
+    category: Storage
+    icon: aws/Arch_Migration-Modernization/Arch_AWS-Transfer-Family_64.png
   aws_api_gateway_rest_api:
     service: API Gateway
     category: Networking
-    icon: aws/networking/api-gateway.svg
+    icon: aws/Arch_Networking-Content-Delivery/Arch_Amazon-API-Gateway_64.png
+  aws_api_gateway_resource:
+    service: API Gateway
+    category: Networking
+    icon: aws/Arch_Networking-Content-Delivery/Arch_Amazon-API-Gateway_64.png
+  aws_api_gateway_method:
+    service: API Gateway
+    category: Networking
+    icon: aws/Arch_Networking-Content-Delivery/Arch_Amazon-API-Gateway_64.png
+  aws_api_gateway_integration:
+    service: API Gateway
+    category: Networking
+    icon: aws/Arch_Networking-Content-Delivery/Arch_Amazon-API-Gateway_64.png
+  aws_api_gateway_deployment:
+    service: API Gateway
+    category: Networking
+    icon: aws/Arch_Networking-Content-Delivery/Arch_Amazon-API-Gateway_64.png
+  aws_api_gateway_stage:
+    service: API Gateway Stage
+    category: Networking
+    icon: aws/Arch_Networking-Content-Delivery/Arch_Amazon-API-Gateway_64.png
   aws_apigatewayv2_api:
     service: API Gateway v2
     category: Networking
-    icon: aws/networking/api-gateway.svg
-
-  # Step Functions
+    icon: aws/Arch_Networking-Content-Delivery/Arch_Amazon-API-Gateway_64.png
+  aws_apigatewayv2_stage:
+    service: API Gateway v2
+    category: Networking
+    icon: aws/Arch_Networking-Content-Delivery/Arch_Amazon-API-Gateway_64.png
+  aws_apigatewayv2_route:
+    service: API Gateway v2
+    category: Networking
+    icon: aws/Arch_Networking-Content-Delivery/Arch_Amazon-API-Gateway_64.png
+  aws_apigatewayv2_integration:
+    service: API Gateway v2
+    category: Networking
+    icon: aws/Arch_Networking-Content-Delivery/Arch_Amazon-API-Gateway_64.png
+  aws_appsync_graphql_api:
+    service: AppSync
+    category: Networking
+    icon: aws/Arch_Application-Integration/Arch_AWS-AppSync_64.png
+  aws_amplify_app:
+    service: Amplify
+    category: Developer Tools
+    icon: aws/Arch_Front-End-Web-Mobile/Arch_AWS-Amplify_64.png
+  aws_amplify_branch:
+    service: Amplify Branch
+    category: Developer Tools
+    icon: aws/Arch_Front-End-Web-Mobile/Arch_AWS-Amplify_64.png
   aws_sfn_state_machine:
     service: Step Functions
     category: Compute
-    icon: aws/compute/step-functions.svg
-
-  # CodePipeline
+    icon: aws/Arch_Application-Integration/Arch_AWS-Step-Functions_64.png
   aws_codebuild_project:
     service: CodeBuild
     category: Developer Tools
-    icon: aws/developer-tools/codebuild.svg
+    icon: aws/Arch_Developer-Tools/Arch_AWS-CodeBuild_64.png
   aws_codepipeline:
     service: CodePipeline
     category: Developer Tools
-    icon: aws/developer-tools/codepipeline.svg
-
+    icon: aws/Arch_Developer-Tools/Arch_AWS-CodePipeline_64.png
+  aws_codedeploy_app:
+    service: CodeDeploy
+    category: Developer Tools
+    icon: aws/Arch_Developer-Tools/Arch_AWS-CodeDeploy_64.png
+  aws_codedeploy_deployment_group:
+    service: CodeDeploy
+    category: Developer Tools
+    icon: aws/Arch_Developer-Tools/Arch_AWS-CodeDeploy_64.png
+  aws_codecommit_repository:
+    service: CodeCommit
+    category: Developer Tools
+    icon: aws/Arch_Developer-Tools/Arch_AWS-CodeCommit_64.png
+  aws_codeartifact_repository:
+    service: CodeArtifact
+    category: Developer Tools
+    icon: aws/Arch_Developer-Tools/Arch_AWS-CodeArtifact_64.png
+  aws_cloud:
+    service: AWS Cloud
+    category: Cloud
+    icon: aws/Groups/AWS-Cloud_32.png
+    is_group: true
+    group_level: 0
+    style:
+      fill: '#FFFFFF'
+      stroke: '#232F3E'
+      label: '#232F3E'
+      role: cloud
 consolidate:
-  - target: aws_route53_record
-    sources: [aws_route53_zone, aws_route53_record, aws_route53_health_check]
-    label: Route 53
-  - target: aws_s3_bucket
-    sources: [aws_s3_bucket, aws_s3_bucket_policy, aws_s3_bucket_versioning, aws_s3_bucket_acl, aws_s3_bucket_lifecycle_configuration]
-    label: S3 Bucket
+- target: aws_route53_record
+  sources:
+  - aws_route53_zone
+  - aws_route53_record
+  - aws_route53_health_check
+  label: Route 53
+- target: aws_s3_bucket
+  sources:
+  - aws_s3_bucket
+  - aws_s3_bucket_policy
+  - aws_s3_bucket_versioning
+  - aws_s3_bucket_acl
+  - aws_s3_bucket_lifecycle_configuration
+  label: S3 Bucket

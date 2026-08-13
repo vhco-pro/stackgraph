@@ -1,7 +1,7 @@
 ---
 description: "Findings from the 2026-08 product review and the spec for making stackgraph correct at real-world scale — ID-based containment, evidence-based edges, mapping-driven rendering, single layout path"
 status: in-progress
-status_description: "Release-1 core landed: parent_ref containment, pipeline reorder, containment-preserving collapse, evidence-only edges (--infer-flows opt-in), module-address fix, ELK default, label sizing. Remaining: mappings-as-source-of-truth, dagre deletion, goja hardening, plan overhaul, coverage tooling, HTML viewer."
+status_description: "Release 1 complete and most of Release 2: containment redesign, mappings as single source of truth (styles + icons + validation), dagre deleted, goja hardened, plan overhaul (replace/deletes/accents), terragrunt panic fix, invariant + e2e tests, mappings coverage tooling, --mappings overlay, interactive HTML viewer. Remaining: evidence-based flows, global-services partition, icon pruning, consolidation rules."
 author: Michiel VH
 goal: "Diagrams that stay correct and readable on real multi-VPC, multi-env states — not just single-VPC fixtures"
 priority: high
@@ -266,17 +266,20 @@ best in the scene" is what competitors don't have:
    flows (target-group attachments first) still to do. Implicit reference
    detection now also scans lists. ELK is the default layout; box labels are
    sized to fit and never truncate.
-4. Mappings as single source of truth (schema, icon validation, delete
-   renderer switches, `--mappings` flag, icon pruning).
-5. Delete dagre; harden goja (VM reuse, `vm.Set`, interrupt/timeout, all edge
-   sections); global-services partition.
-6. Structural-invariant + golden + end-to-end tests; big fixture; plan /
-   terragrunt fixtures (incl. terragrunt panic fix). Nested-module fixture +
-   containment/collapse/name-match regression tests are **done**.
-7. Plan mode overhaul (deletes from `resource_changes`, icon-node coloring;
-   replace-action mapping is **done**).
-8. Mapping expansion + `mappings coverage`.
-9. `--format html` interactive viewer.
+4. ~~Mappings as single source of truth (style schema, icon validation test,
+   renderer switches deleted, `--mappings` runtime overlay)~~ — **done**;
+   icon pruning still open.
+5. ~~Delete dagre; harden goja (cached VM, interrupt/timeout, all edge
+   sections)~~ — **done**; global-services partition still open.
+6. ~~Structural-invariant tests on real layouts, end-to-end CLI tests for all
+   modes, two-vpc-realistic fixture, plan / terragrunt fixtures incl.
+   terragrunt panic fix~~ — **done**; golden SVGs deferred (invariants cover
+   the failure class with less brittleness).
+7. ~~Plan mode overhaul (replace actions, destroyed resources from
+   `resource_changes`, action accents on icon nodes)~~ — **done**.
+8. Mapping expansion (in progress) + ~~`mappings coverage`~~ — **done**.
+9. ~~`--format html` interactive viewer (pan/zoom, click-to-inspect, search,
+   dark mode; Playwright-verified)~~ — **done**.
 
 Steps 1–6 are the "make it honest" release; 7–9 are the "make it win" release.
 The 2026-08 results are documented with before/after renders in
