@@ -75,7 +75,7 @@ func RenderSVG(g *sgraph.Graph) ([]byte, error) {
 	}
 
 	// Build ELK graph JSON
-	elkGraph := buildElkGraph(g)
+	elkGraph, edgeMeta := buildElkGraph(g)
 
 	// Run ELK layout via goja
 	positions, edges, err := runElkLayout(elkGraph)
@@ -84,11 +84,11 @@ func RenderSVG(g *sgraph.Graph) ([]byte, error) {
 	}
 
 	// Assemble the SVG from the shared building blocks in svg.go
-	svg := generateElkSVG(g, positions, edges)
+	svg := generateElkSVG(g, positions, edges, edgeMeta)
 	return []byte(svg), nil
 }
 
-func buildElkGraph(g *sgraph.Graph) *ElkNode {
+func buildElkGraph(g *sgraph.Graph) (*ElkNode, map[string]*sgraph.Edge) {
 	nodeIdx := make(map[string]*sgraph.Node)
 	childMap := make(map[string][]string)
 	for _, n := range g.Nodes {
@@ -206,8 +206,10 @@ func buildElkGraph(g *sgraph.Graph) *ElkNode {
 		}
 	}
 
-	// Add edges — reference node IDs directly (NOT port IDs)
-	// ELK auto-creates ports and chooses the best attachment side
+	// Add edges — reference node IDs directly (NOT port IDs).
+	// ELK auto-creates ports and chooses the best attachment side.
+	// edgeMeta lets the SVG stage recover each routed edge's type and label.
+	edgeMeta := make(map[string]*sgraph.Edge)
 	edgeIdx := 0
 	for _, e := range g.Edges {
 		if isAncestor(e.Source, e.Target) || isAncestor(e.Target, e.Source) {
@@ -218,15 +220,17 @@ func buildElkGraph(g *sgraph.Graph) *ElkNode {
 			continue
 		}
 
+		id := fmt.Sprintf("e%d", edgeIdx)
+		edgeMeta[id] = e
 		root.Edges = append(root.Edges, &ElkEdge{
-			ID:      fmt.Sprintf("e%d", edgeIdx),
+			ID:      id,
 			Sources: []string{e.Source},
 			Targets: []string{e.Target},
 		})
 		edgeIdx++
 	}
 
-	return root
+	return root, edgeMeta
 }
 
 // layoutTimeout bounds a single ELK layout computation. A pathological graph
@@ -420,7 +424,7 @@ func runElkLayout(elkGraph *ElkNode) (positions map[string]NodePosition, elkEdge
 	return positions, edges, nil
 }
 
-func generateElkSVG(g *sgraph.Graph, positions map[string]NodePosition, elkEdges []*ElkEdge) string {
+func generateElkSVG(g *sgraph.Graph, positions map[string]NodePosition, elkEdges []*ElkEdge, edgeMeta map[string]*sgraph.Edge) string {
 	// Find canvas bounds
 	var maxX, maxY float64
 	for _, pos := range positions {
@@ -450,18 +454,22 @@ func generateElkSVG(g *sgraph.Graph, positions map[string]NodePosition, elkEdges
   .sg-text-sm { fill: %s; }
   .sg-edge { stroke: %s; }
   .sg-arrow { fill: %s; }
-  .sg-node-box { fill: %s; stroke: %s; }
+%s  .sg-node-box { fill: %s; stroke: %s; }
   @media (prefers-color-scheme: dark) {
     .sg-bg { fill: %s; }
     .sg-text { fill: %s; }
     .sg-text-sm { fill: %s; }
     .sg-edge { stroke: %s; }
     .sg-arrow { fill: %s; }
-    .sg-node-box { fill: %s; stroke: %s; }
+%s    .sg-node-box { fill: %s; stroke: %s; }
 %s  }
 </style>`,
-		paletteLightBG, paletteLightText, paletteLightText, paletteLightEdge, paletteLightEdge, paletteLightBG, paletteLightBorder,
-		paletteDarkBG, paletteDarkText, paletteDarkTextSm, paletteDarkEdge, paletteDarkEdge, paletteDarkBox, paletteDarkBorder,
+		paletteLightBG, paletteLightText, paletteLightText, paletteLightEdge, paletteLightEdge,
+		edgeClassCSS(false, "  "),
+		paletteLightBG, paletteLightBorder,
+		paletteDarkBG, paletteDarkText, paletteDarkTextSm, paletteDarkEdge, paletteDarkEdge,
+		edgeClassCSS(true, "    "),
+		paletteDarkBox, paletteDarkBorder,
 		roleDarkCSS(g))
 	b.WriteString("\n")
 
@@ -517,6 +525,7 @@ func generateElkSVG(g *sgraph.Graph, positions map[string]NodePosition, elkEdges
 	// An edge ELK returned no sections for still draws as a straight line
 	// between node centers: a crude edge beats a silently missing one.
 	for _, edge := range elkEdges {
+		meta := edgeMeta[edge.ID]
 		if len(edge.Sections) == 0 {
 			if len(edge.Sources) > 0 && len(edge.Targets) > 0 {
 				src, sok := positions[edge.Sources[0]]
@@ -525,13 +534,13 @@ func generateElkSVG(g *sgraph.Graph, positions map[string]NodePosition, elkEdges
 					renderElkEdge(&b, ElkSection{
 						StartPoint: ElkPoint{X: src.X, Y: src.Y},
 						EndPoint:   ElkPoint{X: tgt.X, Y: tgt.Y},
-					}, true)
+					}, true, meta)
 				}
 			}
 			continue
 		}
 		for si, section := range edge.Sections {
-			renderElkEdge(&b, section, si == len(edge.Sections)-1)
+			renderElkEdge(&b, section, si == len(edge.Sections)-1, meta)
 		}
 	}
 
@@ -555,7 +564,7 @@ func generateElkSVG(g *sgraph.Graph, positions map[string]NodePosition, elkEdges
 	return b.String()
 }
 
-func renderElkEdge(b *strings.Builder, section ElkSection, arrowhead bool) {
+func renderElkEdge(b *strings.Builder, section ElkSection, arrowhead bool, meta *sgraph.Edge) {
 	var d strings.Builder
 
 	// Start point
@@ -569,10 +578,30 @@ func renderElkEdge(b *strings.Builder, section ElkSection, arrowhead bool) {
 	// End point
 	fmt.Fprintf(&d, " L %.1f,%.1f", section.EndPoint.X, section.EndPoint.Y)
 
+	class, stroke, title := "sg-edge", paletteLightEdge, ""
+	markerID := "arrowhead"
+	dashAttr := ""
+	if meta != nil {
+		ec, tooltip := edgeVisual(meta)
+		title = tooltip
+		stroke = ec.light
+		if ec.suffix != "" {
+			class = "sg-edge-" + ec.suffix
+			markerID = "arrowhead-" + ec.suffix
+		}
+		if ec.dash != "" {
+			dashAttr = fmt.Sprintf(` stroke-dasharray="%s"`, ec.dash)
+		}
+	}
 	marker := ""
 	if arrowhead {
-		marker = ` marker-end="url(#arrowhead)"`
+		marker = fmt.Sprintf(` marker-end="url(#%s)"`, markerID)
 	}
-	fmt.Fprintf(b, `<path class="sg-edge" d="%s" fill="none" stroke="#7B8894" stroke-width="1.5"%s/>`, d.String(), marker)
+	titleEl := ""
+	if title != "" {
+		titleEl = "<title>" + escapeXMLStr(title) + "</title>"
+	}
+	fmt.Fprintf(b, `<path class="%s" d="%s" fill="none" stroke="%s" stroke-width="1.5"%s%s>%s</path>`,
+		class, d.String(), stroke, dashAttr, marker, titleEl)
 	b.WriteString("\n")
 }

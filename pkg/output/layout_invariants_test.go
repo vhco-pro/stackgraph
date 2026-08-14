@@ -49,7 +49,7 @@ func TestLayoutStructuralInvariants(t *testing.T) {
 		t.Run(fixture, func(t *testing.T) {
 			g := runPipeline(t, fixture)
 
-			elkGraph := buildElkGraph(g)
+			elkGraph, _ := buildElkGraph(g)
 			positions, _, err := runElkLayout(elkGraph)
 			if err != nil {
 				t.Fatalf("ELK layout failed: %v", err)

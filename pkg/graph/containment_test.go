@@ -246,3 +246,155 @@ func TestNetworkScopeBoundsFlowEdges(t *testing.T) {
 		t.Errorf("expected 2 same-scope flow edges, got %d", flowCount)
 	}
 }
+
+func TestGlobalScopeFlowsRequireUnambiguousTarget(t *testing.T) {
+	g := NewGraph("state")
+	g.AddNode(&Node{
+		ID: "aws_lambda_function.worker", Type: NodeTypeResource, ResourceType: "aws_lambda_function",
+		Label: "worker", Provider: "aws", Attributes: map[string]any{"id": "fn-1"},
+	})
+	// Two buckets: ambiguous at global scope — no flow may be invented
+	for _, b := range []string{"assets", "logs"} {
+		g.AddNode(&Node{
+			ID: "aws_s3_bucket." + b, Type: NodeTypeResource, ResourceType: "aws_s3_bucket",
+			Label: b, Provider: "aws", Attributes: map[string]any{"id": "bkt-" + b},
+		})
+	}
+	// One queue: unambiguous — flow allowed
+	g.AddNode(&Node{
+		ID: "aws_sqs_queue.jobs", Type: NodeTypeResource, ResourceType: "aws_sqs_queue",
+		Label: "jobs", Provider: "aws", Attributes: map[string]any{"id": "q-1"},
+	})
+
+	g.InferFlowEdges([][2]string{
+		{"aws_lambda_function", "aws_s3_bucket"},
+		{"aws_lambda_function", "aws_sqs_queue"},
+	})
+
+	for _, e := range g.Edges {
+		if e.Target == "aws_s3_bucket.assets" || e.Target == "aws_s3_bucket.logs" {
+			t.Errorf("ambiguous global-scope flow was invented: %s -> %s", e.Source, e.Target)
+		}
+	}
+	found := false
+	for _, e := range g.Edges {
+		if e.Source == "aws_lambda_function.worker" && e.Target == "aws_sqs_queue.jobs" {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("unambiguous global-scope flow missing (lambda -> single queue)")
+	}
+}
+
+func TestRedundantContainerEdgeSuppressed(t *testing.T) {
+	g := NewGraph("state")
+	g.AddNode(&Node{
+		ID: "aws_security_group.web", ResourceType: "aws_security_group", Label: "web",
+		Provider: "aws", IsGroupNode: true, GroupLevel: 3,
+		Attributes: map[string]any{"id": "sg-1"},
+	})
+	g.AddNode(&Node{
+		ID: "aws_instance.web", Type: NodeTypeResource, ResourceType: "aws_instance",
+		Label: "web", Provider: "aws", Parent: "aws_security_group.web",
+		Attributes: map[string]any{"id": "i-1"},
+	})
+	g.NodeByID("aws_security_group.web").Children = []string{"aws_instance.web"}
+	g.AddNode(&Node{
+		ID: "aws_lb.web", Type: NodeTypeResource, ResourceType: "aws_lb",
+		Label: "web", Provider: "aws", Attributes: map[string]any{"id": "alb-1"},
+	})
+	// ALB references the SG (container wall) AND flows to the instance inside it
+	g.AddEdge(&Edge{Source: "aws_lb.web", Target: "aws_security_group.web", Type: "security_groups"})
+	g.AddEdge(&Edge{Source: "aws_lb.web", Target: "aws_instance.web", Type: "flow"})
+
+	g.SuppressRedundantContainerEdges()
+
+	for _, e := range g.Edges {
+		if e.Target == "aws_security_group.web" {
+			t.Errorf("redundant container-wall edge survived: %s -> %s", e.Source, e.Target)
+		}
+	}
+	if len(g.Edges) != 1 {
+		t.Fatalf("expected 1 surviving edge, got %d", len(g.Edges))
+	}
+}
+
+func TestMemberContainmentAdoptsLargestCohort(t *testing.T) {
+	g := NewGraph("state")
+	for _, s := range []string{"public", "private"} {
+		g.AddNode(&Node{
+			ID: "aws_subnet." + s, ResourceType: "aws_subnet", Label: s, Provider: "aws",
+			IsGroupNode: true, GroupLevel: 2,
+			Attributes: map[string]any{"id": "subnet-" + s},
+		})
+	}
+	g.AddNode(&Node{
+		ID: "aws_security_group.web", ResourceType: "aws_security_group", Label: "web",
+		Provider: "aws", IsGroupNode: true, GroupLevel: 3, MemberRef: "vpc_security_group_ids",
+		Attributes: map[string]any{"id": "sg-1"},
+	})
+	// One member in public, two in private: SG must adopt the private cohort
+	g.AddNode(&Node{
+		ID: "aws_instance.web", Type: NodeTypeResource, ResourceType: "aws_instance",
+		Label: "web", Provider: "aws", ParentRef: "subnet_id", GroupParent: "aws_subnet",
+		Attributes: map[string]any{"id": "i-web", "subnet_id": "subnet-public", "vpc_security_group_ids": []any{"sg-1"}},
+	})
+	for i := range 2 {
+		g.AddNode(&Node{
+			ID: "aws_instance.app" + string(rune('0'+i)), Type: NodeTypeResource, ResourceType: "aws_instance",
+			Label: "app", Provider: "aws", ParentRef: "subnet_id", GroupParent: "aws_subnet",
+			Attributes: map[string]any{"id": "i-app" + string(rune('0'+i)), "subnet_id": "subnet-private", "vpc_security_group_ids": []any{"sg-1"}},
+		})
+	}
+
+	g.ApplyGrouping()
+
+	if sg := g.NodeByID("aws_security_group.web"); sg.Parent != "aws_subnet.private" {
+		t.Errorf("SG parent = %q, want the private subnet (largest cohort)", sg.Parent)
+	}
+	if web := g.NodeByID("aws_instance.web"); web.Parent != "aws_subnet.public" {
+		t.Errorf("minority member parent = %q, must stay in its declared subnet", web.Parent)
+	}
+	for i := range 2 {
+		if app := g.NodeByID("aws_instance.app" + string(rune('0'+i))); app.Parent != "aws_security_group.web" {
+			t.Errorf("cohort member %d parent = %q, want the SG", i, app.Parent)
+		}
+	}
+}
+
+func TestMembershipEdgeSurvivesRedundancySuppression(t *testing.T) {
+	// A minority-cohort member outside the SG has an edge INTO the SG (its
+	// membership evidence) plus a flow to a node inside it. The membership
+	// edge must survive — it's the only signal left after cohort adoption.
+	g := NewGraph("state")
+	g.AddNode(&Node{
+		ID: "aws_security_group.web", ResourceType: "aws_security_group", Label: "web",
+		Provider: "aws", IsGroupNode: true, GroupLevel: 3, MemberRef: "vpc_security_group_ids",
+		Attributes: map[string]any{"id": "sg-1"},
+	})
+	g.AddNode(&Node{
+		ID: "aws_instance.app", Type: NodeTypeResource, ResourceType: "aws_instance",
+		Label: "app", Provider: "aws", Parent: "aws_security_group.web",
+		Attributes: map[string]any{"id": "i-app"},
+	})
+	g.NodeByID("aws_security_group.web").Children = []string{"aws_instance.app"}
+	g.AddNode(&Node{
+		ID: "aws_instance.web", Type: NodeTypeResource, ResourceType: "aws_instance",
+		Label: "web", Provider: "aws", Attributes: map[string]any{"id": "i-web"},
+	})
+	g.AddEdge(&Edge{Source: "aws_instance.web", Target: "aws_security_group.web", Type: "vpc_security_group_ids"})
+	g.AddEdge(&Edge{Source: "aws_instance.web", Target: "aws_instance.app", Type: "flow"})
+
+	g.SuppressRedundantContainerEdges()
+
+	found := false
+	for _, e := range g.Edges {
+		if e.Target == "aws_security_group.web" && e.Type == "vpc_security_group_ids" {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("membership edge was suppressed — the member's SG relationship is now invisible")
+	}
+}

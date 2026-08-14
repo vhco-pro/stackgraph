@@ -181,38 +181,42 @@ func (g *Graph) setParent(child, parent *Node) {
 	parent.Children = appendUnique(parent.Children, child.ID)
 }
 
-// suppressContainmentEdges removes edges whose relationship is already expressed
-// by nesting: an edge between a node and one of its ancestor containers.
-func (g *Graph) suppressContainmentEdges() {
-	g.ensureIndex()
-
-	isAncestor := func(anc, node *Node) bool {
-		for cur, hops := node, 0; cur != nil && hops < len(g.Nodes)+1; hops++ {
-			if cur.Parent == "" {
-				return false
-			}
-			if cur.Parent == anc.ID {
-				return true
-			}
-			cur = g.NodeByID(cur.Parent)
+// isAncestorOf reports whether anc is a (transitive) parent of node,
+// cycle-guarded. The single ancestor walk shared by every suppression pass.
+func (g *Graph) isAncestorOf(anc, node *Node) bool {
+	for cur, hops := node, 0; cur != nil && hops < len(g.Nodes)+1; hops++ {
+		if cur.Parent == "" {
+			return false
 		}
-		return false
+		if cur.Parent == anc.ID {
+			return true
+		}
+		cur = g.NodeByID(cur.Parent)
 	}
+	return false
+}
 
-	var kept []*Edge
+// removeEdges drops every edge for which drop returns true. The result is
+// always non-nil so JSON output emits [] rather than null.
+func (g *Graph) removeEdges(drop func(e *Edge, src, tgt *Node) bool) {
+	g.ensureIndex()
+	kept := make([]*Edge, 0, len(g.Edges))
 	for _, e := range g.Edges {
-		src := g.NodeByID(e.Source)
-		tgt := g.NodeByID(e.Target)
-		if src != nil && tgt != nil &&
-			((tgt.IsGroupNode && isAncestor(tgt, src)) || (src.IsGroupNode && isAncestor(src, tgt))) {
+		if drop(e, g.NodeByID(e.Source), g.NodeByID(e.Target)) {
 			continue
 		}
 		kept = append(kept, e)
 	}
-	if kept == nil {
-		kept = make([]*Edge, 0)
-	}
 	g.Edges = kept
+}
+
+// suppressContainmentEdges removes edges whose relationship is already expressed
+// by nesting: an edge between a node and one of its ancestor containers.
+func (g *Graph) suppressContainmentEdges() {
+	g.removeEdges(func(_ *Edge, src, tgt *Node) bool {
+		return src != nil && tgt != nil &&
+			((tgt.IsGroupNode && g.isAncestorOf(tgt, src)) || (src.IsGroupNode && g.isAncestorOf(src, tgt)))
+	})
 }
 
 // InferFlowEdges adds synthetic data-flow edges between resources based on
@@ -250,10 +254,25 @@ func (g *Graph) InferFlowEdges(patterns [][2]string) {
 
 		for _, src := range srcs {
 			srcAncestor := g.networkAncestor(src)
+
+			var candidates []*Node
 			for _, tgt := range tgts {
-				if srcAncestor != g.networkAncestor(tgt) {
-					continue
+				if srcAncestor == g.networkAncestor(tgt) {
+					candidates = append(candidates, tgt)
 				}
+			}
+			// Outside any network scope the heuristic has no boundary to lean
+			// on: with several same-type candidates (three S3 buckets, prod and
+			// staging RDS) every pairing is a guess, so connect only when the
+			// target is unambiguous. Inside a network scope all candidates
+			// connect — the boundary itself asserts the resources belong
+			// together, and one-to-many is normal there (an ALB fronting
+			// several instances). That asymmetry is deliberate.
+			if srcAncestor == "" && len(candidates) > 1 {
+				continue
+			}
+
+			for _, tgt := range candidates {
 				key := src.ID + "->" + tgt.ID
 				if existingEdges[key] {
 					continue
@@ -268,6 +287,43 @@ func (g *Graph) InferFlowEdges(patterns [][2]string) {
 			}
 		}
 	}
+}
+
+// SuppressRedundantContainerEdges drops edges that point at a container's wall
+// while a sibling edge already reaches inside it: ALB → SG next to ALB → the
+// instances in that SG says the same thing twice. An edge whose type IS the
+// container's member_ref attribute is never dropped — for a member that lives
+// outside the container (minority cohort), that edge is the only surviving
+// membership signal.
+func (g *Graph) SuppressRedundantContainerEdges() {
+	g.ensureIndex()
+
+	// endpoint -> other endpoints it connects to
+	peers := make(map[string][]string)
+	for _, e := range g.Edges {
+		peers[e.Source] = append(peers[e.Source], e.Target)
+		peers[e.Target] = append(peers[e.Target], e.Source)
+	}
+
+	redundant := func(e *Edge, nodeID string, group *Node) bool {
+		if e.Type != "" && e.Type == group.MemberRef {
+			return false // membership evidence is sacred
+		}
+		for _, peerID := range peers[nodeID] {
+			if peer := g.NodeByID(peerID); peer != nil && g.isAncestorOf(group, peer) {
+				return true
+			}
+		}
+		return false
+	}
+
+	g.removeEdges(func(e *Edge, src, tgt *Node) bool {
+		if src == nil || tgt == nil {
+			return false
+		}
+		return (tgt.IsGroupNode && redundant(e, e.Source, tgt)) ||
+			(src.IsGroupNode && redundant(e, e.Target, src))
+	})
 }
 
 // networkAncestor returns the ID of the network container (VPC, VNet, …)
@@ -329,54 +385,81 @@ func (g *Graph) assignMemberContainment() {
 	}
 	sort.Strings(memberAttrs)
 
+	// First pass: collect each container's members without moving anything.
+	// Each node joins at most one container (first match wins).
+	membersByContainer := make(map[string][]*Node)
 	for _, n := range g.Nodes {
 		if n.IsGroupNode || n.Attributes == nil {
 			continue
 		}
-
-		placed := false
+		claimed := false
 		for _, attr := range memberAttrs {
-			if placed {
+			if claimed {
 				break
 			}
-			raw, ok := n.Attributes[attr]
-			if !ok {
+			for _, idStr := range attrStringValues(n.Attributes[attr]) {
+				if container, found := containerByID[idStr]; found {
+					membersByContainer[container.ID] = append(membersByContainer[container.ID], n)
+					claimed = true
+					break
+				}
+			}
+		}
+	}
+
+	// Second pass: a container can only live in one place, but its members may
+	// sit in different subnets (one SG spanning public and private). The
+	// container adopts the largest same-parent cohort; members elsewhere stay
+	// where their parent_ref put them — their reference edge to the container
+	// still shows the membership.
+	containerIDs := make([]string, 0, len(membersByContainer))
+	for id := range membersByContainer {
+		containerIDs = append(containerIDs, id)
+	}
+	sort.Strings(containerIDs)
+
+	for _, containerID := range containerIDs {
+		container := g.NodeByID(containerID)
+		members := membersByContainer[containerID]
+
+		// Pick the largest cohort by current parent, smallest parent ID on
+		// ties — deterministic regardless of map iteration order.
+		cohortSize := make(map[string]int)
+		for _, m := range members {
+			cohortSize[m.Parent]++
+		}
+		bestParent, bestSize := "", -1
+		for p, c := range cohortSize {
+			if c > bestSize || (c == bestSize && p < bestParent) {
+				bestParent, bestSize = p, c
+			}
+		}
+
+		// Move the container into the cohort's parent when that parent is more
+		// specific (or the container isn't placed anywhere yet).
+		if bestParent != "" && bestParent != container.ID {
+			containerParent := g.NodeByID(container.Parent)
+			cohortParent := g.NodeByID(bestParent)
+			if cohortParent != nil &&
+				(containerParent == nil || cohortParent.GroupLevel > containerParent.GroupLevel) {
+				if containerParent != nil {
+					containerParent.Children = removeString(containerParent.Children, container.ID)
+				}
+				container.Parent = ""
+				g.setParent(container, cohortParent)
+			}
+		}
+
+		// Re-home only the members of the adopted cohort
+		for _, m := range members {
+			if m.Parent != bestParent {
 				continue
 			}
-
-			for _, idStr := range attrStringValues(raw) {
-				container, found := containerByID[idStr]
-				if !found {
-					continue
-				}
-
-				// Move the container into the same parent as the member it
-				// contains, when the member's parent is more specific (or the
-				// container isn't placed anywhere yet).
-				memberParent := n.Parent
-				if memberParent != "" && memberParent != container.ID {
-					containerParent := g.NodeByID(container.Parent)
-					memberParentNode := g.NodeByID(memberParent)
-
-					if memberParentNode != nil &&
-						(containerParent == nil || memberParentNode.GroupLevel > containerParent.GroupLevel) {
-						if containerParent != nil {
-							containerParent.Children = removeString(containerParent.Children, container.ID)
-						}
-						container.Parent = ""
-						g.setParent(container, memberParentNode)
-					}
-				}
-
-				// Re-home the member inside the container
-				if oldParent := g.NodeByID(n.Parent); oldParent != nil {
-					oldParent.Children = removeString(oldParent.Children, n.ID)
-				}
-				n.Parent = ""
-				g.setParent(n, container)
-				placed = true
-				break // use first matching container
+			if oldParent := g.NodeByID(m.Parent); oldParent != nil {
+				oldParent.Children = removeString(oldParent.Children, m.ID)
 			}
+			m.Parent = ""
+			g.setParent(m, container)
 		}
 	}
 }

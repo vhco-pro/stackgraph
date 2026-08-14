@@ -5,6 +5,10 @@
   .sg-text-sm { fill: #2D3436; }
   .sg-edge { stroke: #7B8894; }
   .sg-arrow { fill: #7B8894; }
+  .sg-edge-flow { stroke: #7C6BD9; }
+  .sg-arrow-flow { fill: #7C6BD9; }
+  .sg-edge-dep { stroke: #B8C0C8; }
+  .sg-arrow-dep { fill: #B8C0C8; }
   .sg-node-box { fill: #FFFFFF; stroke: #DEE2E6; }
   @media (prefers-color-scheme: dark) {
     .sg-bg { fill: #1a1a2e; }
@@ -12,13 +16,17 @@
     .sg-text-sm { fill: #B0B0B0; }
     .sg-edge { stroke: #9CA3AF; }
     .sg-arrow { fill: #9CA3AF; }
+    .sg-edge-flow { stroke: #8B8AF0; }
+    .sg-arrow-flow { fill: #8B8AF0; }
+    .sg-edge-dep { stroke: #5A6272; }
+    .sg-arrow-dep { fill: #5A6272; }
     .sg-node-box { fill: #2a2a3e; stroke: #4A5568; }
     .sg-container-default { fill: #1e1e2e; stroke: #6B7280; }
     .sg-label-default { fill: #9CA3AF; }
   }
 </style>
 <rect class="sg-bg" width="300" height="284" fill="#FFFFFF"/>
-<defs><marker id="arrowhead" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto"><polygon class="sg-arrow" points="0 0, 10 3.5, 0 7" fill="#7B8894"/></marker>
+<defs><marker id="arrowhead" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto"><polygon class="sg-arrow" points="0 0, 10 3.5, 0 7" fill="#7B8894"/></marker><marker id="arrowhead-flow" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto"><polygon class="sg-arrow-flow" points="0 0, 10 3.5, 0 7" fill="#7C6BD9"/></marker><marker id="arrowhead-dep" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto"><polygon class="sg-arrow-dep" points="0 0, 10 3.5, 0 7" fill="#B8C0C8"/></marker>
 </defs>
 <rect class="sg-container-default" data-id="proxmox_cloud.boundary" x="40" y="40" width="200" height="184" rx="8" fill="#F8F9FA" stroke="#ADB5BD" stroke-width="2" stroke-dasharray="6,3"/>
 <text class="sg-label-default" x="52" y="62" font-size="13" font-weight="600" fill="#495057">Proxmox</text>

@@ -5,6 +5,10 @@
   .sg-text-sm { fill: #2D3436; }
   .sg-edge { stroke: #7B8894; }
   .sg-arrow { fill: #7B8894; }
+  .sg-edge-flow { stroke: #7C6BD9; }
+  .sg-arrow-flow { fill: #7C6BD9; }
+  .sg-edge-dep { stroke: #B8C0C8; }
+  .sg-arrow-dep { fill: #B8C0C8; }
   .sg-node-box { fill: #FFFFFF; stroke: #DEE2E6; }
   @media (prefers-color-scheme: dark) {
     .sg-bg { fill: #1a1a2e; }
@@ -12,6 +16,10 @@
     .sg-text-sm { fill: #B0B0B0; }
     .sg-edge { stroke: #9CA3AF; }
     .sg-arrow { fill: #9CA3AF; }
+    .sg-edge-flow { stroke: #8B8AF0; }
+    .sg-arrow-flow { fill: #8B8AF0; }
+    .sg-edge-dep { stroke: #5A6272; }
+    .sg-arrow-dep { fill: #5A6272; }
     .sg-node-box { fill: #2a2a3e; stroke: #4A5568; }
     .sg-container-cloud { fill: #1e1e32; stroke: #4A90D9; }
     .sg-label-cloud { fill: #4A90D9; }
@@ -22,7 +30,7 @@
   }
 </style>
 <rect class="sg-bg" width="492" height="712" fill="#FFFFFF"/>
-<defs><marker id="arrowhead" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto"><polygon class="sg-arrow" points="0 0, 10 3.5, 0 7" fill="#7B8894"/></marker>
+<defs><marker id="arrowhead" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto"><polygon class="sg-arrow" points="0 0, 10 3.5, 0 7" fill="#7B8894"/></marker><marker id="arrowhead-flow" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto"><polygon class="sg-arrow-flow" points="0 0, 10 3.5, 0 7" fill="#7C6BD9"/></marker><marker id="arrowhead-dep" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto"><polygon class="sg-arrow-dep" points="0 0, 10 3.5, 0 7" fill="#B8C0C8"/></marker>
 <image id="sgi0" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNHB4IiBoZWlnaHQ9IjI0cHgiIHZpZXdCb3g9IjAgMCAyNCAyNCI+PGRlZnM+PHN0eWxlPi5jbHMtMXtmaWxsOiNhZWNiZmE7fS5jbHMtMntmaWxsOiM2NjlkZjY7fS5jbHMtM3tmaWxsOiM0Mjg1ZjQ7fTwvc3R5bGU+PC9kZWZzPjx0aXRsZT5JY29uXzI0cHhfVmlydHVhbFByaXZhdGVDbG91ZF9Db2xvcjwvdGl0bGU+PGcgZGF0YS1uYW1lPSJQcm9kdWN0IEljb25zIj48cmVjdCBjbGFzcz0iY2xzLTEiIHg9IjE2IiB5PSIyIiB3aWR0aD0iNiIgaGVpZ2h0PSI2Ii8+PHJlY3QgY2xhc3M9ImNscy0yIiB4PSIxOSIgeT0iMiIgd2lkdGg9IjMiIGhlaWdodD0iNiIvPjxyZWN0IGNsYXNzPSJjbHMtMSIgeD0iMTYiIHk9IjE2IiB3aWR0aD0iNiIgaGVpZ2h0PSI2Ii8+PHJlY3QgY2xhc3M9ImNscy0yIiB4PSIxOSIgeT0iMTYiIHdpZHRoPSIzIiBoZWlnaHQ9IjYiLz48cmVjdCBjbGFzcz0iY2xzLTEiIHg9IjIiIHk9IjIiIHdpZHRoPSI2IiBoZWlnaHQ9IjYiLz48cmVjdCBjbGFzcz0iY2xzLTIiIHg9IjUiIHk9IjIiIHdpZHRoPSIzIiBoZWlnaHQ9IjYiLz48cmVjdCBjbGFzcz0iY2xzLTEiIHg9IjIiIHk9IjE2IiB3aWR0aD0iNiIgaGVpZ2h0PSI2Ii8+PHJlY3QgY2xhc3M9ImNscy0yIiB4PSI1IiB5PSIxNiIgd2lkdGg9IjMiIGhlaWdodD0iNiIvPjxyZWN0IGNsYXNzPSJjbHMtMiIgeD0iOCIgeT0iNCIgd2lkdGg9IjgiIGhlaWdodD0iMiIvPjxyZWN0IGNsYXNzPSJjbHMtMiIgeD0iOCIgeT0iMTgiIHdpZHRoPSI4IiBoZWlnaHQ9IjIiLz48cmVjdCBjbGFzcz0iY2xzLTIiIHg9IjE4IiB5PSI4IiB3aWR0aD0iMiIgaGVpZ2h0PSI4Ii8+PHJlY3QgY2xhc3M9ImNscy0yIiB4PSI0IiB5PSI4IiB3aWR0aD0iMiIgaGVpZ2h0PSI4Ii8+PHJlY3QgY2xhc3M9ImNscy0zIiB4PSI0IiB5PSI4IiB3aWR0aD0iMiIgaGVpZ2h0PSIyIi8+PHJlY3QgY2xhc3M9ImNscy0zIiB4PSIxOCIgeT0iOCIgd2lkdGg9IjIiIGhlaWdodD0iMiIvPjxyZWN0IGNsYXNzPSJjbHMtMyIgeD0iOCIgeT0iNCIgd2lkdGg9IjIiIGhlaWdodD0iMiIvPjxyZWN0IGNsYXNzPSJjbHMtMyIgeD0iOCIgeT0iMTgiIHdpZHRoPSIyIiBoZWlnaHQ9IjIiLz48L2c+PC9zdmc+" width="24" height="24"/>
 <image id="sgi1" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNHB4IiBoZWlnaHQ9IjI0cHgiIHZpZXdCb3g9IjAgMCAyNCAyNCI+PGRlZnM+PHN0eWxlPi5jbHMtMXtmaWxsOiNhZWNiZmE7fS5jbHMtMntmaWxsOiM2NjlkZjY7fS5jbHMtM3tmaWxsOiM0Mjg1ZjQ7fTwvc3R5bGU+PC9kZWZzPjx0aXRsZT5JY29uXzI0cHhfQ29tcHV0ZUVuZ2luZV9Db2xvcjwvdGl0bGU+PGcgZGF0YS1uYW1lPSJQcm9kdWN0IEljb25zIj48cmVjdCBjbGFzcz0iY2xzLTEiIHg9IjkiIHk9IjkiIHdpZHRoPSI2IiBoZWlnaHQ9IjYiLz48cmVjdCBjbGFzcz0iY2xzLTIiIHg9IjExIiB5PSIyIiB3aWR0aD0iMiIgaGVpZ2h0PSI0Ii8+PHJlY3QgY2xhc3M9ImNscy0yIiB4PSI3IiB5PSIyIiB3aWR0aD0iMiIgaGVpZ2h0PSI0Ii8+PHJlY3QgY2xhc3M9ImNscy0yIiB4PSIxNSIgeT0iMiIgd2lkdGg9IjIiIGhlaWdodD0iNCIvPjxyZWN0IGNsYXNzPSJjbHMtMyIgeD0iMTEiIHk9IjE4IiB3aWR0aD0iMiIgaGVpZ2h0PSI0Ii8+PHJlY3QgY2xhc3M9ImNscy0zIiB4PSI3IiB5PSIxOCIgd2lkdGg9IjIiIGhlaWdodD0iNCIvPjxyZWN0IGNsYXNzPSJjbHMtMyIgeD0iMTUiIHk9IjE4IiB3aWR0aD0iMiIgaGVpZ2h0PSI0Ii8+PHJlY3QgY2xhc3M9ImNscy0zIiB4PSIxOSIgeT0iMTAiIHdpZHRoPSIyIiBoZWlnaHQ9IjQiIHRyYW5zZm9ybT0idHJhbnNsYXRlKDggMzIpIHJvdGF0ZSgtOTApIi8+PHJlY3QgY2xhc3M9ImNscy0zIiB4PSIxOSIgeT0iMTQiIHdpZHRoPSIyIiBoZWlnaHQ9IjQiIHRyYW5zZm9ybT0idHJhbnNsYXRlKDQgMzYpIHJvdGF0ZSgtOTApIi8+PHJlY3QgY2xhc3M9ImNscy0zIiB4PSIxOSIgeT0iNiIgd2lkdGg9IjIiIGhlaWdodD0iNCIgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoMTIgMjgpIHJvdGF0ZSgtOTApIi8+PHJlY3QgY2xhc3M9ImNscy0yIiB4PSIzIiB5PSIxMCIgd2lkdGg9IjIiIGhlaWdodD0iNCIgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoLTggMTYpIHJvdGF0ZSgtOTApIi8+PHJlY3QgY2xhc3M9ImNscy0yIiB4PSIzIiB5PSIxNCIgd2lkdGg9IjIiIGhlaWdodD0iNCIgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoLTEyIDIwKSByb3RhdGUoLTkwKSIvPjxyZWN0IGNsYXNzPSJjbHMtMiIgeD0iMyIgeT0iNiIgd2lkdGg9IjIiIGhlaWdodD0iNCIgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoLTQgMTIpIHJvdGF0ZSgtOTApIi8+PHBhdGggY2xhc3M9ImNscy0xIiBkPSJNNSw1VjE5SDE5VjVaTTE3LDE3SDdWN0gxN1oiLz48cG9seWdvbiBjbGFzcz0iY2xzLTIiIHBvaW50cz0iOSAxNSAxNSAxNSAxMiAxMiA5IDE1Ii8+PHBvbHlnb24gY2xhc3M9ImNscy0zIiBwb2ludHM9IjEyIDEyIDE1IDE1IDE1IDkgMTIgMTIiLz48L2c+PC9zdmc+" width="64" height="64"/>
 <image id="sgi2" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNHB4IiBoZWlnaHQ9IjI0cHgiIHZpZXdCb3g9IjAgMCAyNCAyNCI+PGRlZnM+PHN0eWxlPi5jbHMtMXtmaWxsOiM0Mjg1ZjQ7fS5jbHMtMSwuY2xzLTIsLmNscy00e2ZpbGwtcnVsZTpldmVub2RkO30uY2xzLTJ7ZmlsbDojNjY5ZGY2O30uY2xzLTMsLmNscy00e2ZpbGw6I2FlY2JmYTt9PC9zdHlsZT48L2RlZnM+PHRpdGxlPkljb25fMjRweF9LOEVuZ2luZV9Db2xvcjwvdGl0bGU+PGcgZGF0YS1uYW1lPSJQcm9kdWN0IEljb25zIj48ZyA+PHBvbHlnb24gY2xhc3M9ImNscy0xIiBwb2ludHM9IjE0LjY4IDEzLjA2IDE5LjIzIDE1LjY5IDE5LjIzIDE2LjY4IDE0LjI5IDEzLjgzIDE0LjY4IDEzLjA2Ii8+PHBvbHlnb24gY2xhc3M9ImNscy0yIiBwb2ludHM9IjkuOTggMTMuNjUgNC43NyAxNi42NiA0LjQ1IDE1Ljg2IDkuNTMgMTIuOTIgOS45OCAxMy42NSIvPjxyZWN0IGNsYXNzPSJjbHMtMyIgeD0iMTEuNTUiIHk9IjMuMjkiIHdpZHRoPSIwLjg2IiBoZWlnaHQ9IjUuNzgiLz48cGF0aCBjbGFzcz0iY2xzLTQiIGQ9Ik0zLjI1LDdWMTdMMTIsMjJsOC43NC01VjdMMTIsMlptMTUuNjMsOC44OUwxMiwxOS43OCw1LjEyLDE1Ljg5VjguMTFMMTIsNC4yMmw2Ljg3LDMuODl2Ny43OFoiLz48cG9seWdvbiBjbGFzcz0iY2xzLTQiIHBvaW50cz0iMTEuOTggMTEuNSAxNS45NiA5LjIxIDExLjk4IDYuOTEgOC4wMSA5LjIxIDExLjk4IDExLjUiLz48cG9seWdvbiBjbGFzcz0iY2xzLTIiIHBvaW50cz0iMTEuNTIgMTIuMyA3LjY2IDEwLjAxIDcuNjYgMTQuNiAxMS41MiAxNi44OSAxMS41MiAxMi4zIi8+PHBvbHlnb24gY2xhc3M9ImNscy0xIiBwb2ludHM9IjEyLjQ4IDEyLjMgMTIuNDggMTYuODkgMTYuMzQgMTQuNiAxNi4zNCAxMC4wMSAxMi40OCAxMi4zIi8+PC9nPjwvZz48L3N2Zz4=" width="64" height="64"/>
@@ -33,8 +41,8 @@
 <rect class="sg-container-cloud" data-id="gcp_cloud.boundary" x="40" y="40" width="392" height="613" rx="8" fill="#FFFFFF" stroke="#4285F4" stroke-width="2"/>
 <rect class="sg-container-vpc" data-id="google_compute_network.main" x="70" y="80" width="216" height="388" rx="8" fill="#E6F4EA" stroke="#34A853" stroke-width="2"/>
 <rect class="sg-container-subnet" data-id="google_compute_subnetwork.web" x="100" y="120" width="156" height="328" rx="8" fill="#F1F3F4" stroke="#5F6368" stroke-width="2"/>
-<path class="sg-edge" d="M 286.0,529.3 L 296.0,529.3 L 296.0,426.7 L 306.0,426.7" fill="none" stroke="#7B8894" stroke-width="1.5" marker-end="url(#arrowhead)"/>
-<path class="sg-edge" d="M 286.0,570.7 L 306.0,570.7" fill="none" stroke="#7B8894" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+<path class="sg-edge-flow" d="M 286.0,529.3 L 296.0,529.3 L 296.0,426.7 L 306.0,426.7" fill="none" stroke="#7C6BD9" stroke-width="1.5" stroke-dasharray="5,4" marker-end="url(#arrowhead-flow)"><title>inferred flow</title></path>
+<path class="sg-edge-flow" d="M 286.0,570.7 L 306.0,570.7" fill="none" stroke="#7C6BD9" stroke-width="1.5" stroke-dasharray="5,4" marker-end="url(#arrowhead-flow)"><title>inferred flow</title></path>
 <text class="sg-label-cloud" x="52" y="62" font-size="13" font-weight="600" fill="#4285F4">Google Cloud</text>
 <use href="#sgi0" x="78" y="84"/>
 <text class="sg-label-vpc" x="108" y="102" font-size="13" font-weight="600" fill="#34A853">VPC Network — main</text>

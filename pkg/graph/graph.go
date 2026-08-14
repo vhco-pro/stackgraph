@@ -403,6 +403,9 @@ func Process(g *Graph, registry interface{ Lookup(string) *MappingResult }, opts
 	if opts.InferFlows {
 		g.InferFlowEdges(opts.FlowPatterns)
 	}
+	// Runs with or without flows: reference edges into a container's wall are
+	// redundant whenever any sibling edge already reaches inside it.
+	g.SuppressRedundantContainerEdges()
 	g.CollapseCountInstances()
 	g.FilterInternal()
 }

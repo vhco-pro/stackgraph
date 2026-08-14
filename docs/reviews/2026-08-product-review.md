@@ -148,6 +148,21 @@ contained instead of as bare floating boxes.
 
 ![Proxmox state with provider boundary](assets/2026-08-final-proxmox.png)
 
+## Edge-quality pass (user feedback on the dark render)
+
+A further pass differentiated edge classes visually — dashed indigo for
+inferred flows, solid gray for evidence, dotted for build dependencies, with
+hover tooltips, all driven by one style table — and removed the remaining
+fabricated or redundant lines: global-scope flows now require an unambiguous
+target (no more Fargate → both RDS instances or Lambda → all three buckets),
+container-wall arrows that duplicate an edge into the container are suppressed
+(except membership evidence, which is protected), and a security group
+spanning subnets adopts its largest member cohort instead of dragging
+instances out of their declared subnets. The realistic fixture went from 23
+drawn edges to 14, every one meaningful.
+
+![Dark-mode render with differentiated edge classes](assets/2026-08-edges-dark.png)
+
 ## The path to best-in-scene
 
 Competitors are weak — Terravision needs credentials and Graphviz, InfraMap
