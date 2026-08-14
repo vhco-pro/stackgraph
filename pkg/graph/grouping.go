@@ -245,6 +245,18 @@ func (g *Graph) InferFlowEdges(patterns [][2]string) {
 		existingEdges[e.Target+"->"+e.Source] = true
 	}
 
+	// Ancestor chains don't change during this pass — walk each node once,
+	// not once per (pattern, pair).
+	ancestorMemo := make(map[string]string)
+	ancestorOf := func(n *Node) string {
+		if a, ok := ancestorMemo[n.ID]; ok {
+			return a
+		}
+		a := g.networkAncestor(n)
+		ancestorMemo[n.ID] = a
+		return a
+	}
+
 	for _, p := range patterns {
 		srcs := byType[p[0]]
 		tgts := byType[p[1]]
@@ -253,14 +265,8 @@ func (g *Graph) InferFlowEdges(patterns [][2]string) {
 		}
 
 		for _, src := range srcs {
-			srcAncestor := g.networkAncestor(src)
+			srcAncestor := ancestorOf(src)
 
-			var candidates []*Node
-			for _, tgt := range tgts {
-				if srcAncestor == g.networkAncestor(tgt) {
-					candidates = append(candidates, tgt)
-				}
-			}
 			// Outside any network scope the heuristic has no boundary to lean
 			// on: with several same-type candidates (three S3 buckets, prod and
 			// staging RDS) every pairing is a guess, so connect only when the
@@ -268,7 +274,19 @@ func (g *Graph) InferFlowEdges(patterns [][2]string) {
 			// connect — the boundary itself asserts the resources belong
 			// together, and one-to-many is normal there (an ALB fronting
 			// several instances). That asymmetry is deliberate.
-			if srcAncestor == "" && len(candidates) > 1 {
+			var candidates []*Node
+			ambiguous := false
+			for _, tgt := range tgts {
+				if srcAncestor != ancestorOf(tgt) {
+					continue
+				}
+				if srcAncestor == "" && len(candidates) == 1 {
+					ambiguous = true
+					break
+				}
+				candidates = append(candidates, tgt)
+			}
+			if ambiguous {
 				continue
 			}
 
@@ -289,12 +307,12 @@ func (g *Graph) InferFlowEdges(patterns [][2]string) {
 	}
 }
 
-// SuppressRedundantContainerEdges drops edges that point at a container's wall
-// while a sibling edge already reaches inside it: ALB → SG next to ALB → the
-// instances in that SG says the same thing twice. An edge whose type IS the
-// container's member_ref attribute is never dropped — for a member that lives
-// outside the container (minority cohort), that edge is the only surviving
-// membership signal.
+// SuppressRedundantContainerEdges drops depends_on edges that point at a
+// container's wall while a sibling edge already reaches inside it. Scope is
+// deliberately narrow: depends_on records build order, the weakest signal —
+// typed reference edges are EVIDENCE and are never deleted (the product's
+// core promise), and the solid-vs-dashed styling already distinguishes an
+// attachment edge from the flows next to it.
 func (g *Graph) SuppressRedundantContainerEdges() {
 	g.ensureIndex()
 
@@ -305,24 +323,31 @@ func (g *Graph) SuppressRedundantContainerEdges() {
 		peers[e.Target] = append(peers[e.Target], e.Source)
 	}
 
-	redundant := func(e *Edge, nodeID string, group *Node) bool {
-		if e.Type != "" && e.Type == group.MemberRef {
-			return false // membership evidence is sacred
+	// Memoize the (node, group) reachability question — parallel edges and
+	// high-degree hubs otherwise re-run the same peer scan and ancestor walks.
+	memo := make(map[string]bool)
+	reachesInside := func(nodeID string, group *Node) bool {
+		key := nodeID + "\x00" + group.ID
+		if v, ok := memo[key]; ok {
+			return v
 		}
+		result := false
 		for _, peerID := range peers[nodeID] {
 			if peer := g.NodeByID(peerID); peer != nil && g.isAncestorOf(group, peer) {
-				return true
+				result = true
+				break
 			}
 		}
-		return false
+		memo[key] = result
+		return result
 	}
 
 	g.removeEdges(func(e *Edge, src, tgt *Node) bool {
-		if src == nil || tgt == nil {
+		if e.Type != "depends_on" || src == nil || tgt == nil {
 			return false
 		}
-		return (tgt.IsGroupNode && redundant(e, e.Source, tgt)) ||
-			(src.IsGroupNode && redundant(e, e.Target, src))
+		return (tgt.IsGroupNode && reachesInside(e.Source, tgt)) ||
+			(src.IsGroupNode && reachesInside(e.Target, src))
 	})
 }
 
@@ -348,10 +373,12 @@ func (g *Graph) networkAncestor(n *Node) string {
 
 // assignMemberContainment implements member-list containment: a container type
 // declares member_ref (e.g. aws_security_group: vpc_security_group_ids), and
-// any resource whose member_ref attribute lists the container's id becomes its
-// child. The container itself moves into the member's parent (subnet) so the
-// SG → Subnet → VPC hierarchy holds. Runs AFTER parent_ref assignment so
-// member parents are known.
+// resources whose member_ref attribute lists the container's id become its
+// children. A container can only live in one place, so when members sit in
+// different subnets it moves into (and adopts) the LARGEST same-parent cohort
+// plus any parentless members; minority members stay where their parent_ref
+// put them, keeping their reference edge as the membership signal. Runs AFTER
+// parent_ref assignment so member parents are known.
 func (g *Graph) assignMemberContainment() {
 	g.ensureIndex()
 
@@ -423,10 +450,14 @@ func (g *Graph) assignMemberContainment() {
 		members := membersByContainer[containerID]
 
 		// Pick the largest cohort by current parent, smallest parent ID on
-		// ties — deterministic regardless of map iteration order.
+		// ties — deterministic regardless of map iteration order. Members
+		// already inside the container and parentless members carry no
+		// placement signal and must not out-vote a real subnet cohort.
 		cohortSize := make(map[string]int)
 		for _, m := range members {
-			cohortSize[m.Parent]++
+			if m.Parent != "" && m.Parent != container.ID {
+				cohortSize[m.Parent]++
+			}
 		}
 		bestParent, bestSize := "", -1
 		for p, c := range cohortSize {
@@ -450,13 +481,28 @@ func (g *Graph) assignMemberContainment() {
 			}
 		}
 
-		// Re-home only the members of the adopted cohort
+		// Re-home the adopted cohort plus parentless members (which have no
+		// better home). The whole cohort leaves one parent, so its Children
+		// list is filtered in a single pass instead of one O(len)
+		// removeString per member.
+		cohort := make(map[string]bool)
 		for _, m := range members {
-			if m.Parent != bestParent {
-				continue
+			if (bestParent != "" && m.Parent == bestParent) || m.Parent == "" {
+				cohort[m.ID] = true
 			}
-			if oldParent := g.NodeByID(m.Parent); oldParent != nil {
-				oldParent.Children = removeString(oldParent.Children, m.ID)
+		}
+		if oldParent := g.NodeByID(bestParent); oldParent != nil {
+			kept := oldParent.Children[:0]
+			for _, c := range oldParent.Children {
+				if !cohort[c] {
+					kept = append(kept, c)
+				}
+			}
+			oldParent.Children = kept
+		}
+		for _, m := range members {
+			if !cohort[m.ID] {
+				continue
 			}
 			m.Parent = ""
 			g.setParent(m, container)
@@ -606,11 +652,14 @@ func (g *Graph) DetectImplicitEdges() {
 		}
 	}
 
-	// Build set of existing edges for dedup
-	existingEdges := make(map[string]bool)
+	// Existing edges by pair (both directions), for dedup and for upgrading:
+	// a depends_on edge records build order, so when a typed reference for
+	// the same pair is discovered, the edge is promoted to the evidence type
+	// instead of the reference being silently dropped.
+	existingEdges := make(map[string]*Edge)
 	for _, e := range g.Edges {
-		existingEdges[e.Source+"->"+e.Target] = true
-		existingEdges[e.Target+"->"+e.Source] = true
+		existingEdges[e.Source+"->"+e.Target] = e
+		existingEdges[e.Target+"->"+e.Source] = e
 	}
 
 	// Scan all attributes for references to known IDs. Attribute names are
@@ -642,18 +691,23 @@ func (g *Graph) DetectImplicitEdges() {
 				}
 
 				edgeKey := n.ID + "->" + targetNodeID
-				if existingEdges[edgeKey] {
+				if existing, ok := existingEdges[edgeKey]; ok {
+					if existing.Type == "depends_on" {
+						existing.Type = attrName
+						existing.Label = formatEdgeLabel(attrName)
+					}
 					continue
 				}
 
-				g.AddEdge(&Edge{
+				edge := &Edge{
 					Source: n.ID,
 					Target: targetNodeID,
 					Type:   attrName,
 					Label:  formatEdgeLabel(attrName),
-				})
-				existingEdges[edgeKey] = true
-				existingEdges[targetNodeID+"->"+n.ID] = true
+				}
+				g.AddEdge(edge)
+				existingEdges[edgeKey] = edge
+				existingEdges[targetNodeID+"->"+n.ID] = edge
 			}
 		}
 	}

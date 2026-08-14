@@ -76,18 +76,60 @@ func LoadEmbedded() (*Registry, error) {
 }
 
 // LoadDir merges mapping YAML files from a directory on disk into the registry.
-// Entries override embedded mappings with the same resource type, so users can
-// extend or restyle without recompiling.
+// Overlay entries PATCH embedded mappings with the same resource type: fields
+// the overlay leaves empty inherit from the base entry, so restyling an icon
+// cannot silently strip member_ref/parent_ref and break containment. Fields
+// the overlay sets win.
 func (r *Registry) LoadDir(dir string) error {
 	overlay, err := LoadFromFS(os.DirFS(dir), ".")
 	if err != nil {
 		return fmt.Errorf("failed to load mapping overlay from %s: %w", dir, err)
 	}
 	for resourceType, entry := range overlay.mappings {
+		if base, ok := r.mappings[resourceType]; ok {
+			mergeMapping(entry.mapping, base.mapping)
+		}
 		r.mappings[resourceType] = entry
 	}
 	r.flows = append(r.flows, overlay.flows...)
 	return nil
+}
+
+// mergeMapping fills m's empty fields from base (overlay-as-patch semantics).
+func mergeMapping(m, base *ResourceMapping) {
+	if m.Service == "" {
+		m.Service = base.Service
+	}
+	if m.Category == "" {
+		m.Category = base.Category
+	}
+	if m.Icon == "" {
+		m.Icon = base.Icon
+	}
+	if !m.IsGroup {
+		m.IsGroup = base.IsGroup
+	}
+	if m.GroupLevel == 0 {
+		m.GroupLevel = base.GroupLevel
+	}
+	if m.GroupParent == "" {
+		m.GroupParent = base.GroupParent
+	}
+	if m.ParentRef == "" {
+		m.ParentRef = base.ParentRef
+	}
+	if m.MemberRef == "" {
+		m.MemberRef = base.MemberRef
+	}
+	if !m.NetworkScope {
+		m.NetworkScope = base.NetworkScope
+	}
+	if m.Style == nil {
+		m.Style = base.Style
+	}
+	if len(m.Variants) == 0 {
+		m.Variants = base.Variants
+	}
 }
 
 // Lookup returns the mapping result for a given resource type, or nil if not found.
@@ -123,20 +165,27 @@ func (r *Registry) Lookup(resourceType string) *graph.MappingResult {
 	return result
 }
 
-// ParentRefAttrs returns every attribute name any mapping uses as a parent_ref,
-// so parsers can keep those attributes through curation regardless of shape.
-func (r *Registry) ParentRefAttrs() []string {
+// RefAttrs returns every attribute name any mapping uses for containment —
+// parent_ref and member_ref — so parsers keep those attributes through
+// curation regardless of their shape.
+func (r *Registry) RefAttrs() []string {
 	seen := make(map[string]bool)
 	var attrs []string
-	for _, entry := range r.mappings {
-		ref := entry.mapping.ParentRef
+	add := func(ref string) {
 		if ref != "" && !seen[ref] {
 			seen[ref] = true
 			attrs = append(attrs, ref)
 		}
 	}
+	for _, entry := range r.mappings {
+		add(entry.mapping.ParentRef)
+		add(entry.mapping.MemberRef)
+	}
 	return attrs
 }
+
+// ParentRefAttrs is a deprecated alias for RefAttrs.
+func (r *Registry) ParentRefAttrs() []string { return r.RefAttrs() }
 
 // List returns all mappings matching the given filters.
 func (r *Registry) List(provider, category string) []ListEntry {

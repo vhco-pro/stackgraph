@@ -38,7 +38,7 @@ func newGenerateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			keepAttrs := registry.ParentRefAttrs()
+			keepAttrs := registry.RefAttrs()
 
 			var g *graph.Graph
 

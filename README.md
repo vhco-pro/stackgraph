@@ -7,7 +7,7 @@ Infrastructure diagram generator for OpenTofu/Terraform. Produces correct, cloud
 - **Multiple input modes** — state JSON, plan JSON, HCL source, DOT graph, Terragrunt projects
 - **OpenTofu-native** — first-class OpenTofu support, Terraform compatible
 - **Correct containment** — declarative `parent_ref` attribute resolution nests resources into VPCs/subnets/security groups deterministically; works on multi-VPC, multi-environment states with no `depends_on` present
-- **Evidence-based edges** — arrows come from actual references in the state (ids, ARNs, lists), never invented; optional `--infer-flows` adds heuristic flows scoped to a single network container
+- **Evidence-based edges** — arrows come from actual references in the state (ids, ARNs, lists), never invented and never deleted (only containment restatement and redundant `depends_on` build-order edges are hidden); optional `--infer-flows` adds purely additive heuristic flows, scoped to one network container and only drawn when the target is unambiguous
 - **Cloud-aware** — official AWS/Azure/GCP icons and brand-styled containers, all declared in YAML mappings
 - **Provider-agnostic** — unmapped resources render as clean labeled boxes (no crash, no omission); `stackgraph mappings coverage` shows what a given state needs
 - **Extensible without recompiling** — `--mappings <dir>` overlays your own YAML mappings
@@ -67,7 +67,9 @@ Input (state/plan/HCL/DOT)
   → Apply resource mappings (service, icon, style, containment rules)
   → Detect reference edges (id/ARN/list attribute scanning)
   → Resolve containment (parent_ref attribute lookups; edge fallback for DOT/HCL)
+  → Optionally infer flow edges (--infer-flows, from mapping flows: patterns)
   → Collapse count/for_each instances (containment-preserving)
+  → Suppress redundant edges (containment restatement, depends_on wall edges)
   → Filter internal/meta nodes
   → Render (SVG, HTML, JSON, DOT) via ELK.js orthogonal layout
 ```
@@ -97,7 +99,7 @@ aws_security_group:
   category: Security
   is_group: true
   group_level: 3
-  member_ref: vpc_security_group_ids   # resources listing this SG become its children
+  member_ref: vpc_security_group_ids   # the largest same-subnet cohort of listing resources nests inside
   style: { fill: "#FFF5F5", stroke: "#E53935", label: "#C62828", role: sg, dashed: true }
 
 aws_ecs_service:

@@ -304,19 +304,31 @@ func TestRedundantContainerEdgeSuppressed(t *testing.T) {
 		ID: "aws_lb.web", Type: NodeTypeResource, ResourceType: "aws_lb",
 		Label: "web", Provider: "aws", Attributes: map[string]any{"id": "alb-1"},
 	})
-	// ALB references the SG (container wall) AND flows to the instance inside it
-	g.AddEdge(&Edge{Source: "aws_lb.web", Target: "aws_security_group.web", Type: "security_groups"})
+	// The ALB carries a typed reference to the SG (evidence — must survive),
+	// a depends_on edge to the SG (build order — redundant, must drop), and a
+	// flow to the instance inside it.
+	g.AddEdge(&Edge{Source: "aws_lb.web", Target: "aws_security_group.web", Type: "security_groups", Label: "security groups"})
+	g.AddEdge(&Edge{Source: "aws_lb.web", Target: "aws_security_group.web", Type: "depends_on"})
 	g.AddEdge(&Edge{Source: "aws_lb.web", Target: "aws_instance.web", Type: "flow"})
 
 	g.SuppressRedundantContainerEdges()
 
+	var haveEvidence, haveDep bool
 	for _, e := range g.Edges {
 		if e.Target == "aws_security_group.web" {
-			t.Errorf("redundant container-wall edge survived: %s -> %s", e.Source, e.Target)
+			switch e.Type {
+			case "security_groups":
+				haveEvidence = true
+			case "depends_on":
+				haveDep = true
+			}
 		}
 	}
-	if len(g.Edges) != 1 {
-		t.Fatalf("expected 1 surviving edge, got %d", len(g.Edges))
+	if !haveEvidence {
+		t.Error("typed reference edge was suppressed — evidence must never be deleted")
+	}
+	if haveDep {
+		t.Error("redundant depends_on wall edge survived")
 	}
 }
 
@@ -364,9 +376,10 @@ func TestMemberContainmentAdoptsLargestCohort(t *testing.T) {
 }
 
 func TestMembershipEdgeSurvivesRedundancySuppression(t *testing.T) {
-	// A minority-cohort member outside the SG has an edge INTO the SG (its
-	// membership evidence) plus a flow to a node inside it. The membership
-	// edge must survive — it's the only signal left after cohort adoption.
+	// A minority-cohort member outside the SG has a typed reference INTO the
+	// SG (its membership evidence) plus a flow to a node inside it. Evidence
+	// edges are never suppressed — it's the only signal left after cohort
+	// adoption.
 	g := NewGraph("state")
 	g.AddNode(&Node{
 		ID: "aws_security_group.web", ResourceType: "aws_security_group", Label: "web",

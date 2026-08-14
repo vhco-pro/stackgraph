@@ -21,7 +21,7 @@ func runPipeline(t *testing.T, fixture string) *graph.Graph {
 	if err != nil {
 		t.Fatalf("load mappings: %v", err)
 	}
-	g, err := parser.ParseState(data, registry.ParentRefAttrs()...)
+	g, err := parser.ParseState(data, registry.RefAttrs()...)
 	if err != nil {
 		t.Fatalf("parse state: %v", err)
 	}
@@ -96,5 +96,98 @@ func TestLayoutStructuralInvariants(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// TestPipelineEdgeContract pins the edge semantics on the realistic two-VPC
+// fixture, end to end through graph.Process — the properties the 2026-08
+// review established:
+//  1. evidence edges (typed references) are never deleted
+//  2. --infer-flows is purely additive
+//  3. flows never cross network scopes and are unambiguous at global scope
+func TestPipelineEdgeContract(t *testing.T) {
+	const fixture = "../../testdata/state/aws/two-vpc-realistic.json"
+
+	load := func(inferFlows bool) *graph.Graph {
+		t.Helper()
+		data, err := os.ReadFile(fixture)
+		if err != nil {
+			t.Fatalf("read fixture: %v", err)
+		}
+		registry, err := mapping.LoadEmbedded()
+		if err != nil {
+			t.Fatalf("load mappings: %v", err)
+		}
+		g, err := parser.ParseState(data, registry.RefAttrs()...)
+		if err != nil {
+			t.Fatalf("parse state: %v", err)
+		}
+		graph.Process(g, registry, graph.ProcessOptions{
+			InferFlows:   inferFlows,
+			FlowPatterns: registry.FlowPatterns(),
+		})
+		return g
+	}
+
+	edgeSet := func(g *graph.Graph) map[string]string {
+		set := make(map[string]string)
+		for _, e := range g.Edges {
+			set[e.Source+"->"+e.Target] = e.Type
+		}
+		return set
+	}
+
+	plain := edgeSet(load(false))
+	flows := edgeSet(load(true))
+
+	// 1. Evidence must be present in BOTH runs — enabling a heuristic must
+	// never delete state-proven arrows.
+	for _, evidence := range []string{
+		"aws_lb.prod_alb->aws_security_group.prod_web",
+		"aws_lb.staging_alb->aws_security_group.staging_web",
+		"aws_instance.prod_web->aws_security_group.prod_web",
+		"aws_route53_record.www->aws_route53_zone.main",
+	} {
+		if _, ok := plain[evidence]; !ok {
+			t.Errorf("evidence edge missing without flows: %s", evidence)
+		}
+		if _, ok := flows[evidence]; !ok {
+			t.Errorf("evidence edge deleted by --infer-flows: %s", evidence)
+		}
+	}
+
+	// 2. Purely additive: every default-run edge survives with flows on.
+	for pair := range plain {
+		if _, ok := flows[pair]; !ok {
+			t.Errorf("--infer-flows removed edge %s", pair)
+		}
+	}
+
+	// 3. No cross-environment or ambiguous global-scope flows.
+	for _, fabricated := range []string{
+		"aws_ecs_service.api->aws_db_instance.prod_db",
+		"aws_ecs_service.api->aws_db_instance.staging_db",
+		"aws_lambda_function.worker->aws_s3_bucket.assets",
+		"aws_instance.prod_web->aws_elasticache_cluster.staging_redis",
+	} {
+		if _, ok := flows[fabricated]; ok {
+			t.Errorf("fabricated flow edge present: %s", fabricated)
+		}
+	}
+
+	// Scoped flows that SHOULD exist (same VPC / unambiguous global target).
+	for _, want := range []string{
+		"aws_lb.prod_alb->aws_instance.prod_web",
+		"aws_instance.staging_app->aws_elasticache_cluster.staging_redis",
+		"aws_lambda_function.worker->aws_sqs_queue.jobs",
+	} {
+		if typ, ok := flows[want]; !ok || typ != "flow" {
+			t.Errorf("expected flow edge %s (got type %q, present=%v)", want, typ, ok)
+		}
+	}
+
+	if len(flows) != 16 || len(plain) != 5 {
+		t.Errorf("edge counts drifted: plain=%d (want 5), flows=%d (want 16) — update deliberately if semantics changed",
+			len(plain), len(flows))
 	}
 }

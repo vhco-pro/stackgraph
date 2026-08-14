@@ -403,10 +403,12 @@ func Process(g *Graph, registry interface{ Lookup(string) *MappingResult }, opts
 	if opts.InferFlows {
 		g.InferFlowEdges(opts.FlowPatterns)
 	}
-	// Runs with or without flows: reference edges into a container's wall are
-	// redundant whenever any sibling edge already reaches inside it.
-	g.SuppressRedundantContainerEdges()
 	g.CollapseCountInstances()
+	// Suppression runs AFTER collapse: merging count members re-points edge
+	// endpoints and parents, which can both create new containment-restating
+	// edges and turn a fine edge into a redundant depends_on wall edge.
+	g.suppressContainmentEdges()
+	g.SuppressRedundantContainerEdges()
 	g.FilterInternal()
 }
 

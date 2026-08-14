@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>aws — Infrastructure Diagram</title>
 <style>
-  :root { --bg: #FFFFFF; --panel: #F8F9FA; --border: #DEE2E6; --text: #2D3436; --muted: #6C757D; --accent: #5352C7; }
+  :root { --bg: #FFFFFF; --panel: #F8F9FA; --border: #DEE2E6; --text: #2D3436; --muted: #6C757D; --accent: #7C6BD9; }
   @media (prefers-color-scheme: dark) {
     :root { --bg: #1a1a2e; --panel: #22223A; --border: #4A5568; --text: #E0E0E0; --muted: #9CA3AF; --accent: #8B8AF0; }
   }
@@ -45,7 +45,7 @@
 </header>
 <main>
   <div id="viewport"><div id="canvas">
-<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="1108" height="2785" font-family="Sans-Serif">
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="1118" height="2806" font-family="Sans-Serif">
 <style>
   .sg-bg { fill: #FFFFFF; }
   .sg-text { fill: #2D3436; }
@@ -80,7 +80,7 @@
     .sg-label-vpc { fill: #C084FC; }
   }
 </style>
-<rect class="sg-bg" width="1108" height="2785" fill="#FFFFFF"/>
+<rect class="sg-bg" width="1118" height="2806" fill="#FFFFFF"/>
 <defs><marker id="arrowhead" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto"><polygon class="sg-arrow" points="0 0, 10 3.5, 0 7" fill="#7B8894"/></marker><marker id="arrowhead-flow" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto"><polygon class="sg-arrow-flow" points="0 0, 10 3.5, 0 7" fill="#7C6BD9"/></marker><marker id="arrowhead-dep" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto"><polygon class="sg-arrow-dep" points="0 0, 10 3.5, 0 7" fill="#B8C0C8"/></marker>
 <image id="sgi0" href="data:image/png;base64,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" width="24" height="24"/>
 <image id="sgi1" href="data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPHN2ZyB3aWR0aD0iNDhweCIgaGVpZ2h0PSI0OHB4IiB2aWV3Qm94PSIwIDAgNDggNDgiIHZlcnNpb249IjEuMSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB4bWxuczp4bGluaz0iaHR0cDovL3d3dy53My5vcmcvMTk5OS94bGluayI+CiAgICA8dGl0bGU+SWNvbi1SZXNvdXJjZS9OZXR3b3JraW5nLWFuZC1Db250ZW50LURlbGl2ZXJ5L1Jlc19BbWF6b24tVlBDX0ludGVybmV0LUdhdGV3YXlfNDg8L3RpdGxlPgogICAgPGcgaWQ9Ikljb24tUmVzb3VyY2UvTmV0d29ya2luZy1hbmQtQ29udGVudC1EZWxpdmVyeS9SZXNfQW1hem9uLVZQQ19JbnRlcm5ldC1HYXRld2F5XzQ4IiBzdHJva2U9Im5vbmUiIHN0cm9rZS13aWR0aD0iMSIgZmlsbD0ibm9uZSIgZmlsbC1ydWxlPSJldmVub2RkIj4KICAgICAgICA8cGF0aCBkPSJNMzMuNDMxMiwzNS4xNzc4IEwzMS45MzMyLDM1LjE3NzggTDMxLjkzMzIsMTcuNTAxOCBDMzEuOTMzMiwxNy4xMDg4IDMxLjcwMjIsMTYuNzUxOCAzMS4zNDQyLDE2LjU5MDggTDMxLjI1MjIsMTYuNTQ4OCBDMjkuMjQzMiwxNS42NDE4IDI3LjE2NDIsMTQuNzAyOCAyNC4xNzYyLDE0LjcwMjggQzIxLjA1MzIsMTQuNzAyOCAxOC43NjEyLDE1LjcxMTggMTYuNDk1MiwxNi44MzY4IEMxNi4xNTUyLDE3LjAwNTggMTUuOTQwMiwxNy4zNTI4IDE1Ljk0MDIsMTcuNzMyOCBMMTUuOTQwMiwzNS4xNzc4IEwxNC40NzcyLDM1LjE3NzggTDE0LjQ3NzIsMTYuMzExOCBDMTYuOTExMiwxNC4zMzI4IDIwLjQyMDIsMTMuMjA0OCAyNC4xODYyLDEzLjIwNDggQzI3LjY4NzIsMTMuMjA0OCAzMS4wMjUyLDE0LjIwMTggMzMuNDMxMiwxNS45NTI4IEwzMy40MzEyLDM1LjE3NzggWiBNMjQuMTg2MiwxMS4yMDQ4IEMxOS43NjEyLDExLjIwNDggMTUuNjE3MiwxMi42MjM4IDEyLjgxNTIsMTUuMDk5OCBDMTIuNjAwMiwxNS4yODg4IDEyLjQ3NzIsMTUuNTYxOCAxMi40NzcyLDE1Ljg0ODggTDEyLjQ3NzIsMzYuMTc3OCBDMTIuNDc3MiwzNi43MzA4IDEyLjkyNDIsMzcuMTc3OCAxMy40NzcyLDM3LjE3NzggTDE2Ljk0MDIsMzcuMTc3OCBDMTcuNDkzMiwzNy4xNzc4IDE3Ljk0MDIsMzYuNzMwOCAxNy45NDAyLDM2LjE3NzggTDE3Ljk0MDIsMTguMzU1OCBDMTkuODU5MiwxNy40Mjg4IDIxLjcxOTIsMTYuNzAyOCAyNC4xNzYyLDE2LjcwMjggQzI2LjUxMTIsMTYuNzAyOCAyOC4yMDkyLDE3LjM3NzggMjkuOTMzMiwxOC4xNDg4IEwyOS45MzMyLDM2LjE3NzggQzI5LjkzMzIsMzYuNzMwOCAzMC4zODAyLDM3LjE3NzggMzAuOTMzMiwzNy4xNzc4IEwzNC40MzEyLDM3LjE3NzggQzM0Ljk4NDIsMzcuMTc3OCAzNS40MzEyLDM2LjczMDggMzUuNDMxMiwzNi4xNzc4IEwzNS40MzEyLDE1LjQ1NzggQzM1LjQzMTIsMTUuMTUzOCAzNS4yOTIyLDE0Ljg2NTggMzUuMDUzMiwxNC42NzQ4IEMzMi4yNzkyLDEyLjQ2OTggMjguMzE4MiwxMS4yMDQ4IDI0LjE4NjIsMTEuMjA0OCBMMjQuMTg2MiwxMS4yMDQ4IFogTTIzLjk1NDIsNDMuOTA4OCBDMTIuOTUyMiw0My45MDg4IDMuOTk5MiwzNC45NTY4IDMuOTk5MiwyMy45NTM4IEMzLjk5OTIsMTIuOTUwOCAxMi45NTIyLDMuOTk5OCAyMy45NTQyLDMuOTk5OCBDMzQuOTU3MiwzLjk5OTggNDMuOTA5MiwxMi45NTA4IDQzLjkwOTIsMjMuOTUzOCBDNDMuOTA5MiwzNC45NTY4IDM0Ljk1NzIsNDMuOTA4OCAyMy45NTQyLDQzLjkwODggTDIzLjk1NDIsNDMuOTA4OCBaIE0yMy45NTQyLDEuOTk5OCBDMTEuODQ4MiwxLjk5OTggMS45OTkyLDExLjg0ODggMS45OTkyLDIzLjk1MzggQzEuOTk5MiwzNi4wNjA4IDExLjg0ODIsNDUuOTA4OCAyMy45NTQyLDQ1LjkwODggQzM2LjA2MDIsNDUuOTA4OCA0NS45MDkyLDM2LjA2MDggNDUuOTA5MiwyMy45NTM4IEM0NS45MDkyLDExLjg0ODggMzYuMDYwMiwxLjk5OTggMjMuOTU0MiwxLjk5OTggTDIzLjk1NDIsMS45OTk4IFoiIGlkPSJBV1MtQW1hem9uLVZQQ19JbnRlcm5ldC1nYXRld2F5X1Jlc291cmNlLUljb25fbGlnaHQtYmciIGZpbGw9IiM4QzRGRkYiPjwvcGF0aD4KICAgIDwvZz4KPC9zdmc+" width="64" height="64"/>
@@ -103,54 +103,56 @@
 <image id="sgi18" href="data:image/png;base64,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" width="64" height="64"/>
 <image id="sgi19" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACgAAAAoCAIAAAADnC86AAAAAXNSR0IArs4c6QAAAERlWElmTU0AKgAAAAgAAYdpAAQAAAABAAAAGgAAAAAAA6ABAAMAAAABAAEAAKACAAQAAAABAAAAKKADAAQAAAABAAAAKAAAAAB65masAAAC6klEQVRYCWNU0bdjGAjANBCWguwctZhuIT8a1KNBTbMQYCHSZBFhwbAgX1tLUzVVpR8/frx8/Xbztj0bt+569/4DkSagKSMqVXu7O21aOU9IgL+jf7qNW7BbQGxj+wQFOZktq+fZWpmhmUgkl5FgWe3qaFtTnptZUH3txm00QzXUVKb1NU+YNm/Ttt1oUgS5BCyWlpJYt3RmUlbp1eu3sJolLyu9aHZ/aGzWq9dvsCrAJcgsJCGPSw4oXpidfO7iFTwe+vjp85cvX5Pjwn/8+FlTlhvk5ykkyH/pyvX////jMRYohc/HbGysJ/ZtdPOPfvP2PR5TWFhY9m9d8fffv46+aV+/fkuJj3jx8lV5XQceLUApfKkamHyARuC3FWjEnz9/EjNLgEEN9DyQe+rshYPbV+loqV+5dhOP3fhStZyM9KPHz/BohkvdufcAYitQ5OfPXwePnLCzNofLYmXgtNjJ3io/K+njp09YteEX3LpzX3pi1OwpnVoaqrhUYk9cOenx6YnRHb3T5i1eRTCZYBr98PHThUvXAOO+uabk67dvWHMEljg21NOOCPbzDk38+JEc70Lc8f3Hj1Xrtpw6c2H5/CmXr964fvMOmvuw+Li6JGfF2k3nL15FU0oG98PHT1+/fg0N8N62az+adixxrK6qdP4SFWyF2LTv0HEjA100W4FcLBbLykg9fvIcUyl5Ih8+fuTj5cHUi8ViYN4AehpTKXkiYqIiWEtTLBYfO3nOy82RPGswdbk52Z4+dwlTHIvFs+Yv8/NytTI3xlRNqoiyonxqQtS8xSsxNWJJ1d+//7h09UZfe62EuOinz18/ff4M1MbExMTIyAgkoQDIhiGgOBwAVULYkhJiiTGh9ZWFzZ0Tj586h2kxzkqCn483MyXWxFBXTUUJWFug6GRkROaicMASQLuBJfyWHXsWr1j/+An2QhenxchG04KNJY5pYQ2mmaMWY4YJjURGg5pGAYtp7GhQY4YJjUQAUKMIx4gjnSAAAAAASUVORK5CYII=" width="24" height="24"/>
 </defs>
-<rect class="sg-container-cloud" data-id="aws_cloud.boundary" x="40" y="40" width="1008" height="2685" rx="8" fill="#FFFFFF" stroke="#232F3E" stroke-width="2"/>
-<rect class="sg-container-vpc" data-id="aws_vpc.prod" x="82" y="80" width="798" height="553" rx="8" fill="#F8F4FF" stroke="#8C4FFF" stroke-width="2"/>
-<rect class="sg-container-vpc" data-id="aws_vpc.staging" x="70" y="2153" width="822" height="553" rx="8" fill="#F8F4FF" stroke="#8C4FFF" stroke-width="2"/>
-<rect class="sg-container-default" data-id="aws_ecs_cluster.main" x="403" y="797" width="156" height="184" rx="8" fill="#FFF8E1" stroke="#FF9900" stroke-width="2" stroke-dasharray="6,3"/>
-<rect class="sg-container-subnet" data-id="aws_subnet.prod_public" x="112" y="264" width="272" height="349" rx="8" fill="#F2F7EE" stroke="#7CB342" stroke-width="2"/>
-<rect class="sg-container-subnet" data-id="aws_subnet.prod_private" x="414" y="316" width="436" height="255" rx="8" fill="#F2F7EE" stroke="#7CB342" stroke-width="2"/>
-<rect class="sg-container-subnet" data-id="aws_subnet.staging_public" x="100" y="2337" width="272" height="349" rx="8" fill="#F2F7EE" stroke="#7CB342" stroke-width="2"/>
-<rect class="sg-container-subnet" data-id="aws_subnet.staging_private" x="402" y="2388" width="460" height="255" rx="8" fill="#F2F7EE" stroke="#7CB342" stroke-width="2"/>
-<rect class="sg-container-sg" data-id="aws_security_group.prod_web" x="449" y="356" width="250" height="184" rx="8" fill="#FFF5F5" stroke="#E53935" stroke-width="2" stroke-dasharray="6,3"/>
-<rect class="sg-container-sg" data-id="aws_security_group.staging_web" x="437" y="2428" width="274" height="184" rx="8" fill="#FFF5F5" stroke="#E53935" stroke-width="2" stroke-dasharray="6,3"/>
-<path class="sg-edge" d="M 354.0,510.0 L 399.0,510.0 L 399.0,467.7 L 449.0,467.7" fill="none" stroke="#7B8894" stroke-width="1.5" marker-end="url(#arrowhead)"><title>vpc security group</title></path>
-<path class="sg-edge" d="M 342.0,2582.7 L 387.0,2582.7 L 387.0,2540.3 L 437.0,2540.3" fill="none" stroke="#7B8894" stroke-width="1.5" marker-end="url(#arrowhead)"><title>vpc security group</title></path>
-<path class="sg-edge" d="M 892.0,1494.7 L 922.0,1494.7" fill="none" stroke="#7B8894" stroke-width="1.5" marker-end="url(#arrowhead)"><title>zone</title></path>
-<path class="sg-edge-flow" d="M 238.0,530.7 L 258.0,530.7" fill="none" stroke="#7C6BD9" stroke-width="1.5" stroke-dasharray="5,4" marker-end="url(#arrowhead-flow)"><title>inferred flow</title></path>
-<path class="sg-edge-flow" d="M 238.0,489.3 L 248.0,489.3 L 248.0,457.7 L 479.0,457.7" fill="none" stroke="#7C6BD9" stroke-width="1.5" stroke-dasharray="5,4" marker-end="url(#arrowhead-flow)"><title>inferred flow</title></path>
-<path class="sg-edge-flow" d="M 226.0,2603.3 L 246.0,2603.3" fill="none" stroke="#7C6BD9" stroke-width="1.5" stroke-dasharray="5,4" marker-end="url(#arrowhead-flow)"><title>inferred flow</title></path>
-<path class="sg-edge-flow" d="M 226.0,2562.0 L 236.0,2562.0 L 236.0,2530.3 L 467.0,2530.3" fill="none" stroke="#7C6BD9" stroke-width="1.5" stroke-dasharray="5,4" marker-end="url(#arrowhead-flow)"><title>inferred flow</title></path>
-<path class="sg-edge-flow" d="M 354.0,551.3 L 399.0,551.3 L 399.0,549.7 L 714.0,549.7 L 714.0,499.0 L 724.0,499.0" fill="none" stroke="#7C6BD9" stroke-width="1.5" stroke-dasharray="5,4" marker-end="url(#arrowhead-flow)"><title>inferred flow</title></path>
-<path class="sg-edge-flow" d="M 342.0,2624.0 L 387.0,2624.0 L 387.0,2622.3 L 726.0,2622.3 L 726.0,2571.7 L 736.0,2571.7" fill="none" stroke="#7C6BD9" stroke-width="1.5" stroke-dasharray="5,4" marker-end="url(#arrowhead-flow)"><title>inferred flow</title></path>
-<path class="sg-edge-flow" d="M 575.0,457.7 L 724.0,457.7" fill="none" stroke="#7C6BD9" stroke-width="1.5" stroke-dasharray="5,4" marker-end="url(#arrowhead-flow)"><title>inferred flow</title></path>
-<path class="sg-edge-flow" d="M 563.0,2530.3 L 736.0,2530.3" fill="none" stroke="#7C6BD9" stroke-width="1.5" stroke-dasharray="5,4" marker-end="url(#arrowhead-flow)"><title>inferred flow</title></path>
-<path class="sg-edge-flow" d="M 892.0,1062.7 L 912.0,1062.7 L 912.0,1175.7 L 922.0,1175.7" fill="none" stroke="#7C6BD9" stroke-width="1.5" stroke-dasharray="5,4" marker-end="url(#arrowhead-flow)"><title>inferred flow</title></path>
-<path class="sg-edge-flow" d="M 892.0,1093.7 L 902.0,1093.7 L 902.0,1319.7 L 922.0,1319.7" fill="none" stroke="#7C6BD9" stroke-width="1.5" stroke-dasharray="5,4" marker-end="url(#arrowhead-flow)"><title>inferred flow</title></path>
-<path class="sg-edge-flow" d="M 892.0,1031.7 L 922.0,1031.7" fill="none" stroke="#7C6BD9" stroke-width="1.5" stroke-dasharray="5,4" marker-end="url(#arrowhead-flow)"><title>inferred flow</title></path>
+<rect class="sg-container-cloud" data-id="aws_cloud.boundary" x="40" y="40" width="1018" height="2706" rx="8" fill="#FFFFFF" stroke="#232F3E" stroke-width="2"/>
+<rect class="sg-container-vpc" data-id="aws_vpc.prod" x="82" y="80" width="808" height="563" rx="8" fill="#F8F4FF" stroke="#8C4FFF" stroke-width="2"/>
+<rect class="sg-container-vpc" data-id="aws_vpc.staging" x="70" y="2163" width="832" height="563" rx="8" fill="#F8F4FF" stroke="#8C4FFF" stroke-width="2"/>
+<rect class="sg-container-default" data-id="aws_ecs_cluster.main" x="408" y="807" width="156" height="184" rx="8" fill="#FFF8E1" stroke="#FF9900" stroke-width="2" stroke-dasharray="6,3"/>
+<rect class="sg-container-subnet" data-id="aws_subnet.prod_public" x="112" y="264" width="282" height="359" rx="8" fill="#F2F7EE" stroke="#7CB342" stroke-width="2"/>
+<rect class="sg-container-subnet" data-id="aws_subnet.prod_private" x="424" y="315" width="436" height="255" rx="8" fill="#F2F7EE" stroke="#7CB342" stroke-width="2"/>
+<rect class="sg-container-subnet" data-id="aws_subnet.staging_public" x="100" y="2347" width="282" height="359" rx="8" fill="#F2F7EE" stroke="#7CB342" stroke-width="2"/>
+<rect class="sg-container-subnet" data-id="aws_subnet.staging_private" x="412" y="2398" width="460" height="255" rx="8" fill="#F2F7EE" stroke="#7CB342" stroke-width="2"/>
+<rect class="sg-container-sg" data-id="aws_security_group.prod_web" x="459" y="355" width="250" height="184" rx="8" fill="#FFF5F5" stroke="#E53935" stroke-width="2" stroke-dasharray="6,3"/>
+<rect class="sg-container-sg" data-id="aws_security_group.staging_web" x="447" y="2438" width="274" height="184" rx="8" fill="#FFF5F5" stroke="#E53935" stroke-width="2" stroke-dasharray="6,3"/>
+<path class="sg-edge" d="M 238.0,510.0 L 258.0,510.0 L 258.0,468.0 L 409.0,468.0 L 409.0,467.0 L 459.0,467.0" fill="none" stroke="#7B8894" stroke-width="1.5" marker-end="url(#arrowhead)"><title>security groups</title></path>
+<path class="sg-edge" d="M 364.0,520.3 L 409.0,520.3 L 409.0,477.0 L 459.0,477.0" fill="none" stroke="#7B8894" stroke-width="1.5" marker-end="url(#arrowhead)"><title>vpc security group</title></path>
+<path class="sg-edge" d="M 226.0,2593.0 L 246.0,2593.0 L 246.0,2551.0 L 397.0,2551.0 L 397.0,2550.0 L 447.0,2550.0" fill="none" stroke="#7B8894" stroke-width="1.5" marker-end="url(#arrowhead)"><title>security groups</title></path>
+<path class="sg-edge" d="M 352.0,2603.3 L 397.0,2603.3 L 397.0,2560.0 L 447.0,2560.0" fill="none" stroke="#7B8894" stroke-width="1.5" marker-end="url(#arrowhead)"><title>vpc security group</title></path>
+<path class="sg-edge" d="M 902.0,1505.0 L 932.0,1505.0" fill="none" stroke="#7B8894" stroke-width="1.5" marker-end="url(#arrowhead)"><title>zone</title></path>
+<path class="sg-edge-flow" d="M 238.0,541.0 L 268.0,541.0" fill="none" stroke="#7C6BD9" stroke-width="1.5" stroke-dasharray="5,4" marker-end="url(#arrowhead-flow)"><title>inferred flow</title></path>
+<path class="sg-edge-flow" d="M 238.0,479.0 L 248.0,479.0 L 248.0,457.0 L 489.0,457.0" fill="none" stroke="#7C6BD9" stroke-width="1.5" stroke-dasharray="5,4" marker-end="url(#arrowhead-flow)"><title>inferred flow</title></path>
+<path class="sg-edge-flow" d="M 226.0,2624.0 L 256.0,2624.0" fill="none" stroke="#7C6BD9" stroke-width="1.5" stroke-dasharray="5,4" marker-end="url(#arrowhead-flow)"><title>inferred flow</title></path>
+<path class="sg-edge-flow" d="M 226.0,2562.0 L 236.0,2562.0 L 236.0,2540.0 L 477.0,2540.0" fill="none" stroke="#7C6BD9" stroke-width="1.5" stroke-dasharray="5,4" marker-end="url(#arrowhead-flow)"><title>inferred flow</title></path>
+<path class="sg-edge-flow" d="M 364.0,561.7 L 409.0,561.7 L 409.0,549.0 L 724.0,549.0 L 724.0,498.3 L 734.0,498.3" fill="none" stroke="#7C6BD9" stroke-width="1.5" stroke-dasharray="5,4" marker-end="url(#arrowhead-flow)"><title>inferred flow</title></path>
+<path class="sg-edge-flow" d="M 352.0,2644.7 L 397.0,2644.7 L 397.0,2632.0 L 736.0,2632.0 L 736.0,2581.3 L 746.0,2581.3" fill="none" stroke="#7C6BD9" stroke-width="1.5" stroke-dasharray="5,4" marker-end="url(#arrowhead-flow)"><title>inferred flow</title></path>
+<path class="sg-edge-flow" d="M 585.0,457.0 L 734.0,457.0" fill="none" stroke="#7C6BD9" stroke-width="1.5" stroke-dasharray="5,4" marker-end="url(#arrowhead-flow)"><title>inferred flow</title></path>
+<path class="sg-edge-flow" d="M 573.0,2540.0 L 746.0,2540.0" fill="none" stroke="#7C6BD9" stroke-width="1.5" stroke-dasharray="5,4" marker-end="url(#arrowhead-flow)"><title>inferred flow</title></path>
+<path class="sg-edge-flow" d="M 902.0,1073.0 L 922.0,1073.0 L 922.0,1186.0 L 932.0,1186.0" fill="none" stroke="#7C6BD9" stroke-width="1.5" stroke-dasharray="5,4" marker-end="url(#arrowhead-flow)"><title>inferred flow</title></path>
+<path class="sg-edge-flow" d="M 902.0,1104.0 L 912.0,1104.0 L 912.0,1330.0 L 932.0,1330.0" fill="none" stroke="#7C6BD9" stroke-width="1.5" stroke-dasharray="5,4" marker-end="url(#arrowhead-flow)"><title>inferred flow</title></path>
+<path class="sg-edge-flow" d="M 902.0,1042.0 L 932.0,1042.0" fill="none" stroke="#7C6BD9" stroke-width="1.5" stroke-dasharray="5,4" marker-end="url(#arrowhead-flow)"><title>inferred flow</title></path>
 <use href="#sgi19" x="48" y="44"/>
 <text class="sg-label-cloud" x="78" y="62" font-size="13" font-weight="600" fill="#232F3E">AWS Cloud</text>
 <use href="#sgi0" x="90" y="84"/>
 <text class="sg-label-vpc" x="120" y="102" font-size="13" font-weight="600" fill="#6B21A8">VPC — prod</text>
-<use href="#sgi0" x="78" y="2157"/>
-<text class="sg-label-vpc" x="108" y="2175" font-size="13" font-weight="600" fill="#6B21A8">VPC — staging</text>
-<use href="#sgi17" x="411" y="801"/>
-<text class="sg-label-default" x="441" y="819" font-size="13" font-weight="600" fill="#495057">ECS — main</text>
+<use href="#sgi0" x="78" y="2167"/>
+<text class="sg-label-vpc" x="108" y="2185" font-size="13" font-weight="600" fill="#6B21A8">VPC — staging</text>
+<use href="#sgi17" x="416" y="811"/>
+<text class="sg-label-default" x="446" y="829" font-size="13" font-weight="600" fill="#495057">ECS — main</text>
 <use href="#sgi3" x="120" y="268"/>
 <text class="sg-label-subnet" x="150" y="286" font-size="13" font-weight="600" fill="#558B2F">Subnet — prod_public</text>
-<use href="#sgi3" x="422" y="320"/>
-<text class="sg-label-subnet" x="452" y="338" font-size="13" font-weight="600" fill="#558B2F">Subnet — prod_private</text>
-<use href="#sgi3" x="108" y="2341"/>
-<text class="sg-label-subnet" x="138" y="2359" font-size="13" font-weight="600" fill="#558B2F">Subnet — staging_public</text>
-<use href="#sgi3" x="410" y="2392"/>
-<text class="sg-label-subnet" x="440" y="2410" font-size="13" font-weight="600" fill="#558B2F">Subnet — staging_private</text>
-<use href="#sgi4" x="457" y="360"/>
-<text class="sg-label-sg" x="487" y="378" font-size="13" font-weight="600" fill="#C62828">Security Group — prod_web</text>
-<use href="#sgi4" x="445" y="2432"/>
-<text class="sg-label-sg" x="475" y="2450" font-size="13" font-weight="600" fill="#C62828">Security Group — staging_web</text>
+<use href="#sgi3" x="432" y="319"/>
+<text class="sg-label-subnet" x="462" y="337" font-size="13" font-weight="600" fill="#558B2F">Subnet — prod_private</text>
+<use href="#sgi3" x="108" y="2351"/>
+<text class="sg-label-subnet" x="138" y="2369" font-size="13" font-weight="600" fill="#558B2F">Subnet — staging_public</text>
+<use href="#sgi3" x="420" y="2402"/>
+<text class="sg-label-subnet" x="450" y="2420" font-size="13" font-weight="600" fill="#558B2F">Subnet — staging_private</text>
+<use href="#sgi4" x="467" y="359"/>
+<text class="sg-label-sg" x="497" y="377" font-size="13" font-weight="600" fill="#C62828">Security Group — prod_web</text>
+<use href="#sgi4" x="455" y="2442"/>
+<text class="sg-label-sg" x="485" y="2460" font-size="13" font-weight="600" fill="#C62828">Security Group — staging_web</text>
 <g class="sg-node" data-id="aws_internet_gateway.prod_igw">
-<use href="#sgi1" x="218" y="136"/>
-<text class="sg-text" x="250" y="216" text-anchor="middle" font-size="11" fill="#2D3436">Internet Gateway</text>
-<text class="sg-text" x="250" y="230" text-anchor="middle" font-size="11" fill="#2D3436">prod_igw</text>
+<use href="#sgi1" x="224" y="136"/>
+<text class="sg-text" x="256" y="216" text-anchor="middle" font-size="11" fill="#2D3436">Internet Gateway</text>
+<text class="sg-text" x="256" y="230" text-anchor="middle" font-size="11" fill="#2D3436">prod_igw</text>
 </g>
 <g class="sg-node" data-id="aws_nat_gateway.prod_nat">
 <use href="#sgi2" x="158" y="320"/>
@@ -163,119 +165,119 @@
 <text class="sg-text" x="190" y="558" text-anchor="middle" font-size="11" fill="#2D3436">prod_alb</text>
 </g>
 <g class="sg-node" data-id="aws_instance.prod_web">
-<use href="#sgi6" x="274" y="485"/>
-<text class="sg-text" x="306" y="565" text-anchor="middle" font-size="11" fill="#2D3436">EC2</text>
-<text class="sg-text" x="306" y="579" text-anchor="middle" font-size="11" fill="#2D3436">prod_web</text>
+<use href="#sgi6" x="284" y="495"/>
+<text class="sg-text" x="316" y="575" text-anchor="middle" font-size="11" fill="#2D3436">EC2</text>
+<text class="sg-text" x="316" y="589" text-anchor="middle" font-size="11" fill="#2D3436">prod_web</text>
 </g>
 <g class="sg-node" data-id="aws_internet_gateway.staging_igw">
-<use href="#sgi1" x="206" y="2209"/>
-<text class="sg-text" x="238" y="2289" text-anchor="middle" font-size="11" fill="#2D3436">Internet Gateway</text>
-<text class="sg-text" x="238" y="2303" text-anchor="middle" font-size="11" fill="#2D3436">staging_igw</text>
+<use href="#sgi1" x="212" y="2219"/>
+<text class="sg-text" x="244" y="2299" text-anchor="middle" font-size="11" fill="#2D3436">Internet Gateway</text>
+<text class="sg-text" x="244" y="2313" text-anchor="middle" font-size="11" fill="#2D3436">staging_igw</text>
 </g>
 <g class="sg-node" data-id="aws_nat_gateway.staging_nat">
-<use href="#sgi2" x="146" y="2393"/>
-<text class="sg-text" x="178" y="2473" text-anchor="middle" font-size="11" fill="#2D3436">NAT Gateway</text>
-<text class="sg-text" x="178" y="2487" text-anchor="middle" font-size="11" fill="#2D3436">staging_nat</text>
+<use href="#sgi2" x="146" y="2403"/>
+<text class="sg-text" x="178" y="2483" text-anchor="middle" font-size="11" fill="#2D3436">NAT Gateway</text>
+<text class="sg-text" x="178" y="2497" text-anchor="middle" font-size="11" fill="#2D3436">staging_nat</text>
 </g>
 <g class="sg-node" data-id="aws_lb.staging_alb">
-<use href="#sgi5" x="146" y="2537"/>
-<text class="sg-text" x="178" y="2617" text-anchor="middle" font-size="11" fill="#2D3436">ALB</text>
-<text class="sg-text" x="178" y="2631" text-anchor="middle" font-size="11" fill="#2D3436">staging_alb</text>
+<use href="#sgi5" x="146" y="2547"/>
+<text class="sg-text" x="178" y="2627" text-anchor="middle" font-size="11" fill="#2D3436">ALB</text>
+<text class="sg-text" x="178" y="2641" text-anchor="middle" font-size="11" fill="#2D3436">staging_alb</text>
 </g>
 <g class="sg-node" data-id="aws_instance.staging_web">
-<use href="#sgi6" x="262" y="2557"/>
-<text class="sg-text" x="294" y="2637" text-anchor="middle" font-size="11" fill="#2D3436">EC2</text>
-<text class="sg-text" x="294" y="2651" text-anchor="middle" font-size="11" fill="#2D3436">staging_web</text>
+<use href="#sgi6" x="272" y="2578"/>
+<text class="sg-text" x="304" y="2658" text-anchor="middle" font-size="11" fill="#2D3436">EC2</text>
+<text class="sg-text" x="304" y="2672" text-anchor="middle" font-size="11" fill="#2D3436">staging_web</text>
 </g>
 <g class="sg-node" data-id="aws_db_instance.prod_db">
-<use href="#sgi7" x="449" y="669"/>
-<text class="sg-text" x="481" y="749" text-anchor="middle" font-size="11" fill="#2D3436">RDS</text>
-<text class="sg-text" x="481" y="763" text-anchor="middle" font-size="11" fill="#2D3436">prod_db</text>
+<use href="#sgi7" x="454" y="679"/>
+<text class="sg-text" x="486" y="759" text-anchor="middle" font-size="11" fill="#2D3436">RDS</text>
+<text class="sg-text" x="486" y="773" text-anchor="middle" font-size="11" fill="#2D3436">prod_db</text>
 </g>
 <g class="sg-node" data-id="aws_elasticache_cluster.prod_redis">
-<use href="#sgi8" x="740" y="432"/>
-<text class="sg-text" x="772" y="512" text-anchor="middle" font-size="11" fill="#2D3436">ElastiCache</text>
-<text class="sg-text" x="772" y="526" text-anchor="middle" font-size="11" fill="#2D3436">prod_redis</text>
+<use href="#sgi8" x="750" y="432"/>
+<text class="sg-text" x="782" y="512" text-anchor="middle" font-size="11" fill="#2D3436">ElastiCache</text>
+<text class="sg-text" x="782" y="526" text-anchor="middle" font-size="11" fill="#2D3436">prod_redis</text>
 </g>
 <g class="sg-node" data-id="aws_db_instance.staging_db">
-<use href="#sgi7" x="449" y="1881"/>
-<text class="sg-text" x="481" y="1961" text-anchor="middle" font-size="11" fill="#2D3436">RDS</text>
-<text class="sg-text" x="481" y="1975" text-anchor="middle" font-size="11" fill="#2D3436">staging_db</text>
+<use href="#sgi7" x="454" y="1891"/>
+<text class="sg-text" x="486" y="1971" text-anchor="middle" font-size="11" fill="#2D3436">RDS</text>
+<text class="sg-text" x="486" y="1985" text-anchor="middle" font-size="11" fill="#2D3436">staging_db</text>
 </g>
 <g class="sg-node" data-id="aws_elasticache_cluster.staging_redis">
-<use href="#sgi8" x="752" y="2505"/>
-<text class="sg-text" x="784" y="2585" text-anchor="middle" font-size="11" fill="#2D3436">ElastiCache</text>
-<text class="sg-text" x="784" y="2599" text-anchor="middle" font-size="11" fill="#2D3436">staging_redis</text>
+<use href="#sgi8" x="762" y="2515"/>
+<text class="sg-text" x="794" y="2595" text-anchor="middle" font-size="11" fill="#2D3436">ElastiCache</text>
+<text class="sg-text" x="794" y="2609" text-anchor="middle" font-size="11" fill="#2D3436">staging_redis</text>
 </g>
 <g class="sg-node" data-id="aws_s3_bucket.assets">
-<use href="#sgi9" x="449" y="1305"/>
-<text class="sg-text" x="481" y="1385" text-anchor="middle" font-size="11" fill="#2D3436">S3</text>
-<text class="sg-text" x="481" y="1399" text-anchor="middle" font-size="11" fill="#2D3436">assets</text>
+<use href="#sgi9" x="454" y="1315"/>
+<text class="sg-text" x="486" y="1395" text-anchor="middle" font-size="11" fill="#2D3436">S3</text>
+<text class="sg-text" x="486" y="1409" text-anchor="middle" font-size="11" fill="#2D3436">assets</text>
 </g>
 <g class="sg-node" data-id="aws_s3_bucket.logs">
-<use href="#sgi9" x="449" y="2025"/>
-<text class="sg-text" x="481" y="2105" text-anchor="middle" font-size="11" fill="#2D3436">S3</text>
-<text class="sg-text" x="481" y="2119" text-anchor="middle" font-size="11" fill="#2D3436">logs</text>
+<use href="#sgi9" x="454" y="2035"/>
+<text class="sg-text" x="486" y="2115" text-anchor="middle" font-size="11" fill="#2D3436">S3</text>
+<text class="sg-text" x="486" y="2129" text-anchor="middle" font-size="11" fill="#2D3436">logs</text>
 </g>
 <g class="sg-node" data-id="aws_s3_bucket.backups">
-<use href="#sgi9" x="449" y="1593"/>
-<text class="sg-text" x="481" y="1673" text-anchor="middle" font-size="11" fill="#2D3436">S3</text>
-<text class="sg-text" x="481" y="1687" text-anchor="middle" font-size="11" fill="#2D3436">backups</text>
+<use href="#sgi9" x="454" y="1603"/>
+<text class="sg-text" x="486" y="1683" text-anchor="middle" font-size="11" fill="#2D3436">S3</text>
+<text class="sg-text" x="486" y="1697" text-anchor="middle" font-size="11" fill="#2D3436">backups</text>
 </g>
 <g class="sg-node" data-id="aws_route53_zone.main">
-<use href="#sgi10" x="938" y="1449"/>
-<text class="sg-text" x="970" y="1529" text-anchor="middle" font-size="11" fill="#2D3436">Route 53</text>
-<text class="sg-text" x="970" y="1543" text-anchor="middle" font-size="11" fill="#2D3436">main</text>
+<use href="#sgi10" x="948" y="1459"/>
+<text class="sg-text" x="980" y="1539" text-anchor="middle" font-size="11" fill="#2D3436">Route 53</text>
+<text class="sg-text" x="980" y="1553" text-anchor="middle" font-size="11" fill="#2D3436">main</text>
 </g>
 <g class="sg-node" data-id="aws_route53_record.www">
-<use href="#sgi10" x="812" y="1449"/>
-<text class="sg-text" x="844" y="1529" text-anchor="middle" font-size="11" fill="#2D3436">Route 53</text>
-<text class="sg-text" x="844" y="1543" text-anchor="middle" font-size="11" fill="#2D3436">www</text>
+<use href="#sgi10" x="822" y="1459"/>
+<text class="sg-text" x="854" y="1539" text-anchor="middle" font-size="11" fill="#2D3436">Route 53</text>
+<text class="sg-text" x="854" y="1553" text-anchor="middle" font-size="11" fill="#2D3436">www</text>
 </g>
 <g class="sg-node" data-id="aws_lambda_function.worker">
-<use href="#sgi11" x="812" y="1017"/>
-<text class="sg-text" x="844" y="1097" text-anchor="middle" font-size="11" fill="#2D3436">Lambda</text>
-<text class="sg-text" x="844" y="1111" text-anchor="middle" font-size="11" fill="#2D3436">worker</text>
+<use href="#sgi11" x="822" y="1027"/>
+<text class="sg-text" x="854" y="1107" text-anchor="middle" font-size="11" fill="#2D3436">Lambda</text>
+<text class="sg-text" x="854" y="1121" text-anchor="middle" font-size="11" fill="#2D3436">worker</text>
 </g>
 <g class="sg-node" data-id="aws_sqs_queue.jobs">
-<use href="#sgi12" x="938" y="1274"/>
-<text class="sg-text" x="970" y="1354" text-anchor="middle" font-size="11" fill="#2D3436">SQS</text>
-<text class="sg-text" x="970" y="1368" text-anchor="middle" font-size="11" fill="#2D3436">jobs</text>
+<use href="#sgi12" x="948" y="1284"/>
+<text class="sg-text" x="980" y="1364" text-anchor="middle" font-size="11" fill="#2D3436">SQS</text>
+<text class="sg-text" x="980" y="1378" text-anchor="middle" font-size="11" fill="#2D3436">jobs</text>
 </g>
 <g class="sg-node" data-id="aws_sns_topic.alerts">
-<use href="#sgi13" x="938" y="986"/>
-<text class="sg-text" x="970" y="1066" text-anchor="middle" font-size="11" fill="#2D3436">SNS</text>
-<text class="sg-text" x="970" y="1080" text-anchor="middle" font-size="11" fill="#2D3436">alerts</text>
+<use href="#sgi13" x="948" y="996"/>
+<text class="sg-text" x="980" y="1076" text-anchor="middle" font-size="11" fill="#2D3436">SNS</text>
+<text class="sg-text" x="980" y="1090" text-anchor="middle" font-size="11" fill="#2D3436">alerts</text>
 </g>
 <g class="sg-node" data-id="aws_dynamodb_table.sessions">
-<use href="#sgi14" x="938" y="1130"/>
-<text class="sg-text" x="970" y="1210" text-anchor="middle" font-size="11" fill="#2D3436">DynamoDB</text>
-<text class="sg-text" x="970" y="1224" text-anchor="middle" font-size="11" fill="#2D3436">sessions</text>
+<use href="#sgi14" x="948" y="1140"/>
+<text class="sg-text" x="980" y="1220" text-anchor="middle" font-size="11" fill="#2D3436">DynamoDB</text>
+<text class="sg-text" x="980" y="1234" text-anchor="middle" font-size="11" fill="#2D3436">sessions</text>
 </g>
 <g class="sg-node" data-id="aws_iam_role.lambda">
-<use href="#sgi15" x="449" y="1737"/>
-<text class="sg-text" x="481" y="1817" text-anchor="middle" font-size="11" fill="#2D3436">IAM Role</text>
-<text class="sg-text" x="481" y="1831" text-anchor="middle" font-size="11" fill="#2D3436">lambda</text>
+<use href="#sgi15" x="454" y="1747"/>
+<text class="sg-text" x="486" y="1827" text-anchor="middle" font-size="11" fill="#2D3436">IAM Role</text>
+<text class="sg-text" x="486" y="1841" text-anchor="middle" font-size="11" fill="#2D3436">lambda</text>
 </g>
 <g class="sg-node" data-id="aws_cloudwatch_log_group.api">
-<use href="#sgi16" x="449" y="1161"/>
-<text class="sg-text" x="481" y="1241" text-anchor="middle" font-size="11" fill="#2D3436">CloudWatch Logs</text>
-<text class="sg-text" x="481" y="1255" text-anchor="middle" font-size="11" fill="#2D3436">api</text>
+<use href="#sgi16" x="454" y="1171"/>
+<text class="sg-text" x="486" y="1251" text-anchor="middle" font-size="11" fill="#2D3436">CloudWatch Logs</text>
+<text class="sg-text" x="486" y="1265" text-anchor="middle" font-size="11" fill="#2D3436">api</text>
 </g>
 <g class="sg-node" data-id="aws_ecs_service.api">
-<use href="#sgi18" x="449" y="853"/>
-<text class="sg-text" x="481" y="933" text-anchor="middle" font-size="11" fill="#2D3436">Fargate</text>
-<text class="sg-text" x="481" y="947" text-anchor="middle" font-size="11" fill="#2D3436">api</text>
+<use href="#sgi18" x="454" y="863"/>
+<text class="sg-text" x="486" y="943" text-anchor="middle" font-size="11" fill="#2D3436">Fargate</text>
+<text class="sg-text" x="486" y="957" text-anchor="middle" font-size="11" fill="#2D3436">api</text>
 </g>
 <g class="sg-node" data-id="aws_instance.prod_app">
-<use href="#sgi6" x="495" y="412"/>
-<text class="sg-text" x="527" y="492" text-anchor="middle" font-size="11" fill="#2D3436">EC2</text>
-<text class="sg-text" x="527" y="506" text-anchor="middle" font-size="11" fill="#2D3436">prod_app (x3)</text>
+<use href="#sgi6" x="505" y="411"/>
+<text class="sg-text" x="537" y="491" text-anchor="middle" font-size="11" fill="#2D3436">EC2</text>
+<text class="sg-text" x="537" y="505" text-anchor="middle" font-size="11" fill="#2D3436">prod_app (x3)</text>
 </g>
 <g class="sg-node" data-id="aws_instance.staging_app">
-<use href="#sgi6" x="483" y="2484"/>
-<text class="sg-text" x="515" y="2564" text-anchor="middle" font-size="11" fill="#2D3436">EC2</text>
-<text class="sg-text" x="515" y="2578" text-anchor="middle" font-size="11" fill="#2D3436">staging_app (x3)</text>
+<use href="#sgi6" x="493" y="2494"/>
+<text class="sg-text" x="525" y="2574" text-anchor="middle" font-size="11" fill="#2D3436">EC2</text>
+<text class="sg-text" x="525" y="2588" text-anchor="middle" font-size="11" fill="#2D3436">staging_app (x3)</text>
 </g>
 </svg>
 </div></div>
@@ -970,10 +972,22 @@
   ],
   "edges": [
     {
+      "source": "aws_lb.prod_alb",
+      "target": "aws_security_group.prod_web",
+      "type": "security_groups",
+      "label": "security groups"
+    },
+    {
       "source": "aws_instance.prod_web",
       "target": "aws_security_group.prod_web",
       "type": "vpc_security_group_ids",
       "label": "vpc security group"
+    },
+    {
+      "source": "aws_lb.staging_alb",
+      "target": "aws_security_group.staging_web",
+      "type": "security_groups",
+      "label": "security groups"
     },
     {
       "source": "aws_instance.staging_web",
@@ -1046,7 +1060,7 @@
   "metadata": {
     "provider": "aws",
     "resource_count": 36,
-    "generated_at": "2026-08-14T00:57:49Z",
+    "generated_at": "2026-08-14T01:20:28Z",
     "generator_version": "dev",
     "input_mode": "state"
   }
@@ -1101,7 +1115,13 @@
     if (dragDistance > 5) return; // was a pan, not a click
     var hit = document.elementFromPoint(e.clientX, e.clientY);
     var el = hit && hit.closest ? hit.closest('[data-id]') : null;
-    if (!el) { panel.classList.remove('open'); return; }
+    if (!el) {
+      // Clicking an edge (its tooltip invites it) keeps the panel open;
+      // only a true background click dismisses it.
+      var cls = hit && hit.getAttribute ? (hit.getAttribute('class') || '') : '';
+      if (cls.indexOf('sg-edge') === -1) panel.classList.remove('open');
+      return;
+    }
     var node = nodesById[el.getAttribute('data-id')];
     if (node) showPanel(node);
   });
@@ -1137,7 +1157,8 @@
     panel.querySelector('.close').onclick = function () { panel.classList.remove('open'); };
   }
 
-  // Search filter: dims non-matching leaf nodes
+  // Search filter: dims non-matching leaf nodes; edges dim wholesale while a
+  // query is active so full-brightness lines don't drown the matches.
   document.getElementById('search').addEventListener('input', function (e) {
     var q = e.target.value.toLowerCase();
     canvas.querySelectorAll('.sg-node').forEach(function (el) {
@@ -1145,6 +1166,9 @@
       var node = nodesById[el.getAttribute('data-id')] || {};
       var hay = id + ' ' + (node.service || '') + ' ' + (node.label || '');
       el.classList.toggle('dim', q !== '' && hay.toLowerCase().indexOf(q) === -1);
+    });
+    canvas.querySelectorAll('path[class^="sg-edge"]').forEach(function (el) {
+      el.style.opacity = q === '' ? '' : '0.15';
     });
   });
 })();

@@ -13,6 +13,7 @@ Input (state/plan/HCL/DOT)
   → ApplyMappings again (styles the synthesized cloud-boundary nodes)
   → InferFlowEdges (opt-in --infer-flows, scoped to one network container)
   → CollapseCountInstances (containment-preserving)
+  → Suppress redundant edges (containment restatement; depends_on wall edges)
   → FilterInternal
   → Render (JSON, DOT, SVG, HTML)
 ```
@@ -136,14 +137,20 @@ list values. A name match is only accepted for the declared `group_parent` type
 
 A second vocabulary, `member_ref`, covers member-list containment: a container
 names the attribute other resources use to reference it (security groups via
-`vpc_security_group_ids`), and listing resources become its children while the
-container moves into their subnet. `network_scope: true` marks network
+`vpc_security_group_ids`). A container can only live in one place, so it moves
+into — and adopts — the largest same-parent cohort of its members (plus any
+parentless ones); minority members stay in their declared subnets, with their
+reference edge to the container showing the membership. `network_scope: true` marks network
 boundaries that heuristic flow edges may never cross.
 
 Fallbacks, in order: edge-based placement (DOT/HCL inputs), member-list
 containment, and a synthesized per-provider cloud boundary (any provider —
-style it via a `<provider>_cloud` mapping entry). Edges that merely restate
-containment are suppressed. Count/for_each collapse preserves the members'
+style it via a `<provider>_cloud` mapping entry). Two suppression rules run
+after collapse, both provably redundant: edges that restate containment
+(nesting already shows them), and `depends_on` edges into a container's wall
+when another edge already reaches inside it. Typed reference edges — evidence
+— are never deleted; when a reference is discovered for a pair that only had a
+`depends_on` edge, the edge is upgraded to the evidence type. Count/for_each collapse preserves the members'
 parent and rewrites all links; members spread across different parents stay
 expanded.
 
@@ -153,9 +160,11 @@ expanded.
 2. Implicit reference edges: any curated attribute (scalar or list of strings)
    whose value equals another node's id — typed by attribute name.
 3. Optional `--infer-flows`: heuristic type-pair flows declared in the mapping
-   YAML `flows:` sections, connected **only within the same network container**
-   (declared via `network_scope`) so multi-environment states never get
-   invented cross-environment traffic.
+   YAML `flows:` sections, purely additive and rendered dashed. A pair connects
+   only within the same network container (declared via `network_scope`), so
+   multi-environment states never get invented cross-environment traffic;
+   outside any network container a flow is drawn only when the target is
+   unambiguous (a second same-type candidate suppresses the guess).
 
 Edges are deduplicated per source→target pair regardless of type.
 

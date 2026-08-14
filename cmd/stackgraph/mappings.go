@@ -48,7 +48,7 @@ func newMappingsCoverageCmd() *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("failed to read input file: %w", err)
 			}
-			g, err := parseByType(detectContentType(data), data, registry.ParentRefAttrs())
+			g, err := parseByType(detectContentType(data), data, registry.RefAttrs())
 			if err != nil {
 				return fmt.Errorf("failed to parse input: %w", err)
 			}

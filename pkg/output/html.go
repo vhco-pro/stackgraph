@@ -35,11 +35,11 @@ func RenderHTML(g *sgraph.Graph) ([]byte, error) {
 	// Page chrome shares the SVG renderer's palette so the canvas never floats
 	// on a mismatched ground when the dark theme is retuned.
 	fmt.Fprintf(&b, `<style>
-  :root { --bg: %s; --panel: #F8F9FA; --border: %s; --text: %s; --muted: #6C757D; --accent: #5352C7; }
+  :root { --bg: %s; --panel: #F8F9FA; --border: %s; --text: %s; --muted: #6C757D; --accent: %s; }
   @media (prefers-color-scheme: dark) {
-    :root { --bg: %s; --panel: #22223A; --border: %s; --text: %s; --muted: %s; --accent: #8B8AF0; }
-  }`, paletteLightBG, paletteLightBorder, paletteLightText,
-		paletteDarkBG, paletteDarkBorder, paletteDarkText, paletteDarkEdge)
+    :root { --bg: %s; --panel: #22223A; --border: %s; --text: %s; --muted: %s; --accent: %s; }
+  }`, paletteLightBG, paletteLightBorder, paletteLightText, paletteLightFlow,
+		paletteDarkBG, paletteDarkBorder, paletteDarkText, paletteDarkEdge, paletteDarkFlow)
 	b.WriteString(`
   * { box-sizing: border-box; }
   body { margin: 0; height: 100vh; display: flex; flex-direction: column; background: var(--bg); color: var(--text);
@@ -136,7 +136,13 @@ func RenderHTML(g *sgraph.Graph) ([]byte, error) {
     if (dragDistance > 5) return; // was a pan, not a click
     var hit = document.elementFromPoint(e.clientX, e.clientY);
     var el = hit && hit.closest ? hit.closest('[data-id]') : null;
-    if (!el) { panel.classList.remove('open'); return; }
+    if (!el) {
+      // Clicking an edge (its tooltip invites it) keeps the panel open;
+      // only a true background click dismisses it.
+      var cls = hit && hit.getAttribute ? (hit.getAttribute('class') || '') : '';
+      if (cls.indexOf('sg-edge') === -1) panel.classList.remove('open');
+      return;
+    }
     var node = nodesById[el.getAttribute('data-id')];
     if (node) showPanel(node);
   });
@@ -172,7 +178,8 @@ func RenderHTML(g *sgraph.Graph) ([]byte, error) {
     panel.querySelector('.close').onclick = function () { panel.classList.remove('open'); };
   }
 
-  // Search filter: dims non-matching leaf nodes
+  // Search filter: dims non-matching leaf nodes; edges dim wholesale while a
+  // query is active so full-brightness lines don't drown the matches.
   document.getElementById('search').addEventListener('input', function (e) {
     var q = e.target.value.toLowerCase();
     canvas.querySelectorAll('.sg-node').forEach(function (el) {
@@ -180,6 +187,9 @@ func RenderHTML(g *sgraph.Graph) ([]byte, error) {
       var node = nodesById[el.getAttribute('data-id')] || {};
       var hay = id + ' ' + (node.service || '') + ' ' + (node.label || '');
       el.classList.toggle('dim', q !== '' && hay.toLowerCase().indexOf(q) === -1);
+    });
+    canvas.querySelectorAll('path[class^="sg-edge"]').forEach(function (el) {
+      el.style.opacity = q === '' ? '' : '0.15';
     });
   });
 })();

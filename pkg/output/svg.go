@@ -56,51 +56,79 @@ const (
 )
 
 // edgeClass is the single table describing how an edge class renders: it
-// drives the arrowhead markers, the light/dark CSS rules, and the per-edge
-// stroke/dash attributes. Add a class here and every consumer picks it up.
+// drives the arrowhead markers, the light/dark CSS rules (including the base
+// .sg-edge/.sg-arrow rules), and the per-edge stroke/dash attributes. Add a
+// class here and every consumer picks it up.
 type edgeClass struct {
-	suffix string // CSS class + marker id suffix ("" = default reference edge)
-	light  string
-	dark   string
-	dash   string
-	title  string
+	edgeType string // graph Edge.Type this class serves ("" = reference edges)
+	suffix   string // CSS class + marker id suffix ("" = default)
+	light    string
+	dark     string
+	dash     string
+	title    string
+
+	// precomputed strings (filled in by init)
+	cssClass   string
+	arrowClass string
+	markerID   string
+	markerAttr string
+	dashAttr   string
 }
 
 var edgeClasses = []edgeClass{
-	{suffix: "", light: paletteLightEdge, dark: paletteDarkEdge},
-	{suffix: "flow", light: paletteLightFlow, dark: paletteDarkFlow, dash: "5,4", title: "inferred flow"},
-	{suffix: "dep", light: paletteLightDep, dark: paletteDarkDep, dash: "2,3", title: "depends on"},
+	{edgeType: "", suffix: "", light: paletteLightEdge, dark: paletteDarkEdge},
+	{edgeType: "flow", suffix: "flow", light: paletteLightFlow, dark: paletteDarkFlow, dash: "5,4", title: "inferred flow"},
+	{edgeType: "depends_on", suffix: "dep", light: paletteLightDep, dark: paletteDarkDep, dash: "2,3", title: "depends on"},
+}
+
+// edgeClassByType resolves Edge.Type → table row; unknown types (attribute-
+// named reference edges) fall through to the default row.
+var edgeClassByType = map[string]*edgeClass{}
+
+func init() {
+	for i := range edgeClasses {
+		c := &edgeClasses[i]
+		c.cssClass, c.arrowClass, c.markerID = "sg-edge", "sg-arrow", "arrowhead"
+		if c.suffix != "" {
+			c.cssClass += "-" + c.suffix
+			c.arrowClass += "-" + c.suffix
+			c.markerID += "-" + c.suffix
+		}
+		c.markerAttr = fmt.Sprintf(` marker-end="url(#%s)"`, c.markerID)
+		if c.dash != "" {
+			c.dashAttr = fmt.Sprintf(` stroke-dasharray="%s"`, c.dash)
+		}
+		edgeClassByType[c.edgeType] = c
+	}
 }
 
 // edgeVisual resolves an edge to its class and tooltip. Reference edges
 // (typed by attribute name) are the solid default class.
-func edgeVisual(e *sgraph.Edge) (class edgeClass, title string) {
-	switch e.Type {
-	case "flow":
-		return edgeClasses[1], edgeClasses[1].title
-	case "depends_on":
-		return edgeClasses[2], edgeClasses[2].title
-	default:
-		if e.Label != "" {
-			return edgeClasses[0], e.Label
-		}
-		return edgeClasses[0], e.Type
+func edgeVisual(e *sgraph.Edge) (class *edgeClass, title string) {
+	c, ok := edgeClassByType[e.Type]
+	if !ok {
+		c = edgeClassByType[""]
 	}
+	if c.title != "" {
+		return c, c.title
+	}
+	if e.Label != "" {
+		return c, e.Label
+	}
+	return c, e.Type
 }
 
-// edgeClassCSS generates the class rules for every edge class in one palette.
+// edgeClassCSS generates the stroke/fill rules for every edge class —
+// including the base .sg-edge/.sg-arrow rules — in one palette.
 func edgeClassCSS(dark bool, indent string) string {
 	var b strings.Builder
 	for _, c := range edgeClasses {
-		if c.suffix == "" {
-			continue // the base .sg-edge/.sg-arrow rules are in the template
-		}
 		color := c.light
 		if dark {
 			color = c.dark
 		}
-		fmt.Fprintf(&b, "%s.sg-edge-%s { stroke: %s; }\n", indent, c.suffix, color)
-		fmt.Fprintf(&b, "%s.sg-arrow-%s { fill: %s; }\n", indent, c.suffix, color)
+		fmt.Fprintf(&b, "%s.%s { stroke: %s; }\n", indent, c.cssClass, color)
+		fmt.Fprintf(&b, "%s.%s { fill: %s; }\n", indent, c.arrowClass, color)
 	}
 	return b.String()
 }
@@ -385,13 +413,8 @@ func renderNode(b *strings.Builder, n *sgraph.Node, pos NodePosition, iconRefs m
 func buildIconDefs(b *strings.Builder, g *sgraph.Graph) map[string]string {
 	b.WriteString("<defs>")
 	for _, c := range edgeClasses {
-		id, class := "arrowhead", "sg-arrow"
-		if c.suffix != "" {
-			id += "-" + c.suffix
-			class += "-" + c.suffix
-		}
 		fmt.Fprintf(b, `<marker id="%s" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto"><polygon class="%s" points="0 0, 10 3.5, 0 7" fill="%s"/></marker>`,
-			id, class, c.light)
+			c.markerID, c.arrowClass, c.light)
 	}
 	b.WriteString("\n")
 

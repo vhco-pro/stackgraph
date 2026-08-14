@@ -452,22 +452,18 @@ func generateElkSVG(g *sgraph.Graph, positions map[string]NodePosition, elkEdges
   .sg-bg { fill: %s; }
   .sg-text { fill: %s; }
   .sg-text-sm { fill: %s; }
-  .sg-edge { stroke: %s; }
-  .sg-arrow { fill: %s; }
 %s  .sg-node-box { fill: %s; stroke: %s; }
   @media (prefers-color-scheme: dark) {
     .sg-bg { fill: %s; }
     .sg-text { fill: %s; }
     .sg-text-sm { fill: %s; }
-    .sg-edge { stroke: %s; }
-    .sg-arrow { fill: %s; }
 %s    .sg-node-box { fill: %s; stroke: %s; }
 %s  }
 </style>`,
-		paletteLightBG, paletteLightText, paletteLightText, paletteLightEdge, paletteLightEdge,
+		paletteLightBG, paletteLightText, paletteLightText,
 		edgeClassCSS(false, "  "),
 		paletteLightBG, paletteLightBorder,
-		paletteDarkBG, paletteDarkText, paletteDarkTextSm, paletteDarkEdge, paletteDarkEdge,
+		paletteDarkBG, paletteDarkText, paletteDarkTextSm,
 		edgeClassCSS(true, "    "),
 		paletteDarkBox, paletteDarkBorder,
 		roleDarkCSS(g))
@@ -578,30 +574,19 @@ func renderElkEdge(b *strings.Builder, section ElkSection, arrowhead bool, meta 
 	// End point
 	fmt.Fprintf(&d, " L %.1f,%.1f", section.EndPoint.X, section.EndPoint.Y)
 
-	class, stroke, title := "sg-edge", paletteLightEdge, ""
-	markerID := "arrowhead"
-	dashAttr := ""
+	ec, title := edgeClassByType[""], ""
 	if meta != nil {
-		ec, tooltip := edgeVisual(meta)
-		title = tooltip
-		stroke = ec.light
-		if ec.suffix != "" {
-			class = "sg-edge-" + ec.suffix
-			markerID = "arrowhead-" + ec.suffix
-		}
-		if ec.dash != "" {
-			dashAttr = fmt.Sprintf(` stroke-dasharray="%s"`, ec.dash)
-		}
+		ec, title = edgeVisual(meta)
 	}
 	marker := ""
 	if arrowhead {
-		marker = fmt.Sprintf(` marker-end="url(#%s)"`, markerID)
+		marker = ec.markerAttr
 	}
 	titleEl := ""
 	if title != "" {
 		titleEl = "<title>" + escapeXMLStr(title) + "</title>"
 	}
 	fmt.Fprintf(b, `<path class="%s" d="%s" fill="none" stroke="%s" stroke-width="1.5"%s%s>%s</path>`,
-		class, d.String(), stroke, dashAttr, marker, titleEl)
+		ec.cssClass, d.String(), ec.light, ec.dashAttr, marker, titleEl)
 	b.WriteString("\n")
 }

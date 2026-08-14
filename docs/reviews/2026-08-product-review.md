@@ -104,8 +104,9 @@ that produced the smoking gun now renders correctly:
 **Same input as the smoking gun.** Both VPCs contain their subnets; NAT sits in
 the public subnet, the IGW in the VPC; the collapsed `EC2 staging_app (x3)`
 sits inside its security group; labels no longer truncate; edge count dropped
-from 74 (mostly fabricated) to 5 evidence-based edges (23 with `--infer-flows`,
-all scoped to a single network container — no more prod → staging fiction).
+from 74 (mostly fabricated) to 5 evidence-based edges (16 with `--infer-flows` on
+the current build — flows are purely additive and scoped; the Release-1 build
+drew 23 before the edge-quality pass below).
 
 | Fixed | Preserved |
 |---|---|
@@ -155,11 +156,13 @@ inferred flows, solid gray for evidence, dotted for build dependencies, with
 hover tooltips, all driven by one style table — and removed the remaining
 fabricated or redundant lines: global-scope flows now require an unambiguous
 target (no more Fargate → both RDS instances or Lambda → all three buckets),
-container-wall arrows that duplicate an edge into the container are suppressed
-(except membership evidence, which is protected), and a security group
+redundant `depends_on` wall arrows are suppressed while typed reference edges
+— evidence — are never deleted (`--infer-flows` is purely additive), and a
+security group
 spanning subnets adopts its largest member cohort instead of dragging
-instances out of their declared subnets. The realistic fixture went from 23
-drawn edges to 14, every one meaningful.
+instances out of their declared subnets. The realistic fixture settled at 16
+drawn edges with flows (5 without), every one meaningful, pinned by a
+pipeline-level contract test.
 
 ![Dark-mode render with differentiated edge classes](assets/2026-08-edges-dark.png)
 
