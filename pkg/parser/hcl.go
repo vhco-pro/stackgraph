@@ -9,7 +9,7 @@ import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/michielvha/logger"
-	"github.com/michielvha/stackgraph/pkg/graph"
+	"github.com/vhco-pro/stackgraph/pkg/graph"
 )
 
 // ParseHCLDir parses all .tf files in a directory and returns a graph based on

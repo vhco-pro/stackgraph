@@ -2,7 +2,7 @@
 package output
 
 import (
-	"github.com/michielvha/stackgraph/pkg/graph"
+	"github.com/vhco-pro/stackgraph/pkg/graph"
 )
 
 // RenderJSON serializes the graph to its JSON representation.

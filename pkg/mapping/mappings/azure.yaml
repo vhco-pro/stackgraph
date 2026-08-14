@@ -1,5 +1,4 @@
 resources:
-  # Compute
   azurerm_virtual_machine:
     service: Virtual Machine
     category: Compute
@@ -12,14 +11,96 @@ resources:
     service: Windows VM
     category: Compute
     icon: azure/compute/10021-icon-service-Virtual-Machine.svg
-
-  # Containers
+  azurerm_linux_virtual_machine_scale_set:
+    service: VM Scale Set
+    category: Compute
+    icon: azure/compute/10034-icon-service-VM-Scale-Sets.svg
+  azurerm_windows_virtual_machine_scale_set:
+    service: VM Scale Set
+    category: Compute
+    icon: azure/compute/10034-icon-service-VM-Scale-Sets.svg
+  azurerm_availability_set:
+    service: Availability Set
+    category: Compute
+    icon: azure/compute/10025-icon-service-Availability-Sets.svg
+  azurerm_managed_disk:
+    service: Managed Disk
+    category: Storage
+    icon: azure/compute/10032-icon-service-Disks.svg
+  azurerm_snapshot:
+    service: Disk Snapshot
+    category: Storage
+    icon: azure/compute/10026-icon-service-Disks-Snapshots.svg
+  azurerm_ssh_public_key:
+    service: SSH Key
+    category: Compute
+    icon: azure/other/00412-icon-service-SSH-Keys.svg
+  azurerm_service_plan:
+    service: App Service Plan
+    category: Compute
+    icon: azure/app services/00046-icon-service-App-Service-Plans.svg
+  azurerm_app_service_plan:
+    service: App Service Plan
+    category: Compute
+    icon: azure/app services/00046-icon-service-App-Service-Plans.svg
+  azurerm_linux_web_app:
+    service: App Service
+    category: Compute
+    icon: azure/app services/10035-icon-service-App-Services.svg
+  azurerm_windows_web_app:
+    service: App Service
+    category: Compute
+    icon: azure/app services/10035-icon-service-App-Services.svg
+  azurerm_app_service:
+    service: App Service
+    category: Compute
+    icon: azure/app services/10035-icon-service-App-Services.svg
+  azurerm_static_web_app:
+    service: Static Web App
+    category: Compute
+    icon: azure/web/01007-icon-service-Static-Apps.svg
+  azurerm_function_app:
+    service: Function App
+    category: Compute
+    icon: azure/compute/10029-icon-service-Function-Apps.svg
+  azurerm_linux_function_app:
+    service: Function App
+    category: Compute
+    icon: azure/compute/10029-icon-service-Function-Apps.svg
+  azurerm_windows_function_app:
+    service: Function App
+    category: Compute
+    icon: azure/compute/10029-icon-service-Function-Apps.svg
+  azurerm_logic_app_workflow:
+    service: Logic App
+    category: Compute
+    icon: azure/integration/02631-icon-service-Logic-Apps.svg
   azurerm_kubernetes_cluster:
     service: AKS
     category: Containers
     icon: azure/containers/10023-icon-service-Kubernetes-Services.svg
-
-  # Networking
+  azurerm_kubernetes_cluster_node_pool:
+    service: AKS Node Pool
+    category: Containers
+    icon: azure/containers/10023-icon-service-Kubernetes-Services.svg
+    group_parent: azurerm_subnet
+    parent_ref: vnet_subnet_id
+  azurerm_container_registry:
+    service: Container Registry
+    category: Containers
+    icon: azure/containers/10105-icon-service-Container-Registries.svg
+  azurerm_container_group:
+    service: Container Instances
+    category: Containers
+    icon: azure/compute/10104-icon-service-Container-Instances.svg
+  azurerm_container_app:
+    service: Container App
+    category: Containers
+    icon: azure/other/02884-icon-service-Worker-Container-App.svg
+  azurerm_container_app_environment:
+    service: Container Apps Environment
+    category: Containers
+    icon: azure/other/02989-icon-service-Container-Apps-Environments.svg
   azurerm_virtual_network:
     service: Virtual Network
     category: Networking
@@ -27,6 +108,13 @@ resources:
     is_group: true
     group_level: 1
     group_parent: azurerm_resource_group
+    parent_ref: resource_group_name
+    style:
+      fill: '#E7F4E4'
+      stroke: '#50E6FF'
+      label: '#0078D4'
+      role: vpc
+    network_scope: true
   azurerm_subnet:
     service: Subnet
     category: Networking
@@ -34,6 +122,16 @@ resources:
     is_group: true
     group_level: 2
     group_parent: azurerm_virtual_network
+    parent_ref: virtual_network_name
+    style:
+      fill: '#F2F2F2'
+      stroke: '#B3B3B3'
+      label: '#666666'
+      role: subnet
+  azurerm_virtual_network_peering:
+    service: VNet Peering
+    category: Networking
+    icon: azure/networking/10061-icon-service-Virtual-Networks.svg
   azurerm_network_security_group:
     service: NSG
     category: Networking
@@ -41,10 +139,70 @@ resources:
     is_group: true
     group_level: 3
     group_parent: azurerm_subnet
+    style:
+      fill: '#FFF5F5'
+      stroke: '#E53935'
+      label: '#C62828'
+      role: sg
+      dashed: true
+  azurerm_network_security_rule:
+    service: NSG Rule
+    category: Networking
+    icon: azure/networking/10067-icon-service-Network-Security-Groups.svg
+    group_parent: azurerm_network_security_group
+    parent_ref: network_security_group_name
+  azurerm_network_interface:
+    service: Network Interface
+    category: Networking
+    icon: azure/networking/10080-icon-service-Network-Interfaces.svg
   azurerm_public_ip:
     service: Public IP
     category: Networking
     icon: azure/networking/10069-icon-service-Public-IP-Addresses.svg
+  azurerm_public_ip_prefix:
+    service: Public IP Prefix
+    category: Networking
+    icon: azure/networking/10372-icon-service-Public-IP-Prefixes.svg
+  azurerm_nat_gateway:
+    service: NAT Gateway
+    category: Networking
+    icon: azure/networking/10310-icon-service-NAT.svg
+  azurerm_route_table:
+    service: Route Table
+    category: Networking
+    icon: azure/networking/10082-icon-service-Route-Tables.svg
+  azurerm_route:
+    service: Route
+    category: Networking
+    icon: azure/networking/10082-icon-service-Route-Tables.svg
+  azurerm_bastion_host:
+    service: Bastion
+    category: Networking
+    icon: azure/networking/02422-icon-service-Bastions.svg
+  azurerm_virtual_network_gateway:
+    service: VNet Gateway
+    category: Networking
+    icon: azure/networking/10063-icon-service-Virtual-Network-Gateways.svg
+  azurerm_local_network_gateway:
+    service: Local Network Gateway
+    category: Networking
+    icon: azure/networking/10077-icon-service-Local-Network-Gateways.svg
+  azurerm_express_route_circuit:
+    service: ExpressRoute
+    category: Networking
+    icon: azure/networking/10079-icon-service-ExpressRoute-Circuits.svg
+  azurerm_firewall:
+    service: Azure Firewall
+    category: Networking
+    icon: azure/networking/10084-icon-service-Firewalls.svg
+  azurerm_firewall_policy:
+    service: Firewall Policy
+    category: Networking
+    icon: azure/networking/00272-icon-service-Azure-Firewall-Policy.svg
+  azurerm_web_application_firewall_policy:
+    service: WAF Policy
+    category: Security
+    icon: azure/networking/10362-icon-service-Web-Application-Firewall-Policies(WAF).svg
   azurerm_application_gateway:
     service: App Gateway
     category: Networking
@@ -53,22 +211,200 @@ resources:
     service: Load Balancer
     category: Networking
     icon: azure/networking/10062-icon-service-Load-Balancers.svg
-
-  # Databases
+  azurerm_lb_backend_address_pool:
+    service: LB Backend Pool
+    category: Networking
+    icon: azure/networking/10062-icon-service-Load-Balancers.svg
+  azurerm_lb_rule:
+    service: LB Rule
+    category: Networking
+    icon: azure/networking/10062-icon-service-Load-Balancers.svg
+  azurerm_lb_probe:
+    service: LB Probe
+    category: Networking
+    icon: azure/networking/10062-icon-service-Load-Balancers.svg
+  azurerm_dns_zone:
+    service: DNS Zone
+    category: Networking
+    icon: azure/networking/10064-icon-service-DNS-Zones.svg
+  azurerm_dns_a_record:
+    service: DNS Record
+    category: Networking
+    icon: azure/networking/10064-icon-service-DNS-Zones.svg
+  azurerm_dns_cname_record:
+    service: DNS Record
+    category: Networking
+    icon: azure/networking/10064-icon-service-DNS-Zones.svg
+  azurerm_private_dns_zone:
+    service: Private DNS Zone
+    category: Networking
+    icon: azure/networking/10064-icon-service-DNS-Zones.svg
+  azurerm_private_dns_zone_virtual_network_link:
+    service: Private DNS Link
+    category: Networking
+    icon: azure/networking/10064-icon-service-DNS-Zones.svg
+  azurerm_private_endpoint:
+    service: Private Endpoint
+    category: Networking
+    icon: azure/other/02579-icon-service-Private-Endpoints.svg
+    group_parent: azurerm_subnet
+    parent_ref: subnet_id
+  azurerm_traffic_manager_profile:
+    service: Traffic Manager
+    category: Networking
+    icon: azure/networking/10065-icon-service-Traffic-Manager-Profiles.svg
+  azurerm_cdn_profile:
+    service: CDN
+    category: Networking
+    icon: azure/app services/00056-icon-service-CDN-Profiles.svg
+  azurerm_cdn_endpoint:
+    service: CDN Endpoint
+    category: Networking
+    icon: azure/app services/00056-icon-service-CDN-Profiles.svg
+  azurerm_cdn_frontdoor_profile:
+    service: Front Door
+    category: Networking
+    icon: azure/networking/10073-icon-service-Front-Door-and-CDN-Profiles.svg
+  azurerm_frontdoor:
+    service: Front Door
+    category: Networking
+    icon: azure/networking/10073-icon-service-Front-Door-and-CDN-Profiles.svg
+  azurerm_api_management:
+    service: API Management
+    category: Networking
+    icon: azure/integration/10042-icon-service-API-Management-Services.svg
+  azurerm_api_management_api:
+    service: API Management
+    category: Networking
+    icon: azure/integration/10042-icon-service-API-Management-Services.svg
+  azurerm_key_vault:
+    service: Key Vault
+    category: Security
+    icon: azure/security/10245-icon-service-Key-Vaults.svg
+  azurerm_key_vault_secret:
+    service: Key Vault Secret
+    category: Security
+    icon: azure/security/10245-icon-service-Key-Vaults.svg
+  azurerm_key_vault_key:
+    service: Key Vault Key
+    category: Security
+    icon: azure/security/10245-icon-service-Key-Vaults.svg
+  azurerm_key_vault_certificate:
+    service: Key Vault Certificate
+    category: Security
+    icon: azure/security/10245-icon-service-Key-Vaults.svg
+  azurerm_key_vault_access_policy:
+    service: Key Vault Policy
+    category: Security
+    icon: azure/security/10245-icon-service-Key-Vaults.svg
+  azurerm_role_assignment:
+    service: Role Assignment
+    category: Security
+    icon: azure/identity/10340-icon-service-Entra-Identity-Roles-and-Administrators.svg
+  azurerm_role_definition:
+    service: Role Definition
+    category: Security
+    icon: azure/identity/10340-icon-service-Entra-Identity-Roles-and-Administrators.svg
+  azurerm_user_assigned_identity:
+    service: Managed Identity
+    category: Security
+    icon: azure/identity/10227-icon-service-Managed-Identities.svg
   azurerm_mssql_server:
     service: SQL Server
-    category: Databases
-    icon: azure/databases/10130-icon-service-SQL-Database.svg
+    category: Database
+    icon: azure/databases/10132-icon-service-SQL-Server.svg
   azurerm_mssql_database:
     service: SQL Database
-    category: Databases
+    category: Database
     icon: azure/databases/10130-icon-service-SQL-Database.svg
+  azurerm_mssql_elastic_pool:
+    service: SQL Elastic Pool
+    category: Database
+    icon: azure/databases/10134-icon-service-SQL-Elastic-Pools.svg
+  azurerm_mssql_managed_instance:
+    service: SQL Managed Instance
+    category: Database
+    icon: azure/databases/10136-icon-service-SQL-Managed-Instance.svg
+  azurerm_mssql_firewall_rule:
+    service: SQL Firewall Rule
+    category: Database
+    icon: azure/databases/10132-icon-service-SQL-Server.svg
   azurerm_cosmosdb_account:
     service: Cosmos DB
-    category: Databases
+    category: Database
     icon: azure/databases/10121-icon-service-Azure-Cosmos-DB.svg
-
-  # Storage
+  azurerm_cosmosdb_sql_database:
+    service: Cosmos DB Database
+    category: Database
+    icon: azure/databases/10121-icon-service-Azure-Cosmos-DB.svg
+  azurerm_cosmosdb_sql_container:
+    service: Cosmos DB Container
+    category: Database
+    icon: azure/databases/10121-icon-service-Azure-Cosmos-DB.svg
+  azurerm_mysql_flexible_server:
+    service: MySQL Flexible Server
+    category: Database
+    icon: azure/databases/10122-icon-service-Azure-Database-MySQL-Server.svg
+  azurerm_postgresql_flexible_server:
+    service: PostgreSQL Flexible Server
+    category: Database
+    icon: azure/databases/10131-icon-service-Azure-Database-PostgreSQL-Server.svg
+  azurerm_postgresql_flexible_server_database:
+    service: PostgreSQL Database
+    category: Database
+    icon: azure/databases/10131-icon-service-Azure-Database-PostgreSQL-Server.svg
+  azurerm_redis_cache:
+    service: Cache for Redis
+    category: Database
+    icon: azure/databases/10137-icon-service-Cache-Redis.svg
+  azurerm_data_factory:
+    service: Data Factory
+    category: Analytics
+    icon: azure/analytics/10126-icon-service-Data-Factories.svg
+  azurerm_databricks_workspace:
+    service: Databricks
+    category: Analytics
+    icon: azure/analytics/10787-icon-service-Azure-Databricks.svg
+  azurerm_synapse_workspace:
+    service: Synapse
+    category: Analytics
+    icon: azure/analytics/00606-icon-service-Azure-Synapse-Analytics.svg
+  azurerm_servicebus_namespace:
+    service: Service Bus
+    category: Messaging
+    icon: azure/integration/10836-icon-service-Azure-Service-Bus.svg
+  azurerm_servicebus_queue:
+    service: Service Bus Queue
+    category: Messaging
+    icon: azure/integration/10836-icon-service-Azure-Service-Bus.svg
+  azurerm_servicebus_topic:
+    service: Service Bus Topic
+    category: Messaging
+    icon: azure/integration/10836-icon-service-Azure-Service-Bus.svg
+  azurerm_servicebus_subscription:
+    service: Service Bus Subscription
+    category: Messaging
+    icon: azure/integration/10836-icon-service-Azure-Service-Bus.svg
+  azurerm_eventhub_namespace:
+    service: Event Hubs
+    category: Messaging
+    icon: azure/analytics/00039-icon-service-Event-Hubs.svg
+  azurerm_eventhub:
+    service: Event Hub
+    category: Messaging
+    icon: azure/analytics/00039-icon-service-Event-Hubs.svg
+  azurerm_eventhub_consumer_group:
+    service: Event Hub Consumer Group
+    category: Messaging
+    icon: azure/analytics/00039-icon-service-Event-Hubs.svg
+  azurerm_eventgrid_topic:
+    service: Event Grid Topic
+    category: Messaging
+    icon: azure/integration/10206-icon-service-Event-Grid-Topics.svg
+  azurerm_eventgrid_event_subscription:
+    service: Event Grid Subscription
+    category: Messaging
+    icon: azure/integration/10221-icon-service-Event-Grid-Subscriptions.svg
   azurerm_storage_account:
     service: Storage
     category: Storage
@@ -77,11 +413,91 @@ resources:
     service: Blob Container
     category: Storage
     icon: azure/storage/10086-icon-service-Storage-Accounts.svg
-
-  # General
+  azurerm_storage_blob:
+    service: Blob
+    category: Storage
+    icon: azure/general/10780-icon-service-Blob-Block.svg
+  azurerm_storage_share:
+    service: File Share
+    category: Storage
+    icon: azure/storage/10400-icon-service-Azure-Fileshares.svg
+  azurerm_storage_queue:
+    service: Storage Queue
+    category: Storage
+    icon: azure/general/10840-icon-service-Storage-Queue.svg
+  azurerm_storage_table:
+    service: Storage Table
+    category: Storage
+    icon: azure/general/10841-icon-service-Table.svg
+  azurerm_storage_management_policy:
+    service: Storage Lifecycle
+    category: Storage
+    icon: azure/storage/10086-icon-service-Storage-Accounts.svg
+  azurerm_application_insights:
+    service: Application Insights
+    category: Monitoring
+    icon: azure/monitor/00012-icon-service-Application-Insights.svg
+  azurerm_log_analytics_workspace:
+    service: Log Analytics
+    category: Monitoring
+    icon: azure/monitor/00009-icon-service-Log-Analytics-Workspaces.svg
+  azurerm_monitor_action_group:
+    service: Action Group
+    category: Monitoring
+    icon: azure/management + governance/00002-icon-service-Alerts.svg
+  azurerm_monitor_metric_alert:
+    service: Metric Alert
+    category: Monitoring
+    icon: azure/management + governance/00002-icon-service-Alerts.svg
+  azurerm_monitor_diagnostic_setting:
+    service: Diagnostic Setting
+    category: Monitoring
+    icon: azure/monitor/00008-icon-service-Diagnostics-Settings.svg
+  azurerm_automation_account:
+    service: Automation
+    category: Management
+    icon: azure/management + governance/00022-icon-service-Automation-Accounts.svg
+  azurerm_recovery_services_vault:
+    service: Recovery Services
+    category: Management
+    icon: azure/management + governance/00017-icon-service-Recovery-Services-Vaults.svg
+  azurerm_app_configuration:
+    service: App Configuration
+    category: Management
+    icon: azure/integration/10219-icon-service-App-Configuration.svg
   azurerm_resource_group:
     service: Resource Group
     category: General
     icon: azure/general/10007-icon-service-Resource-Groups.svg
     is_group: true
     group_level: 0
+    style:
+      fill: '#F0F0F0'
+      stroke: '#767676'
+      label: '#767676'
+      role: default
+      dashed: true
+  azure_cloud:
+    service: Azure
+    category: Cloud
+    icon: azure/general/10001-icon-service-All-Resources.svg
+    is_group: true
+    group_level: 0
+    style:
+      fill: '#FFFFFF'
+      stroke: '#0078D4'
+      label: '#0078D4'
+      role: cloud
+
+flows:
+  - { from: azurerm_linux_virtual_machine, to: azurerm_mssql_server }
+  - { from: azurerm_linux_virtual_machine, to: azurerm_mssql_database }
+  - { from: azurerm_linux_virtual_machine, to: azurerm_storage_account }
+  - { from: azurerm_windows_virtual_machine, to: azurerm_mssql_server }
+  - { from: azurerm_virtual_machine, to: azurerm_mssql_server }
+  - { from: azurerm_virtual_machine, to: azurerm_storage_account }
+  - { from: azurerm_kubernetes_cluster, to: azurerm_mssql_server }
+  - { from: azurerm_kubernetes_cluster, to: azurerm_storage_account }
+  - { from: azurerm_kubernetes_cluster, to: azurerm_cosmosdb_account }
+  - { from: azurerm_application_gateway, to: azurerm_linux_virtual_machine }
+  - { from: azurerm_application_gateway, to: azurerm_kubernetes_cluster }

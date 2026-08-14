@@ -3,6 +3,8 @@ package parser
 import (
 	"os"
 	"testing"
+
+	"github.com/vhco-pro/stackgraph/pkg/graph"
 )
 
 func readTestFile(t *testing.T, path string) []byte {
@@ -174,5 +176,99 @@ func TestParseState_MalformedJSON(t *testing.T) {
 	_, err := ParseState(data)
 	if err == nil {
 		t.Fatal("expected error for malformed JSON, got nil")
+	}
+}
+
+func TestParseState_NestedModuleAddresses(t *testing.T) {
+	data := readTestFile(t, "../../testdata/state/aws/nested-modules.json")
+	g, err := ParseState(data)
+	if err != nil {
+		t.Fatalf("ParseState failed: %v", err)
+	}
+
+	// terraform-json addresses are already fully qualified — the parser must
+	// not re-prefix them (regression: module.net.module.net.aws_subnet.a).
+	want := map[string]string{
+		"aws_vpc.main":                           "",
+		"module.net.aws_subnet.a":                "module.net",
+		"module.net.module.inner.aws_instance.w": "module.net.module.inner",
+	}
+	if len(g.Nodes) != len(want) {
+		t.Fatalf("got %d nodes, want %d", len(g.Nodes), len(want))
+	}
+	for id, wantModule := range want {
+		n := g.NodeByID(id)
+		if n == nil {
+			t.Errorf("expected node %q, not found (addresses: %v)", id, nodeIDs(g.Nodes))
+			continue
+		}
+		if n.Module != wantModule {
+			t.Errorf("node %q module = %q, want %q", id, n.Module, wantModule)
+		}
+	}
+}
+
+func nodeIDs(nodes []*graph.Node) []string {
+	ids := make([]string, 0, len(nodes))
+	for _, n := range nodes {
+		ids = append(ids, n.ID)
+	}
+	return ids
+}
+
+func TestParsePlan_Actions(t *testing.T) {
+	data := readTestFile(t, "../../testdata/plan/aws/plan-changes.json")
+	g, err := ParsePlan(data)
+	if err != nil {
+		t.Fatalf("ParsePlan failed: %v", err)
+	}
+
+	want := map[string]graph.Action{
+		"aws_instance.new":     graph.ActionCreate,
+		"aws_instance.web":     graph.ActionUpdate,
+		"aws_db_instance.main": graph.ActionReplace,
+		"aws_s3_bucket.old":    graph.ActionDelete,
+		"aws_vpc.main":         graph.ActionNoOp,
+	}
+	for id, action := range want {
+		n := g.NodeByID(id)
+		if n == nil {
+			t.Errorf("expected node %q (destroyed resources must appear)", id)
+			continue
+		}
+		if n.Action != action {
+			t.Errorf("node %q action = %q, want %q", id, n.Action, action)
+		}
+	}
+}
+
+func TestParseTerragrunt_Simple(t *testing.T) {
+	g, err := ParseTerragruntDir("../../testdata/terragrunt/simple")
+	if err != nil {
+		t.Fatalf("ParseTerragruntDir failed: %v", err)
+	}
+	if len(g.Nodes) != 2 {
+		t.Fatalf("expected 2 module nodes, got %d", len(g.Nodes))
+	}
+	if len(g.Edges) != 1 {
+		t.Fatalf("expected 1 dependency edge, got %d", len(g.Edges))
+	}
+	e := g.Edges[0]
+	if e.Source != "module.app" || e.Target != "module.vpc" {
+		t.Errorf("edge = %s -> %s, want module.app -> module.vpc", e.Source, e.Target)
+	}
+}
+
+func TestParseTerragrunt_NonStringConfigPathDoesNotPanic(t *testing.T) {
+	// Regression: a numeric or unresolvable config_path used to panic in AsString()
+	g, err := ParseTerragruntDir("../../testdata/terragrunt/invalid")
+	if err != nil {
+		t.Fatalf("ParseTerragruntDir failed: %v", err)
+	}
+	if len(g.Nodes) != 1 {
+		t.Fatalf("expected 1 module node, got %d", len(g.Nodes))
+	}
+	if len(g.Edges) != 0 {
+		t.Errorf("expected no edges from invalid config_path values, got %d", len(g.Edges))
 	}
 }

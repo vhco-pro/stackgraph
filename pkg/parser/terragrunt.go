@@ -7,7 +7,9 @@ import (
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
-	"github.com/michielvha/stackgraph/pkg/graph"
+	"github.com/michielvha/logger"
+	"github.com/vhco-pro/stackgraph/pkg/graph"
+	"github.com/zclconf/go-cty/cty"
 )
 
 // ParseTerragruntDir discovers terragrunt.hcl files in a directory tree and
@@ -49,7 +51,9 @@ func ParseTerragruntDir(dir string) (*graph.Graph, error) {
 
 		deps, err := parseTerragruntDeps(tgFile)
 		if err != nil {
-			continue // skip files with parse errors, don't fail the whole graph
+			// Warn loudly: a diagram silently missing edges reads as complete
+			logger.Warnf("terragrunt: skipping dependencies of %s: %v", tgFile, err)
+			continue
 		}
 
 		for _, dep := range deps {
@@ -69,6 +73,9 @@ func ParseTerragruntDir(dir string) (*graph.Graph, error) {
 			})
 		}
 	}
+
+	// Drop edges pointing at modules that don't exist (bad config_path values)
+	g.FilterDanglingEdges()
 
 	return g, nil
 }
@@ -96,7 +103,10 @@ func parseTerragruntDeps(path string) ([]string, error) {
 		if block.Type == "dependency" {
 			if attr, exists := block.Body.Attributes["config_path"]; exists {
 				val, diags := attr.Expr.Value(nil)
-				if !diags.HasErrors() && val.Type().Equals(val.Type()) {
+				// config_path must be a known string — anything else (number,
+				// list, unresolved reference) is skipped, never AsString()'d,
+				// which panics on non-string values.
+				if !diags.HasErrors() && val.Type().Equals(cty.String) && !val.IsNull() && val.IsKnown() {
 					deps = append(deps, val.AsString())
 				}
 			}

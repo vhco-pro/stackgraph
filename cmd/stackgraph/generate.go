@@ -7,24 +7,26 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/michielvha/logger"
-	"github.com/michielvha/stackgraph/pkg/graph"
-	"github.com/michielvha/stackgraph/pkg/mapping"
-	"github.com/michielvha/stackgraph/pkg/output"
-	"github.com/michielvha/stackgraph/pkg/parser"
 	"github.com/spf13/cobra"
+	"github.com/vhco-pro/stackgraph/pkg/graph"
+	"github.com/vhco-pro/stackgraph/pkg/mapping"
+	"github.com/vhco-pro/stackgraph/pkg/output"
+	"github.com/vhco-pro/stackgraph/pkg/parser"
 )
 
 func newGenerateCmd() *cobra.Command {
 	var (
-		inputFile  string
-		sourceDir  string
-		formatFlag string
-		outputFile string
-		inputType  string
-		terragrunt bool
-		layout     string
+		inputFile   string
+		sourceDir   string
+		formatFlag  string
+		outputFile  string
+		inputType   string
+		terragrunt  bool
+		inferFlows  bool
+		mappingsDir string
 	)
 
 	cmd := &cobra.Command{
@@ -32,10 +34,11 @@ func newGenerateCmd() *cobra.Command {
 		Short: "Generate an infrastructure diagram",
 		Long:  "Generate an infrastructure diagram from a state file, plan file, HCL source, or DOT graph input.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			registry, err := mapping.LoadEmbedded()
+			registry, err := loadRegistry(mappingsDir)
 			if err != nil {
-				return fmt.Errorf("failed to load mappings: %w", err)
+				return err
 			}
+			keepAttrs := registry.RefAttrs()
 
 			var g *graph.Graph
 
@@ -58,7 +61,7 @@ func newGenerateCmd() *cobra.Command {
 				if readErr != nil {
 					return fmt.Errorf("failed to read input file: %w", readErr)
 				}
-				g, err = parseByType(detectedType, data)
+				g, err = parseByType(detectedType, data, keepAttrs)
 			default:
 				// Try reading from stdin
 				stat, _ := os.Stdin.Stat()
@@ -73,18 +76,20 @@ func newGenerateCmd() *cobra.Command {
 				if detectedType == "" {
 					detectedType = detectContentType(data)
 				}
-				g, err = parseByType(detectedType, data)
+				g, err = parseByType(detectedType, data, keepAttrs)
 			}
 
 			if err != nil {
 				return fmt.Errorf("failed to parse input: %w", err)
 			}
 
-			g.ApplyMappings(registry)
-			g.ApplyGrouping()
-			g.DetectImplicitEdges()
-			g.CollapseCountInstances()
-			g.FilterInternal()
+			g.Metadata.GeneratorVersion = version
+			g.Metadata.GeneratedAt = time.Now().UTC().Format(time.RFC3339)
+
+			graph.Process(g, registry, graph.ProcessOptions{
+				InferFlows:   inferFlows,
+				FlowPatterns: registry.FlowPatterns(),
+			})
 
 			var out []byte
 			switch formatFlag {
@@ -93,14 +98,11 @@ func newGenerateCmd() *cobra.Command {
 			case "dot":
 				out, err = output.RenderDOT(g)
 			case "svg":
-				switch layout {
-				case "elk":
-					out, err = output.RenderElkSVG(g)
-				default:
-					out, err = output.RenderDagreSVG(g)
-				}
+				out, err = output.RenderSVG(g)
+			case "html":
+				out, err = output.RenderHTML(g)
 			default:
-				return fmt.Errorf("unsupported format: %s (supported: json, dot, svg)", formatFlag)
+				return fmt.Errorf("unsupported format: %s (supported: json, dot, svg, html)", formatFlag)
 			}
 			if err != nil {
 				return fmt.Errorf("failed to render output: %w", err)
@@ -116,13 +118,35 @@ func newGenerateCmd() *cobra.Command {
 
 	cmd.Flags().StringVarP(&inputFile, "input", "i", "", "Input file (state JSON, plan JSON, or DOT)")
 	cmd.Flags().StringVarP(&sourceDir, "source", "s", "", "Source directory (HCL .tf files or Terragrunt project)")
-	cmd.Flags().StringVarP(&formatFlag, "format", "f", "json", "Output format: json, dot, svg")
+	cmd.Flags().StringVarP(&formatFlag, "format", "f", "json", "Output format: json, dot, svg, html")
 	cmd.Flags().StringVarP(&outputFile, "output", "o", "", "Output file (default: stdout)")
 	cmd.Flags().StringVar(&inputType, "input-type", "", "Explicit input type: state, plan, dot (default: auto-detect)")
 	cmd.Flags().BoolVar(&terragrunt, "terragrunt", false, "Parse source directory as a Terragrunt project")
-	cmd.Flags().StringVar(&layout, "layout", "dagre", "Layout engine: dagre (default) or elk (orthogonal edges)")
+	cmd.Flags().BoolVar(&inferFlows, "infer-flows", false, "Add heuristic data-flow edges (ALB->EC2, EC2->RDS, ...) scoped to the same network container")
+	cmd.Flags().StringVar(&mappingsDir, "mappings", "", "Directory of additional mapping YAML files (override embedded mappings by resource type)")
+
+	// Back-compat: --layout was removed when the dagre engine was deleted.
+	// Accept it as a deprecated no-op so existing scripts keep working.
+	var layoutDeprecated string
+	cmd.Flags().StringVar(&layoutDeprecated, "layout", "elk", "")
+	_ = cmd.Flags().MarkDeprecated("layout", "stackgraph always uses the ELK layout engine now")
 
 	return cmd
+}
+
+// loadRegistry loads the embedded mappings plus an optional overlay directory.
+// Shared by generate and mappings coverage so --mappings semantics never drift.
+func loadRegistry(mappingsDir string) (*mapping.Registry, error) {
+	registry, err := mapping.LoadEmbedded()
+	if err != nil {
+		return nil, fmt.Errorf("failed to load mappings: %w", err)
+	}
+	if mappingsDir != "" {
+		if err := registry.LoadDir(mappingsDir); err != nil {
+			return nil, err
+		}
+	}
+	return registry, nil
 }
 
 // detectInputType determines the input type from file extension and content.
@@ -171,13 +195,13 @@ func detectContentType(data []byte) string {
 	return "state" // default fallback
 }
 
-func parseByType(inputType string, data []byte) (*graph.Graph, error) {
+func parseByType(inputType string, data []byte, keepAttrs []string) (*graph.Graph, error) {
 	logger.Debugf("parsing input as %s", inputType)
 	switch inputType {
 	case "state":
-		return parser.ParseState(data)
+		return parser.ParseState(data, keepAttrs...)
 	case "plan":
-		return parser.ParsePlan(data)
+		return parser.ParsePlan(data, keepAttrs...)
 	case "dot":
 		return parser.ParseDOT(data)
 	default:

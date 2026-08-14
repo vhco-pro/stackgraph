@@ -1,0 +1,172 @@
+{
+ "format_version": "1.2",
+ "terraform_version": "1.9.0",
+ "planned_values": {
+  "root_module": {
+   "resources": [
+    {
+     "address": "aws_vpc.main",
+     "mode": "managed",
+     "type": "aws_vpc",
+     "name": "main",
+     "provider_name": "registry.terraform.io/hashicorp/aws",
+     "values": {
+      "id": "vpc-1",
+      "cidr_block": "10.0.0.0/16"
+     }
+    },
+    {
+     "address": "aws_subnet.web",
+     "mode": "managed",
+     "type": "aws_subnet",
+     "name": "web",
+     "provider_name": "registry.terraform.io/hashicorp/aws",
+     "values": {
+      "id": "subnet-1",
+      "vpc_id": "vpc-1"
+     }
+    },
+    {
+     "address": "aws_instance.new",
+     "mode": "managed",
+     "type": "aws_instance",
+     "name": "new",
+     "provider_name": "registry.terraform.io/hashicorp/aws",
+     "values": {
+      "subnet_id": "subnet-1"
+     }
+    },
+    {
+     "address": "aws_instance.web",
+     "mode": "managed",
+     "type": "aws_instance",
+     "name": "web",
+     "provider_name": "registry.terraform.io/hashicorp/aws",
+     "values": {
+      "id": "i-web",
+      "subnet_id": "subnet-1"
+     }
+    },
+    {
+     "address": "aws_db_instance.main",
+     "mode": "managed",
+     "type": "aws_db_instance",
+     "name": "main",
+     "provider_name": "registry.terraform.io/hashicorp/aws",
+     "values": {
+      "id": "db-1",
+      "engine": "postgres"
+     }
+    }
+   ]
+  }
+ },
+ "resource_changes": [
+  {
+   "address": "aws_vpc.main",
+   "mode": "managed",
+   "type": "aws_vpc",
+   "name": "main",
+   "provider_name": "registry.terraform.io/hashicorp/aws",
+   "change": {
+    "actions": [
+     "no-op"
+    ],
+    "before": {
+     "id": "vpc-1"
+    },
+    "after": {
+     "id": "vpc-1"
+    }
+   }
+  },
+  {
+   "address": "aws_subnet.web",
+   "mode": "managed",
+   "type": "aws_subnet",
+   "name": "web",
+   "provider_name": "registry.terraform.io/hashicorp/aws",
+   "change": {
+    "actions": [
+     "no-op"
+    ],
+    "before": {
+     "id": "subnet-1"
+    },
+    "after": {
+     "id": "subnet-1"
+    }
+   }
+  },
+  {
+   "address": "aws_instance.new",
+   "mode": "managed",
+   "type": "aws_instance",
+   "name": "new",
+   "provider_name": "registry.terraform.io/hashicorp/aws",
+   "change": {
+    "actions": [
+     "create"
+    ],
+    "before": null,
+    "after": {
+     "subnet_id": "subnet-1"
+    }
+   }
+  },
+  {
+   "address": "aws_instance.web",
+   "mode": "managed",
+   "type": "aws_instance",
+   "name": "web",
+   "provider_name": "registry.terraform.io/hashicorp/aws",
+   "change": {
+    "actions": [
+     "update"
+    ],
+    "before": {
+     "id": "i-web"
+    },
+    "after": {
+     "id": "i-web"
+    }
+   }
+  },
+  {
+   "address": "aws_db_instance.main",
+   "mode": "managed",
+   "type": "aws_db_instance",
+   "name": "main",
+   "provider_name": "registry.terraform.io/hashicorp/aws",
+   "change": {
+    "actions": [
+     "delete",
+     "create"
+    ],
+    "before": {
+     "id": "db-1"
+    },
+    "after": {
+     "engine": "postgres"
+    }
+   }
+  },
+  {
+   "address": "aws_s3_bucket.old",
+   "mode": "managed",
+   "type": "aws_s3_bucket",
+   "name": "old",
+   "provider_name": "registry.terraform.io/hashicorp/aws",
+   "change": {
+    "actions": [
+     "delete"
+    ],
+    "before": {
+     "id": "bkt-old",
+     "bucket": "old-bucket"
+    },
+    "after": null
+   }
+  }
+ ]
+}

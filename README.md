@@ -1,21 +1,24 @@
 # stackgraph
 
-Infrastructure diagram generator for OpenTofu/Terraform. Produces interactive, cloud-aware diagrams from state files, plan JSON, HCL source, or `tofu graph` output.
+Infrastructure diagram generator for OpenTofu/Terraform. Produces correct, cloud-aware diagrams from state files, plan JSON, HCL source, or `tofu graph` output — as static SVG, interactive HTML, JSON graph data, or DOT.
 
 ## Features
 
 - **Multiple input modes** — state JSON, plan JSON, HCL source, DOT graph, Terragrunt projects
 - **OpenTofu-native** — first-class OpenTofu support, Terraform compatible
-- **Cloud-aware** — AWS resource mappings with service icons, VPC/subnet grouping
-- **Provider-agnostic** — unmapped resources render as generic nodes (no crash, no omission)
-- **Count/for_each collapsing** — `aws_instance.web[0..2]` becomes a single node with `x3` badge
-- **Implicit edge detection** — scans resource attributes for ID references between resources
-- **Multiple output formats** — JSON (for frontends), DOT (for Graphviz), SVG (for CLI)
+- **Correct containment** — declarative `parent_ref` attribute resolution nests resources into VPCs/subnets/security groups deterministically; works on multi-VPC, multi-environment states with no `depends_on` present
+- **Evidence-based edges** — arrows come from actual references in the state (ids, ARNs, lists), never invented and never deleted (only containment restatement and redundant `depends_on` build-order edges are hidden); optional `--infer-flows` adds purely additive heuristic flows, scoped to one network container and only drawn when the target is unambiguous
+- **Cloud-aware** — official AWS/Azure/GCP icons and brand-styled containers, all declared in YAML mappings
+- **Provider-agnostic** — unmapped resources render as clean labeled boxes (no crash, no omission); `stackgraph mappings coverage` shows what a given state needs
+- **Extensible without recompiling** — `--mappings <dir>` overlays your own YAML mappings
+- **Plan-aware** — create/update/replace/delete render as colored accents, including destroyed resources
+- **Count/for_each collapsing** — `aws_instance.web[0..2]` becomes a single node with `x3` badge, still inside its subnet
+- **Four output formats** — SVG (static, self-contained, auto dark mode), HTML (interactive: pan/zoom, click-to-inspect, search), JSON (for frontends), DOT (for Graphviz)
 
 ## Installation
 
 ```bash
-go install github.com/michielvha/stackgraph/cmd/stackgraph@latest
+go install github.com/vhco-pro/stackgraph/cmd/stackgraph@latest
 ```
 
 ## Usage
@@ -25,9 +28,12 @@ go install github.com/michielvha/stackgraph/cmd/stackgraph@latest
 tofu show -json > state.json
 stackgraph generate --input state.json --format svg --output infra.svg
 
-# From plan file (shows planned changes)
+# Interactive HTML viewer (pan, zoom, click for attributes, search)
+stackgraph generate --input state.json --format html --output infra.html
+
+# From plan file (shows planned changes incl. deletions)
 tofu show -json tfplan.bin > plan.json
-stackgraph generate --input plan.json --format json
+stackgraph generate --input plan.json --format svg --output plan.svg
 
 # From HCL source (no init or credentials needed)
 stackgraph generate --source ./terraform/ --format svg --output infra.svg
@@ -35,14 +41,19 @@ stackgraph generate --source ./terraform/ --format svg --output infra.svg
 # Pipe from tofu graph
 tofu graph | stackgraph generate --format dot --output graph.dot
 
-# Terragrunt project (multi-module dependency graph)
+# Terragrunt project (module dependency graph)
 stackgraph generate --source ./terragrunt-project/ --terragrunt --format json
 
-# Auto-detect input format (state vs plan vs DOT)
-stackgraph generate --input myfile.json --format svg
+# Add heuristic data-flow edges (ALB→EC2, EC2→RDS) within each VPC
+stackgraph generate --input state.json --format svg --infer-flows --output infra.svg
+
+# Check mapping coverage for your state / find unmapped types
+stackgraph mappings coverage --input state.json
+
+# Use your own mappings without recompiling
+stackgraph generate --input state.json --mappings ./my-mappings/ --format svg
 
 # List supported resource mappings
-stackgraph mappings list --provider aws
 stackgraph mappings list --provider aws --category Compute
 ```
 
@@ -53,65 +64,76 @@ stackgraph consumes the JSON output that `tofu show -json` produces — a stable
 ```
 Input (state/plan/HCL/DOT)
   → Parse into internal graph (nodes + edges)
-  → Apply resource mappings (service name, icon, grouping rules)
-  → Apply provider-specific grouping (VPC → Subnet → instances)
-  → Detect implicit edges (vpc_id, subnet_id attribute scanning)
-  → Collapse count/for_each instances into single nodes
-  → Filter internal/meta nodes (providers, root)
-  → Render output (JSON, DOT, SVG)
+  → Apply resource mappings (service, icon, style, containment rules)
+  → Detect reference edges (id/ARN/list attribute scanning)
+  → Resolve containment (parent_ref attribute lookups; edge fallback for DOT/HCL)
+  → Optionally infer flow edges (--infer-flows, from mapping flows: patterns)
+  → Collapse count/for_each instances (containment-preserving)
+  → Suppress redundant edges (containment restatement, depends_on wall edges)
+  → Filter internal/meta nodes
+  → Render (SVG, HTML, JSON, DOT) via ELK.js orthogonal layout
 ```
 
 ## Resource Mappings
 
-Mappings are declarative YAML files that map resource types to cloud service metadata:
+Mappings are declarative YAML files that fully drive rendering — service name, icon, containment, and container style:
 
 ```yaml
-# AWS example
 aws_instance:
   service: EC2
   category: Compute
-  icon: aws/compute/ec2-instance.svg
+  icon: aws/Arch_Compute/Arch_Amazon-EC2_64.png
   group_parent: aws_subnet
+  parent_ref: subnet_id        # attribute that names the containing resource
 
 aws_vpc:
   service: VPC
   category: Networking
-  icon: aws/networking/vpc.svg
+  icon: aws/Arch_Networking-Content-Delivery/Arch_Amazon-Virtual-Private-Cloud_64.png
   is_group: true
   group_level: 1
+  style: { fill: "#F8F4FF", stroke: "#8C4FFF", label: "#6B21A8", role: vpc }
+
+aws_security_group:
+  service: Security Group
+  category: Security
+  is_group: true
+  group_level: 3
+  member_ref: vpc_security_group_ids   # the largest same-subnet cohort of listing resources nests inside
+  style: { fill: "#FFF5F5", stroke: "#E53935", label: "#C62828", role: sg, dashed: true }
 
 aws_ecs_service:
   service: ECS
   category: Containers
-  icon: aws/containers/ecs-service.svg
+  icon: aws/Arch_Containers/Arch_Amazon-Elastic-Container-Service_64.png
   variants:
     - match: { attribute: launch_type, value: FARGATE }
-      icon: aws/containers/fargate.svg
+      icon: aws/Arch_Containers/Arch_AWS-Fargate_64.png
       service: Fargate
+
+# Heuristic data-flow patterns for --infer-flows, scoped by network_scope containers
+flows:
+  - { from: aws_lb, to: aws_instance }
 ```
 
-Adding support for a new resource type is just 3-4 lines of YAML.
+Containers can declare `network_scope: true` (VPC, VNet) — heuristic flows
+never cross such a boundary — and `dark_fill`/`dark_stroke`/`dark_label` in
+their style block to retune dark mode. All of this works from a `--mappings`
+overlay directory too, without recompiling.
 
-### Current coverage
-
-| Provider | Resources mapped |
-|----------|-----------------|
-| AWS      | 65+             |
-| Azure    | Coming soon     |
-| GCP      | Coming soon     |
-| Proxmox  | Coming soon     |
+Adding a resource type really is a few lines of YAML — a test validates every icon path against the embedded icon set, and `--mappings` loads user mappings at runtime.
 
 ## Comparison to Existing Tools
 
 | Aspect | Terravision | InfraMap | stackgraph |
 |--------|-------------|----------|------------|
 | **Input** | Requires `terraform init` + credentials | Imports terraform v0.15.3 internals | Consumes `tofu show -json` — stable JSON API |
-| **Dependencies** | Python + pygraphviz + Graphviz | hashicorp/terraform (massive) | hashicorp/terraform-json (lightweight) |
-| **Icons** | PNGs | ~10 PNGs | SVGs from official cloud provider sets |
-| **Grouping** | VPC/subnet nesting | None (flat graph) | Full hierarchy via declarative YAML |
-| **Provider support** | AWS, GCP, Azure | AWS, GCP, Azure, OpenStack | Any — generic fallback for unmapped |
+| **Dependencies** | Python + pygraphviz + Graphviz | hashicorp/terraform (massive) | single static binary |
+| **Containment** | VPC/subnet nesting | None (flat graph) | Deterministic attribute-based nesting via YAML |
+| **Edges** | Heuristic | Raw dependency graph | Evidence from state; heuristics opt-in and scoped |
+| **Plan diff** | No | No | create/update/replace/delete coloring |
+| **Interactive output** | No | No | Self-contained HTML viewer |
 | **OpenTofu** | No | No | First-class |
-| **Terragrunt** | Via CLI wrapper | No | Native HCL parsing |
 | **License** | AGPL-3.0 | MIT | Apache-2.0 |
 
 The key architectural insight: **don't reimplement Terraform's evaluator — consume its output.**

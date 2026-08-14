@@ -1,0 +1,496 @@
+{
+ "format_version": "1.0",
+ "terraform_version": "1.9.0",
+ "values": {
+  "root_module": {
+   "resources": [
+    {
+     "address": "aws_vpc.prod",
+     "type": "aws_vpc",
+     "name": "prod",
+     "mode": "managed",
+     "provider_name": "registry.terraform.io/hashicorp/aws",
+     "values": {
+      "id": "vpc-prod",
+      "cidr_block": "10.0.0.0/16",
+      "tags": {
+       "Name": "prod"
+      }
+     }
+    },
+    {
+     "address": "aws_internet_gateway.prod_igw",
+     "type": "aws_internet_gateway",
+     "name": "prod_igw",
+     "mode": "managed",
+     "provider_name": "registry.terraform.io/hashicorp/aws",
+     "values": {
+      "id": "igw-prod",
+      "vpc_id": "vpc-prod"
+     }
+    },
+    {
+     "address": "aws_nat_gateway.prod_nat",
+     "type": "aws_nat_gateway",
+     "name": "prod_nat",
+     "mode": "managed",
+     "provider_name": "registry.terraform.io/hashicorp/aws",
+     "values": {
+      "id": "nat-prod",
+      "subnet_id": "subnet-prod-public"
+     }
+    },
+    {
+     "address": "aws_subnet.prod_public",
+     "type": "aws_subnet",
+     "name": "prod_public",
+     "mode": "managed",
+     "provider_name": "registry.terraform.io/hashicorp/aws",
+     "values": {
+      "id": "subnet-prod-public",
+      "vpc_id": "vpc-prod",
+      "cidr_block": "10.0.1.0/24"
+     }
+    },
+    {
+     "address": "aws_subnet.prod_private",
+     "type": "aws_subnet",
+     "name": "prod_private",
+     "mode": "managed",
+     "provider_name": "registry.terraform.io/hashicorp/aws",
+     "values": {
+      "id": "subnet-prod-private",
+      "vpc_id": "vpc-prod",
+      "cidr_block": "10.0.1.0/24"
+     }
+    },
+    {
+     "address": "aws_security_group.prod_web",
+     "type": "aws_security_group",
+     "name": "prod_web",
+     "mode": "managed",
+     "provider_name": "registry.terraform.io/hashicorp/aws",
+     "values": {
+      "id": "sg-prod-web",
+      "vpc_id": "vpc-prod"
+     }
+    },
+    {
+     "address": "aws_lb.prod_alb",
+     "type": "aws_lb",
+     "name": "prod_alb",
+     "mode": "managed",
+     "provider_name": "registry.terraform.io/hashicorp/aws",
+     "values": {
+      "id": "alb-prod",
+      "subnets": [
+       "subnet-prod-public"
+      ],
+      "security_groups": [
+       "sg-prod-web"
+      ]
+     }
+    },
+    {
+     "address": "aws_instance.prod_web",
+     "type": "aws_instance",
+     "name": "prod_web",
+     "mode": "managed",
+     "provider_name": "registry.terraform.io/hashicorp/aws",
+     "values": {
+      "id": "i-prod0",
+      "subnet_id": "subnet-prod-public",
+      "vpc_security_group_ids": [
+       "sg-prod-web"
+      ]
+     }
+    },
+    {
+     "address": "aws_vpc.staging",
+     "type": "aws_vpc",
+     "name": "staging",
+     "mode": "managed",
+     "provider_name": "registry.terraform.io/hashicorp/aws",
+     "values": {
+      "id": "vpc-staging",
+      "cidr_block": "10.0.0.0/16",
+      "tags": {
+       "Name": "staging"
+      }
+     }
+    },
+    {
+     "address": "aws_internet_gateway.staging_igw",
+     "type": "aws_internet_gateway",
+     "name": "staging_igw",
+     "mode": "managed",
+     "provider_name": "registry.terraform.io/hashicorp/aws",
+     "values": {
+      "id": "igw-staging",
+      "vpc_id": "vpc-staging"
+     }
+    },
+    {
+     "address": "aws_nat_gateway.staging_nat",
+     "type": "aws_nat_gateway",
+     "name": "staging_nat",
+     "mode": "managed",
+     "provider_name": "registry.terraform.io/hashicorp/aws",
+     "values": {
+      "id": "nat-staging",
+      "subnet_id": "subnet-staging-public"
+     }
+    },
+    {
+     "address": "aws_subnet.staging_public",
+     "type": "aws_subnet",
+     "name": "staging_public",
+     "mode": "managed",
+     "provider_name": "registry.terraform.io/hashicorp/aws",
+     "values": {
+      "id": "subnet-staging-public",
+      "vpc_id": "vpc-staging",
+      "cidr_block": "10.0.1.0/24"
+     }
+    },
+    {
+     "address": "aws_subnet.staging_private",
+     "type": "aws_subnet",
+     "name": "staging_private",
+     "mode": "managed",
+     "provider_name": "registry.terraform.io/hashicorp/aws",
+     "values": {
+      "id": "subnet-staging-private",
+      "vpc_id": "vpc-staging",
+      "cidr_block": "10.0.1.0/24"
+     }
+    },
+    {
+     "address": "aws_security_group.staging_web",
+     "type": "aws_security_group",
+     "name": "staging_web",
+     "mode": "managed",
+     "provider_name": "registry.terraform.io/hashicorp/aws",
+     "values": {
+      "id": "sg-staging-web",
+      "vpc_id": "vpc-staging"
+     }
+    },
+    {
+     "address": "aws_lb.staging_alb",
+     "type": "aws_lb",
+     "name": "staging_alb",
+     "mode": "managed",
+     "provider_name": "registry.terraform.io/hashicorp/aws",
+     "values": {
+      "id": "alb-staging",
+      "subnets": [
+       "subnet-staging-public"
+      ],
+      "security_groups": [
+       "sg-staging-web"
+      ]
+     }
+    },
+    {
+     "address": "aws_instance.staging_web",
+     "type": "aws_instance",
+     "name": "staging_web",
+     "mode": "managed",
+     "provider_name": "registry.terraform.io/hashicorp/aws",
+     "values": {
+      "id": "i-staging0",
+      "subnet_id": "subnet-staging-public",
+      "vpc_security_group_ids": [
+       "sg-staging-web"
+      ]
+     }
+    },
+    {
+     "address": "aws_instance.prod_app[0]",
+     "type": "aws_instance",
+     "name": "prod_app",
+     "index": 0,
+     "mode": "managed",
+     "provider_name": "registry.terraform.io/hashicorp/aws",
+     "values": {
+      "id": "i-app-prod0",
+      "subnet_id": "subnet-prod-private",
+      "vpc_security_group_ids": [
+       "sg-prod-web"
+      ]
+     }
+    },
+    {
+     "address": "aws_instance.prod_app[1]",
+     "type": "aws_instance",
+     "name": "prod_app",
+     "index": 1,
+     "mode": "managed",
+     "provider_name": "registry.terraform.io/hashicorp/aws",
+     "values": {
+      "id": "i-app-prod1",
+      "subnet_id": "subnet-prod-private",
+      "vpc_security_group_ids": [
+       "sg-prod-web"
+      ]
+     }
+    },
+    {
+     "address": "aws_instance.prod_app[2]",
+     "type": "aws_instance",
+     "name": "prod_app",
+     "index": 2,
+     "mode": "managed",
+     "provider_name": "registry.terraform.io/hashicorp/aws",
+     "values": {
+      "id": "i-app-prod2",
+      "subnet_id": "subnet-prod-private",
+      "vpc_security_group_ids": [
+       "sg-prod-web"
+      ]
+     }
+    },
+    {
+     "address": "aws_db_instance.prod_db",
+     "type": "aws_db_instance",
+     "name": "prod_db",
+     "mode": "managed",
+     "provider_name": "registry.terraform.io/hashicorp/aws",
+     "values": {
+      "id": "db-prod",
+      "db_subnet_group_name": "dbsub-prod"
+     }
+    },
+    {
+     "address": "aws_elasticache_cluster.prod_redis",
+     "type": "aws_elasticache_cluster",
+     "name": "prod_redis",
+     "mode": "managed",
+     "provider_name": "registry.terraform.io/hashicorp/aws",
+     "values": {
+      "id": "redis-prod",
+      "subnet_group_name": "subnet-prod-private"
+     }
+    },
+    {
+     "address": "aws_instance.staging_app[0]",
+     "type": "aws_instance",
+     "name": "staging_app",
+     "index": 0,
+     "mode": "managed",
+     "provider_name": "registry.terraform.io/hashicorp/aws",
+     "values": {
+      "id": "i-app-staging0",
+      "subnet_id": "subnet-staging-private",
+      "vpc_security_group_ids": [
+       "sg-staging-web"
+      ]
+     }
+    },
+    {
+     "address": "aws_instance.staging_app[1]",
+     "type": "aws_instance",
+     "name": "staging_app",
+     "index": 1,
+     "mode": "managed",
+     "provider_name": "registry.terraform.io/hashicorp/aws",
+     "values": {
+      "id": "i-app-staging1",
+      "subnet_id": "subnet-staging-private",
+      "vpc_security_group_ids": [
+       "sg-staging-web"
+      ]
+     }
+    },
+    {
+     "address": "aws_instance.staging_app[2]",
+     "type": "aws_instance",
+     "name": "staging_app",
+     "index": 2,
+     "mode": "managed",
+     "provider_name": "registry.terraform.io/hashicorp/aws",
+     "values": {
+      "id": "i-app-staging2",
+      "subnet_id": "subnet-staging-private",
+      "vpc_security_group_ids": [
+       "sg-staging-web"
+      ]
+     }
+    },
+    {
+     "address": "aws_db_instance.staging_db",
+     "type": "aws_db_instance",
+     "name": "staging_db",
+     "mode": "managed",
+     "provider_name": "registry.terraform.io/hashicorp/aws",
+     "values": {
+      "id": "db-staging",
+      "db_subnet_group_name": "dbsub-staging"
+     }
+    },
+    {
+     "address": "aws_elasticache_cluster.staging_redis",
+     "type": "aws_elasticache_cluster",
+     "name": "staging_redis",
+     "mode": "managed",
+     "provider_name": "registry.terraform.io/hashicorp/aws",
+     "values": {
+      "id": "redis-staging",
+      "subnet_group_name": "subnet-staging-private"
+     }
+    },
+    {
+     "address": "aws_s3_bucket.assets",
+     "type": "aws_s3_bucket",
+     "name": "assets",
+     "mode": "managed",
+     "provider_name": "registry.terraform.io/hashicorp/aws",
+     "values": {
+      "id": "bkt-assets",
+      "bucket": "assets"
+     }
+    },
+    {
+     "address": "aws_s3_bucket.logs",
+     "type": "aws_s3_bucket",
+     "name": "logs",
+     "mode": "managed",
+     "provider_name": "registry.terraform.io/hashicorp/aws",
+     "values": {
+      "id": "bkt-logs",
+      "bucket": "logs"
+     }
+    },
+    {
+     "address": "aws_s3_bucket.backups",
+     "type": "aws_s3_bucket",
+     "name": "backups",
+     "mode": "managed",
+     "provider_name": "registry.terraform.io/hashicorp/aws",
+     "values": {
+      "id": "bkt-backups",
+      "bucket": "backups"
+     }
+    },
+    {
+     "address": "aws_route53_zone.main",
+     "type": "aws_route53_zone",
+     "name": "main",
+     "mode": "managed",
+     "provider_name": "registry.terraform.io/hashicorp/aws",
+     "values": {
+      "id": "Z1",
+      "name": "example.com"
+     }
+    },
+    {
+     "address": "aws_route53_record.www",
+     "type": "aws_route53_record",
+     "name": "www",
+     "mode": "managed",
+     "provider_name": "registry.terraform.io/hashicorp/aws",
+     "values": {
+      "id": "rec1",
+      "zone_id": "Z1",
+      "records": [
+       "alb-prod"
+      ]
+     }
+    },
+    {
+     "address": "aws_lambda_function.worker",
+     "type": "aws_lambda_function",
+     "name": "worker",
+     "mode": "managed",
+     "provider_name": "registry.terraform.io/hashicorp/aws",
+     "values": {
+      "id": "fn-worker",
+      "function_name": "worker",
+      "role": "arn:aws:iam::1:role/lambda"
+     }
+    },
+    {
+     "address": "aws_sqs_queue.jobs",
+     "type": "aws_sqs_queue",
+     "name": "jobs",
+     "mode": "managed",
+     "provider_name": "registry.terraform.io/hashicorp/aws",
+     "values": {
+      "id": "q-jobs"
+     }
+    },
+    {
+     "address": "aws_sns_topic.alerts",
+     "type": "aws_sns_topic",
+     "name": "alerts",
+     "mode": "managed",
+     "provider_name": "registry.terraform.io/hashicorp/aws",
+     "values": {
+      "id": "t-alerts"
+     }
+    },
+    {
+     "address": "aws_dynamodb_table.sessions",
+     "type": "aws_dynamodb_table",
+     "name": "sessions",
+     "mode": "managed",
+     "provider_name": "registry.terraform.io/hashicorp/aws",
+     "values": {
+      "id": "tbl-sessions"
+     }
+    },
+    {
+     "address": "aws_iam_role.lambda",
+     "type": "aws_iam_role",
+     "name": "lambda",
+     "mode": "managed",
+     "provider_name": "registry.terraform.io/hashicorp/aws",
+     "values": {
+      "id": "role-lambda",
+      "arn": "arn:aws:iam::1:role/lambda"
+     }
+    },
+    {
+     "address": "aws_cloudwatch_log_group.api",
+     "type": "aws_cloudwatch_log_group",
+     "name": "api",
+     "mode": "managed",
+     "provider_name": "registry.terraform.io/hashicorp/aws",
+     "values": {
+      "id": "lg-api"
+     }
+    },
+    {
+     "address": "aws_ecs_cluster.main",
+     "type": "aws_ecs_cluster",
+     "name": "main",
+     "mode": "managed",
+     "provider_name": "registry.terraform.io/hashicorp/aws",
+     "values": {
+      "id": "ecs-main"
+     }
+    },
+    {
+     "address": "aws_ecs_service.api",
+     "type": "aws_ecs_service",
+     "name": "api",
+     "mode": "managed",
+     "provider_name": "registry.terraform.io/hashicorp/aws",
+     "values": {
+      "id": "svc-api",
+      "cluster": "ecs-main",
+      "launch_type": "FARGATE",
+      "network_configuration": [
+       {
+        "subnets": [
+         "subnet-prod-private"
+        ]
+       }
+      ]
+     }
+    }
+   ]
+  }
+ }
+}

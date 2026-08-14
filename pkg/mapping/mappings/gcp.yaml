@@ -1,9 +1,36 @@
 resources:
-  # Compute
   google_compute_instance:
     service: Compute Engine
     category: Compute
     icon: gcp/compute_engine/compute_engine.svg
+  google_compute_instance_template:
+    service: Instance Template
+    category: Compute
+    icon: gcp/compute_engine/compute_engine.svg
+  google_compute_instance_group_manager:
+    service: Instance Group
+    category: Compute
+    icon: gcp/compute_engine/compute_engine.svg
+  google_compute_region_instance_group_manager:
+    service: Instance Group
+    category: Compute
+    icon: gcp/compute_engine/compute_engine.svg
+  google_compute_autoscaler:
+    service: Autoscaler
+    category: Compute
+    icon: gcp/compute_engine/compute_engine.svg
+  google_compute_image:
+    service: Compute Image
+    category: Compute
+    icon: gcp/compute_engine/compute_engine.svg
+  google_compute_disk:
+    service: Persistent Disk
+    category: Storage
+    icon: gcp/persistent_disk/persistent_disk.svg
+  google_compute_snapshot:
+    service: Disk Snapshot
+    category: Storage
+    icon: gcp/persistent_disk/persistent_disk.svg
   google_cloudfunctions_function:
     service: Cloud Functions
     category: Compute
@@ -16,8 +43,22 @@ resources:
     service: Cloud Run
     category: Compute
     icon: gcp/cloud_run/cloud_run.svg
-
-  # Containers
+  google_cloud_run_v2_service:
+    service: Cloud Run
+    category: Compute
+    icon: gcp/cloud_run/cloud_run.svg
+  google_cloud_run_v2_job:
+    service: Cloud Run Job
+    category: Compute
+    icon: gcp/cloud_run/cloud_run.svg
+  google_app_engine_application:
+    service: App Engine
+    category: Compute
+    icon: gcp/app_engine/app_engine.svg
+  google_workflows_workflow:
+    service: Workflows
+    category: Compute
+    icon: gcp/workflows/workflows.svg
   google_container_cluster:
     service: GKE
     category: Containers
@@ -26,14 +67,22 @@ resources:
     service: GKE Node Pool
     category: Containers
     icon: gcp/google_kubernetes_engine/google_kubernetes_engine.svg
-
-  # Networking
+  google_artifact_registry_repository:
+    service: Artifact Registry
+    category: Containers
+    icon: gcp/artifact_registry/artifact_registry.svg
   google_compute_network:
     service: VPC Network
     category: Networking
     icon: gcp/virtual_private_cloud/virtual_private_cloud.svg
     is_group: true
     group_level: 1
+    style:
+      fill: '#E6F4EA'
+      stroke: '#34A853'
+      label: '#34A853'
+      role: vpc
+    network_scope: true
   google_compute_subnetwork:
     service: Subnet
     category: Networking
@@ -41,12 +90,110 @@ resources:
     is_group: true
     group_level: 2
     group_parent: google_compute_network
+    parent_ref: network
+    style:
+      fill: '#F1F3F4'
+      stroke: '#5F6368'
+      label: '#5F6368'
+      role: subnet
   google_compute_firewall:
     service: Firewall Rule
     category: Networking
     icon: gcp/virtual_private_cloud/virtual_private_cloud.svg
-
-  # Database
+  google_compute_network_peering:
+    service: VPC Peering
+    category: Networking
+    icon: gcp/virtual_private_cloud/virtual_private_cloud.svg
+  google_compute_route:
+    service: Route
+    category: Networking
+    icon: gcp/cloud_routes/cloud_routes.svg
+  google_compute_router:
+    service: Cloud Router
+    category: Networking
+    icon: gcp/cloud_router/cloud_router.svg
+    group_parent: google_compute_network
+    parent_ref: network
+  google_compute_router_nat:
+    service: Cloud NAT
+    category: Networking
+    icon: gcp/cloud_nat/cloud_nat.svg
+  google_compute_address:
+    service: IP Address
+    category: Networking
+    icon: gcp/cloud_external_ip_addresses/cloud_external_ip_addresses.svg
+  google_compute_global_address:
+    service: Global IP Address
+    category: Networking
+    icon: gcp/cloud_external_ip_addresses/cloud_external_ip_addresses.svg
+  google_compute_forwarding_rule:
+    service: Load Balancing
+    category: Networking
+    icon: gcp/cloud_load_balancing/cloud_load_balancing.svg
+  google_compute_global_forwarding_rule:
+    service: Load Balancing
+    category: Networking
+    icon: gcp/cloud_load_balancing/cloud_load_balancing.svg
+  google_compute_target_http_proxy:
+    service: Load Balancing
+    category: Networking
+    icon: gcp/cloud_load_balancing/cloud_load_balancing.svg
+  google_compute_target_https_proxy:
+    service: Load Balancing
+    category: Networking
+    icon: gcp/cloud_load_balancing/cloud_load_balancing.svg
+  google_compute_url_map:
+    service: Load Balancing
+    category: Networking
+    icon: gcp/cloud_load_balancing/cloud_load_balancing.svg
+  google_compute_backend_service:
+    service: Backend Service
+    category: Networking
+    icon: gcp/cloud_load_balancing/cloud_load_balancing.svg
+  google_compute_health_check:
+    service: Health Check
+    category: Networking
+    icon: gcp/cloud_load_balancing/cloud_load_balancing.svg
+  google_compute_ssl_certificate:
+    service: SSL Certificate
+    category: Security
+    icon: gcp/certificate_manager/certificate_manager.svg
+  google_compute_managed_ssl_certificate:
+    service: SSL Certificate
+    category: Security
+    icon: gcp/certificate_manager/certificate_manager.svg
+  google_compute_security_policy:
+    service: Cloud Armor
+    category: Security
+    icon: gcp/cloud_armor/cloud_armor.svg
+  google_compute_ha_vpn_gateway:
+    service: Cloud VPN
+    category: Networking
+    icon: gcp/cloud_vpn/cloud_vpn.svg
+    group_parent: google_compute_network
+    parent_ref: network
+  google_compute_vpn_tunnel:
+    service: VPN Tunnel
+    category: Networking
+    icon: gcp/cloud_vpn/cloud_vpn.svg
+  google_vpc_access_connector:
+    service: VPC Access Connector
+    category: Networking
+    icon: gcp/virtual_private_cloud/virtual_private_cloud.svg
+    group_parent: google_compute_network
+    parent_ref: network
+  google_dns_managed_zone:
+    service: Cloud DNS
+    category: Networking
+    icon: gcp/cloud_dns/cloud_dns.svg
+  google_dns_record_set:
+    service: Cloud DNS
+    category: Networking
+    icon: gcp/cloud_dns/cloud_dns.svg
+  google_api_gateway_api:
+    service: API Gateway
+    category: Networking
+    icon: gcp/cloud_api_gateway/cloud_api_gateway.svg
   google_sql_database_instance:
     service: Cloud SQL
     category: Database
@@ -55,15 +202,175 @@ resources:
     service: SQL Database
     category: Database
     icon: gcp/cloud_sql/cloud_sql.svg
-
-  # Storage
+  google_sql_user:
+    service: SQL User
+    category: Database
+    icon: gcp/cloud_sql/cloud_sql.svg
+  google_spanner_instance:
+    service: Spanner
+    category: Database
+    icon: gcp/cloud_spanner/cloud_spanner.svg
+  google_spanner_database:
+    service: Spanner Database
+    category: Database
+    icon: gcp/cloud_spanner/cloud_spanner.svg
+  google_bigtable_instance:
+    service: Bigtable
+    category: Database
+    icon: gcp/bigtable/bigtable.svg
+  google_firestore_database:
+    service: Firestore
+    category: Database
+    icon: gcp/firestore/firestore.svg
+  google_redis_instance:
+    service: Memorystore
+    category: Database
+    icon: gcp/memorystore/memorystore.svg
+  google_memcache_instance:
+    service: Memorystore
+    category: Database
+    icon: gcp/memorystore/memorystore.svg
   google_storage_bucket:
     service: Cloud Storage
     category: Storage
     icon: gcp/cloud_storage/cloud_storage.svg
-
-  # Big Data
+  google_storage_bucket_object:
+    service: Storage Object
+    category: Storage
+    icon: gcp/cloud_storage/cloud_storage.svg
+  google_storage_bucket_iam_member:
+    service: Bucket IAM
+    category: Storage
+    icon: gcp/cloud_storage/cloud_storage.svg
+  google_filestore_instance:
+    service: Filestore
+    category: Storage
+    icon: gcp/filestore/filestore.svg
   google_bigquery_dataset:
     service: BigQuery
     category: Analytics
     icon: gcp/bigquery/bigquery.svg
+  google_bigquery_table:
+    service: BigQuery Table
+    category: Analytics
+    icon: gcp/bigquery/bigquery.svg
+  google_dataflow_job:
+    service: Dataflow
+    category: Analytics
+    icon: gcp/dataflow/dataflow.svg
+  google_dataproc_cluster:
+    service: Dataproc
+    category: Analytics
+    icon: gcp/dataproc/dataproc.svg
+  google_composer_environment:
+    service: Cloud Composer
+    category: Analytics
+    icon: gcp/cloud_composer/cloud_composer.svg
+  google_pubsub_topic:
+    service: Pub/Sub
+    category: Messaging
+    icon: gcp/pubsub/pubsub.svg
+  google_pubsub_subscription:
+    service: Pub/Sub Subscription
+    category: Messaging
+    icon: gcp/pubsub/pubsub.svg
+  google_cloud_tasks_queue:
+    service: Cloud Tasks
+    category: Messaging
+    icon: gcp/cloud_tasks/cloud_tasks.svg
+  google_eventarc_trigger:
+    service: Eventarc
+    category: Messaging
+    icon: gcp/eventarc/eventarc.svg
+  google_cloud_scheduler_job:
+    service: Cloud Scheduler
+    category: Management
+    icon: gcp/cloud_scheduler/cloud_scheduler.svg
+  google_project:
+    service: Project
+    category: Management
+    icon: gcp/project/project.svg
+  google_project_service:
+    service: Project API
+    category: Management
+    icon: gcp/cloud_apis/cloud_apis.svg
+  google_service_account:
+    service: Service Account
+    category: Security
+    icon: gcp/identity_and_access_management/identity_and_access_management.svg
+  google_service_account_key:
+    service: Service Account Key
+    category: Security
+    icon: gcp/identity_and_access_management/identity_and_access_management.svg
+  google_project_iam_member:
+    service: IAM Member
+    category: Security
+    icon: gcp/identity_and_access_management/identity_and_access_management.svg
+  google_project_iam_binding:
+    service: IAM Binding
+    category: Security
+    icon: gcp/identity_and_access_management/identity_and_access_management.svg
+  google_iam_workload_identity_pool:
+    service: Workload Identity Pool
+    category: Security
+    icon: gcp/workload_identity_pool/workload_identity_pool.svg
+  google_kms_key_ring:
+    service: Cloud KMS
+    category: Security
+    icon: gcp/key_management_service/key_management_service.svg
+  google_kms_crypto_key:
+    service: KMS Key
+    category: Security
+    icon: gcp/key_management_service/key_management_service.svg
+  google_secret_manager_secret:
+    service: Secret Manager
+    category: Security
+    icon: gcp/secret_manager/secret_manager.svg
+  google_secret_manager_secret_version:
+    service: Secret Version
+    category: Security
+    icon: gcp/secret_manager/secret_manager.svg
+  google_logging_project_sink:
+    service: Cloud Logging
+    category: Monitoring
+    icon: gcp/cloud_logging/cloud_logging.svg
+  google_logging_metric:
+    service: Log Metric
+    category: Monitoring
+    icon: gcp/cloud_logging/cloud_logging.svg
+  google_monitoring_alert_policy:
+    service: Cloud Monitoring
+    category: Monitoring
+    icon: gcp/cloud_monitoring/cloud_monitoring.svg
+  google_monitoring_notification_channel:
+    service: Notification Channel
+    category: Monitoring
+    icon: gcp/cloud_monitoring/cloud_monitoring.svg
+  google_monitoring_uptime_check_config:
+    service: Uptime Check
+    category: Monitoring
+    icon: gcp/cloud_monitoring/cloud_monitoring.svg
+  google_cloudbuild_trigger:
+    service: Cloud Build
+    category: Developer Tools
+    icon: gcp/cloud_build/cloud_build.svg
+  gcp_cloud:
+    service: Google Cloud
+    category: Cloud
+    is_group: true
+    group_level: 0
+    style:
+      fill: '#FFFFFF'
+      stroke: '#4285F4'
+      label: '#4285F4'
+      role: cloud
+
+flows:
+  - { from: google_compute_instance, to: google_sql_database_instance }
+  - { from: google_compute_instance, to: google_storage_bucket }
+  - { from: google_container_cluster, to: google_sql_database_instance }
+  - { from: google_container_cluster, to: google_storage_bucket }
+  - { from: google_cloudfunctions_function, to: google_sql_database_instance }
+  - { from: google_cloudfunctions_function, to: google_storage_bucket }
+  - { from: google_cloudfunctions2_function, to: google_sql_database_instance }
+  - { from: google_cloudfunctions2_function, to: google_storage_bucket }

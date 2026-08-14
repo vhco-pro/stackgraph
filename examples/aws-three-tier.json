@@ -1,0 +1,267 @@
+{
+  "nodes": [
+    {
+      "id": "aws_vpc.main",
+      "type": "group",
+      "resource_type": "aws_vpc",
+      "label": "main",
+      "provider": "aws",
+      "service": "VPC",
+      "category": "Networking",
+      "icon": "aws/Arch_Networking-Content-Delivery/Arch_Amazon-Virtual-Private-Cloud_64.png",
+      "style": {
+        "fill": "#F8F4FF",
+        "stroke": "#8C4FFF",
+        "label": "#6B21A8",
+        "role": "vpc"
+      },
+      "parent": "aws_cloud.boundary",
+      "children": [
+        "aws_subnet.web",
+        "aws_subnet.app",
+        "aws_subnet.db"
+      ],
+      "attributes": {
+        "cidr_block": "10.0.0.0/16",
+        "id": "vpc-3tier001"
+      }
+    },
+    {
+      "id": "aws_subnet.web",
+      "type": "group",
+      "resource_type": "aws_subnet",
+      "label": "web",
+      "provider": "aws",
+      "service": "Subnet",
+      "category": "Networking",
+      "icon": "aws/Groups/Public-subnet_32.png",
+      "style": {
+        "fill": "#F2F7EE",
+        "stroke": "#7CB342",
+        "label": "#558B2F",
+        "role": "subnet"
+      },
+      "parent": "aws_vpc.main",
+      "children": [
+        "aws_security_group.web_sg",
+        "aws_lb.web"
+      ],
+      "attributes": {
+        "cidr_block": "10.0.1.0/24",
+        "id": "subnet-web001",
+        "map_public_ip_on_launch": true,
+        "vpc_id": "vpc-3tier001"
+      }
+    },
+    {
+      "id": "aws_subnet.app",
+      "type": "group",
+      "resource_type": "aws_subnet",
+      "label": "app",
+      "provider": "aws",
+      "service": "Subnet",
+      "category": "Networking",
+      "icon": "aws/Groups/Public-subnet_32.png",
+      "style": {
+        "fill": "#F2F7EE",
+        "stroke": "#7CB342",
+        "label": "#558B2F",
+        "role": "subnet"
+      },
+      "parent": "aws_vpc.main",
+      "children": [
+        "aws_security_group.app_sg"
+      ],
+      "attributes": {
+        "cidr_block": "10.0.2.0/24",
+        "id": "subnet-app001",
+        "map_public_ip_on_launch": false,
+        "vpc_id": "vpc-3tier001"
+      }
+    },
+    {
+      "id": "aws_subnet.db",
+      "type": "group",
+      "resource_type": "aws_subnet",
+      "label": "db",
+      "provider": "aws",
+      "service": "Subnet",
+      "category": "Networking",
+      "icon": "aws/Groups/Public-subnet_32.png",
+      "style": {
+        "fill": "#F2F7EE",
+        "stroke": "#7CB342",
+        "label": "#558B2F",
+        "role": "subnet"
+      },
+      "parent": "aws_vpc.main",
+      "children": [
+        "aws_db_instance.main"
+      ],
+      "attributes": {
+        "cidr_block": "10.0.3.0/24",
+        "id": "subnet-db001",
+        "map_public_ip_on_launch": false,
+        "vpc_id": "vpc-3tier001"
+      }
+    },
+    {
+      "id": "aws_security_group.web_sg",
+      "type": "group",
+      "resource_type": "aws_security_group",
+      "label": "web_sg",
+      "provider": "aws",
+      "service": "Security Group",
+      "category": "Security",
+      "icon": "aws/Arch_Security-Identity/Arch_AWS-Shield_64.png",
+      "style": {
+        "fill": "#FFF5F5",
+        "stroke": "#E53935",
+        "label": "#C62828",
+        "role": "sg",
+        "dashed": true
+      },
+      "parent": "aws_subnet.web",
+      "children": [
+        "aws_instance.web"
+      ],
+      "attributes": {
+        "id": "sg-web3t",
+        "name": "web-tier-sg",
+        "vpc_id": "vpc-3tier001"
+      }
+    },
+    {
+      "id": "aws_security_group.app_sg",
+      "type": "group",
+      "resource_type": "aws_security_group",
+      "label": "app_sg",
+      "provider": "aws",
+      "service": "Security Group",
+      "category": "Security",
+      "icon": "aws/Arch_Security-Identity/Arch_AWS-Shield_64.png",
+      "style": {
+        "fill": "#FFF5F5",
+        "stroke": "#E53935",
+        "label": "#C62828",
+        "role": "sg",
+        "dashed": true
+      },
+      "parent": "aws_subnet.app",
+      "children": [
+        "aws_instance.app"
+      ],
+      "attributes": {
+        "id": "sg-app3t",
+        "name": "app-tier-sg",
+        "vpc_id": "vpc-3tier001"
+      }
+    },
+    {
+      "id": "aws_lb.web",
+      "type": "resource",
+      "resource_type": "aws_lb",
+      "label": "web",
+      "provider": "aws",
+      "service": "ALB",
+      "category": "Networking",
+      "icon": "aws/Resources/Res_Networking-Content-Delivery/Res_Elastic-Load-Balancing_Application-Load-Balancer_48.svg",
+      "parent": "aws_subnet.web",
+      "attributes": {
+        "id": "arn:aws:elb:lb/web-alb",
+        "load_balancer_type": "application",
+        "name": "web-alb",
+        "subnet_id": "subnet-web001"
+      }
+    },
+    {
+      "id": "aws_instance.web",
+      "type": "resource",
+      "resource_type": "aws_instance",
+      "label": "web",
+      "provider": "aws",
+      "service": "EC2",
+      "category": "Compute",
+      "icon": "aws/Arch_Compute/Arch_Amazon-EC2_64.png",
+      "parent": "aws_security_group.web_sg",
+      "attributes": {
+        "id": "i-web3t",
+        "instance_type": "t3.small",
+        "subnet_id": "subnet-web001",
+        "vpc_security_group_ids": [
+          "sg-web3t"
+        ]
+      }
+    },
+    {
+      "id": "aws_instance.app",
+      "type": "resource",
+      "resource_type": "aws_instance",
+      "label": "app",
+      "provider": "aws",
+      "service": "EC2",
+      "category": "Compute",
+      "icon": "aws/Arch_Compute/Arch_Amazon-EC2_64.png",
+      "parent": "aws_security_group.app_sg",
+      "attributes": {
+        "id": "i-app3t",
+        "instance_type": "t3.medium",
+        "subnet_id": "subnet-app001",
+        "vpc_security_group_ids": [
+          "sg-app3t"
+        ]
+      }
+    },
+    {
+      "id": "aws_db_instance.main",
+      "type": "resource",
+      "resource_type": "aws_db_instance",
+      "label": "main",
+      "provider": "aws",
+      "service": "RDS",
+      "category": "Database",
+      "icon": "aws/Arch_Databases/Arch_Amazon-RDS_64.png",
+      "parent": "aws_subnet.db",
+      "attributes": {
+        "allocated_storage": 100,
+        "engine": "mysql",
+        "engine_version": "8.0",
+        "id": "db-3tier",
+        "instance_class": "db.r5.large"
+      }
+    },
+    {
+      "id": "aws_cloud.boundary",
+      "type": "group",
+      "resource_type": "aws_cloud",
+      "label": "AWS Cloud",
+      "provider": "aws",
+      "service": "AWS Cloud",
+      "category": "Cloud",
+      "icon": "aws/Groups/AWS-Cloud_32.png",
+      "style": {
+        "fill": "#FFFFFF",
+        "stroke": "#232F3E",
+        "label": "#232F3E",
+        "role": "cloud"
+      },
+      "children": [
+        "aws_vpc.main"
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "source": "aws_instance.web",
+      "target": "aws_lb.web",
+      "type": "depends_on"
+    }
+  ],
+  "metadata": {
+    "provider": "aws",
+    "resource_count": 11,
+    "generated_at": "2026-08-14T01:20:29Z",
+    "generator_version": "dev",
+    "input_mode": "state"
+  }
+}

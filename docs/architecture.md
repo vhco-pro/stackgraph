@@ -7,170 +7,198 @@ stackgraph is a standalone Go binary that generates production-quality infrastru
 ```
 Input (state/plan/HCL/DOT)
   → Parse into internal graph (nodes + edges)
-  → Apply resource mappings (service name, icon, grouping rules)
-  → Apply provider-specific grouping (VPC → Subnet → instances)
-  → Detect implicit edges (vpc_id, subnet_id attribute scanning)
-  → Collapse count/for_each instances into single nodes
-  → Filter internal/meta nodes (providers, root)
-  → Render output (JSON, DOT, SVG/PNG)
+  → ApplyMappings (service, icon, style, containment rules from YAML registry)
+  → DetectImplicitEdges (id/ARN/list reference scanning)
+  → ApplyGrouping (parent_ref containment; edge fallback; SG containment; cloud boundary)
+  → ApplyMappings again (styles the synthesized cloud-boundary nodes)
+  → InferFlowEdges (opt-in --infer-flows, scoped to one network container)
+  → CollapseCountInstances (containment-preserving)
+  → Suppress redundant edges (containment restatement; depends_on wall edges)
+  → FilterInternal
+  → Render (JSON, DOT, SVG, HTML)
 ```
 
-## Rendering Strategy
+The ordering is deliberate: reference edges must exist before grouping so the
+edge-based containment fallback (used by DOT/HCL inputs, which carry no
+attributes) has real edges to work with. State/plan inputs get deterministic
+containment from `parent_ref` attribute lookups and don't depend on edges at
+all.
 
-stackgraph produces two types of visual output that share the same graph JSON:
+## Rendering
 
-```
-                    ┌─ CLI: dagre.js or ELK.js → static SVG (self-contained)
-Graph JSON ─────────┤
-                    └─ Stackweaver frontend: @xyflow/react + ELK.js → interactive diagram
-```
+One layout engine: **ELK.js** (Eclipse Layout Kernel, 3.6MB JS bundle) executed
+in-process via goja (Go JS runtime). No system dependencies, fully offline.
 
-**CLI static output** — Uses dagre.js (default) or ELK.js (`--layout elk`) via goja (Go JS runtime) for layout, then generates SVG directly with base64-embedded cloud provider icons. No system dependencies, fully offline, self-contained SVG output.
+- Orthogonal (right-angle) edge routing, hierarchical compound layout
+- The goja VM is created once per process and reused (the bundle parse costs
+  ~300ms); a 30s interrupt timeout guarantees a pathological layout errors out
+  instead of hanging
+- Containers render back-to-front with label icons; edges render between
+  container backgrounds and labels; leaf nodes render on top
+- Icons are base64-embedded — SVG output is fully self-contained
+- Dark mode via `prefers-color-scheme` CSS inside the SVG
 
-Two layout engines available:
-- **dagre** (default, `--layout dagre`) — top-down layout with B-spline curve edges, 278KB
-- **ELK** (`--layout elk`) — left-to-right layout with orthogonal (right-angle) edges, 3.6MB. Better edge routing, no edge-label overlap.
+Output formats:
 
-**Stackweaver frontend** — Consumes the same graph JSON via API and renders with `@xyflow/react` + ELK.js for an interactive experience (pan, zoom, click-to-inspect, search, export). Documented in the Stackweaver integration plan.
+| Format | Purpose |
+|--------|---------|
+| `svg`  | Static, self-contained, embeddable in docs/CI |
+| `html` | Interactive viewer: pan/zoom, click-to-inspect side panel, search filter, dark mode — single file, no external requests |
+| `json` | Graph contract for frontends (Stackweaver workspace tab renders it with @xyflow/react) |
+| `dot`  | Graphviz interchange |
 
 ## Package Structure
 
 ```
 stackgraph/
 ├── cmd/stackgraph/              # CLI entrypoint (cobra)
-│   ├── main.go                  # Root command
-│   ├── generate.go              # generate command + input auto-detection
-│   └── mappings.go              # mappings list command
+│   ├── main.go                  # Root command, version wiring
+│   ├── generate.go              # generate command, pipeline, input auto-detection
+│   ├── mappings.go              # mappings list + mappings coverage commands
+│   └── e2e_test.go              # end-to-end CLI tests for every input mode
 ├── pkg/
 │   ├── parser/                  # Input parsers
-│   │   ├── state.go             # terraform-json State parsing
-│   │   ├── plan.go              # terraform-json Plan parsing (with action annotations)
+│   │   ├── state.go             # terraform-json State parsing (addresses kept as-is)
+│   │   ├── plan.go              # Plan parsing: actions incl. replace, destroyed resources
 │   │   ├── hcl.go               # HCL source parsing via hashicorp/hcl/v2
 │   │   ├── dot.go               # DOT graph parsing via gographviz
-│   │   └── terragrunt.go        # terragrunt.hcl dependency parsing
+│   │   └── terragrunt.go        # terragrunt.hcl dependency parsing (type-safe)
 │   ├── graph/                   # Internal graph representation
-│   │   ├── graph.go             # Node, Edge, Graph types + count collapsing + filtering
-│   │   └── grouping.go          # Provider-specific grouping + implicit edge detection
-│   ├── mapping/                 # Resource type → cloud service mapping
-│   │   ├── types.go             # ProviderMappings, ResourceMapping, VariantMapping
-│   │   ├── registry.go          # Registry loader + Lookup/List
-│   │   ├── embed.go             # go:embed for bundled YAML mappings
-│   │   └── mappings/            # Embedded YAML files (aws.yaml, etc.)
-│   └── output/                  # Output renderers
-│       ├── json.go              # JSON graph data (for API/frontend consumption)
-│       ├── dot.go               # Graphviz DOT text format
-│       └── svg.go               # Static SVG/PNG via go-graphviz (Terravision-quality)
-├── icons/                       # Cloud provider icon assets (PNG, embedded via go:embed)
-│   ├── aws/                     # AWS Architecture Icons
-│   ├── azure/                   # Azure Architecture Icons
-│   ├── gcp/                     # GCP Icons
-│   └── generic/                 # Generic fallback icons
-├── testdata/                    # Mock state/plan/HCL/DOT files for unit tests
-├── examples/                    # Generated example outputs (SVG, JSON, DOT)
-├── docs/                        # This documentation
-├── go.mod                       # github.com/michielvha/stackgraph, Go 1.26.1
-├── README.md
-└── LICENSE                      # Apache-2.0
+│   │   ├── graph.go             # Node, Edge, Graph, mappings application, collapse
+│   │   └── grouping.go          # parent_ref containment, ref index, edge detection,
+│   │                            #   SG containment, flow inference, cloud boundary
+│   ├── mapping/                 # Resource type → service/icon/style/containment
+│   │   ├── types.go             # YAML schema (incl. StyleMapping, parent_ref)
+│   │   ├── registry.go          # Loader, Lookup, List, LoadDir overlay
+│   │   ├── icons_test.go        # every icon path validated against embedded set
+│   │   └── mappings/            # Embedded YAML (aws.yaml, azure.yaml, gcp.yaml)
+│   ├── icons/                   # Embedded cloud provider icon assets
+│   └── output/                  # Renderers
+│       ├── json.go              # Graph JSON (frontend contract)
+│       ├── dot.go               # Graphviz DOT
+│       ├── svg.go               # Shared SVG building blocks (nodes, containers, styles)
+│       ├── svg_elk.go           # ELK layout via goja + SVG assembly
+│       ├── html.go              # Interactive HTML viewer wrapping the SVG
+│       └── layout_invariants_test.go  # child-inside-parent bbox checks on real layouts
+├── testdata/                    # Fixtures: state (incl. two-vpc-realistic, nested
+│                                #   modules), plan, terragrunt (incl. panic regression),
+│                                #   hcl, dot, invalid
+└── docs/
 ```
 
 ## Input Modes
 
 ### 1. State JSON (primary)
 
-Parses `tofu show -json` / `terraform show -json` output using `github.com/hashicorp/terraform-json` (`tfjson.State`). This is the most complete input mode — contains all resource attributes, `depends_on` relationships, and module hierarchy.
-
-Attributes are curated per resource type to keep graph JSON small — only attributes useful for display (tooltips, variant detection, implicit edge detection) are kept.
+Parses `tofu show -json` output using `hashicorp/terraform-json`. Resource
+addresses are used exactly as terraform-json reports them (fully qualified
+inside child modules — never re-prefixed). Attributes are curated per resource
+type; reference-shaped attributes (`*_id`, `*_ids`, `*_name`, `network`,
+`subnets`, …) are always kept because containment and edge detection resolve
+through them.
 
 ### 2. Plan JSON
 
-Parses plan output using `tfjson.Plan`. Same as state but adds `Action` annotations (create/update/delete/no-op) to each node from `resource_changes`.
+Same as state via `planned_values`, plus action annotations from
+`resource_changes`: create, update, **replace**, delete, no-op. Resources being
+destroyed appear from the change's `before` values. Actions render as colored
+accents on both icon nodes and box nodes.
 
 ### 3. HCL Source
 
-Parses `.tf` files directly using `hashicorp/hcl/v2` with `hclsyntax`. Extracts resource blocks and detects cross-references via `attr.Expr.Variables()`. Does not require `tofu init` or credentials — shows "what's defined" not "what's deployed".
+Parses `.tf` files with `hashicorp/hcl/v2`, detecting cross-references via
+`attr.Expr.Variables()`. Shows "what's defined", not "what's deployed".
+Containment comes from the edge-based fallback.
 
 ### 4. DOT Graph
 
-Parses `tofu graph` output using `gographviz`. Cleans terraform-specific prefixes (`[root]`, `(expand)`, `(close)`), filters provider/root nodes, and extracts dependency edges.
+Parses `tofu graph` output via gographviz; cleans terraform prefixes and
+filters provider/root nodes.
 
 ### 5. Terragrunt
 
-Walks a directory tree for `terragrunt.hcl` files, parses `dependency` blocks via HCL, and builds a module-level dependency graph.
+Walks a tree for `terragrunt.hcl` files and builds a module-level dependency
+graph from `dependency` blocks. Non-string `config_path` values are skipped
+(never panic); edges to nonexistent modules are dropped.
 
-## Graph Processing Pipeline
+## Containment Model
 
-After parsing, the graph goes through these transformations in order:
+Containment is **declarative data**, not inference. Each mapping may declare:
 
-1. **ApplyMappings** — enriches nodes with service/category/icon from YAML registry
-2. **ApplyGrouping** — assigns parent-child relationships for group nodes (VPC → Subnet → instances)
-3. **DetectImplicitEdges** — scans attribute values for ID references to other resources
-4. **CollapseCountInstances** — merges `resource[0]`, `resource[1]`, `resource[2]` into one node with `count: 3`
-5. **FilterInternal** — removes provider configuration nodes and terraform root nodes
+- `is_group` / `group_level` — renders as a container at a nesting depth
+- `group_parent` — the expected parent resource *type*
+- `parent_ref` — the *attribute* holding the parent's id (or name)
 
-## Resource Mapping System
+Resolution builds an index of every node by `id`, `arn`, `self_link`, and
+(type, `name`), then parents each node by direct attribute lookup — scalar or
+list values. A name match is only accepted for the declared `group_parent` type
+(names collide across types; ids don't). This is deterministic, works with zero
+`depends_on`, and disambiguates any number of VPCs.
 
-Mappings are declarative YAML files loaded via `go:embed`. Each mapping specifies:
+A second vocabulary, `member_ref`, covers member-list containment: a container
+names the attribute other resources use to reference it (security groups via
+`vpc_security_group_ids`). A container can only live in one place, so it moves
+into — and adopts — the largest same-parent cohort of its members (plus any
+parentless ones); minority members stay in their declared subnets, with their
+reference edge to the container showing the membership. `network_scope: true` marks network
+boundaries that heuristic flow edges may never cross.
 
-- `service` — human-readable service name (e.g., "EC2", "VPC")
-- `category` — service category (e.g., "Compute", "Networking")
-- `icon` — path to embedded icon file (e.g., `aws/compute/ec2-instance.png`)
-- `is_group` — whether this resource type renders as a container (subgraph cluster)
-- `group_level` — nesting depth (1 = outermost)
-- `group_parent` — expected parent resource type
-- `variants` — alternative icons based on attribute values
+Fallbacks, in order: edge-based placement (DOT/HCL inputs), member-list
+containment, and a synthesized per-provider cloud boundary (any provider —
+style it via a `<provider>_cloud` mapping entry). Two suppression rules run
+after collapse, both provably redundant: edges that restate containment
+(nesting already shows them), and `depends_on` edges into a container's wall
+when another edge already reaches inside it. Typed reference edges — evidence
+— are never deleted; when a reference is discovered for a pair that only had a
+`depends_on` edge, the edge is upgraded to the evidence type. Count/for_each collapse preserves the members'
+parent and rewrites all links; members spread across different parents stay
+expanded.
 
-Unmapped resources render as generic nodes with the resource type as the label.
+## Edge Model
 
-## SVG Rendering (CLI)
+1. `depends_on` edges from the state.
+2. Implicit reference edges: any curated attribute (scalar or list of strings)
+   whose value equals another node's id — typed by attribute name.
+3. Optional `--infer-flows`: heuristic type-pair flows declared in the mapping
+   YAML `flows:` sections, purely additive and rendered dashed. A pair connects
+   only within the same network container (declared via `network_scope`), so
+   multi-environment states never get invented cross-environment traffic;
+   outside any network container a flow is drawn only when the target is
+   unambiguous (a second same-type candidate suppresses the guess).
 
-The static renderer uses dagre.js or ELK.js (via goja Go JS runtime) for layout computation, then generates SVG directly with full control over icon embedding, container styling, and dark mode.
-
-### Rendering Approach
-
-1. **Layout** — dagre.js (278KB) or ELK.js (3.6MB) computes node positions and edge routes via goja
-2. **Containers** (VPC, Subnet, SG) render as `<rect>` elements with provider-specific colors and icons in labels
-3. **Resource nodes** render with base64-embedded cloud provider icons (AWS PNG 64px, Azure/GCP SVG)
-4. **Edges** render as orthogonal (ELK) or B-spline (dagre) `<path>` elements with arrowhead markers
-5. **Dark mode** — CSS `@media (prefers-color-scheme: dark)` auto-swaps all colors
-6. **Self-contained** — all icons base64-embedded, no external file references
-
-### Visual Design
-
-| Container | Fill | Stroke |
-|-----------|------|--------|
-| AWS VPC | `#F8F4FF` | `#8C4FFF` (purple) |
-| AWS Subnet | `#F2F7EE` | `#7CB342` (green) |
-| AWS Security Group | `#FFF5F5` | `#E53935` (red, dashed) |
-| Azure Resource Group | `#F0F0F0` | `#767676` (gray, dashed) |
-| Azure VNet | `#E7F4E4` | `#50E6FF` (cyan) |
-| GCP VPC | `#E6F4EA` | `#34A853` (green) |
-| GCP Subnetwork | `#F1F3F4` | `#5F6368` (gray) |
-
-### Non-Cloud Providers
-
-Providers without official icon sets (Proxmox, Kubernetes, Cloudflare, etc.) render as clean labeled boxes. Custom icons can be added by dropping files in `pkg/icons/icons/<provider>/` and adding entries to the YAML mapping.
+Edges are deduplicated per source→target pair regardless of type.
 
 ## Dependencies
 
-| Library | Version | License | Purpose |
-|---------|---------|---------|---------|
-| hashicorp/terraform-json | v0.27.2 | MPL-2.0 | State + plan JSON structs |
-| hashicorp/hcl/v2 | v2.24.0 | MPL-2.0 | HCL source parsing |
-| gographviz | v2.0.3 | Apache-2.0 | DOT format parsing/generation |
-| dop251/goja | latest | MIT | Go JS runtime (runs dagre.js and ELK.js) |
-| spf13/cobra | v1.10.2 | Apache-2.0 | CLI framework |
-| gopkg.in/yaml.v3 | v3.0.1 | MIT | YAML mapping loading |
+| Library | License | Purpose |
+|---------|---------|---------|
+| hashicorp/terraform-json | MPL-2.0 | State + plan JSON structs |
+| hashicorp/hcl/v2 | MPL-2.0 | HCL + terragrunt parsing |
+| zclconf/go-cty | MIT | HCL value typing (safe config_path handling) |
+| gographviz | Apache-2.0 | DOT parsing/generation |
+| dop251/goja | MIT | In-process JS runtime for ELK.js |
+| spf13/cobra | Apache-2.0 | CLI framework |
+| gopkg.in/yaml.v3 | MIT | Mapping YAML |
 
-**We do NOT import `hashicorp/terraform`** (the full binary's internal packages). We use `hashicorp/terraform-json` which provides stable, versioned structs independent of the terraform version.
+**We do NOT import `hashicorp/terraform`** — `terraform-json` provides stable,
+versioned structs independent of the terraform version.
+
+## Test Strategy
+
+- **Structural invariants on real layouts** (pkg/output/layout_invariants_test.go):
+  for six fixtures including a realistic two-VPC state, every child's bounding
+  box must sit inside its parent's, no group renders empty, every node gets a
+  position. These invariants are exactly what the original prototype violated.
+- **End-to-end CLI tests** for every input mode and output format.
+- **Mapping validation**: every YAML icon path must exist in the embedded set;
+  category vocabulary is kept consistent.
+- **Regression fixtures**: nested `child_modules` addresses, count-collapse
+  containment, name-match type filtering, terragrunt non-string `config_path`.
 
 ## Remaining Work
 
-- [ ] Proxmox resource mappings YAML
-- [ ] Azure/GCP region/zone container support
-- [ ] Azure/GCP cloud boundary provider logos
-- [ ] Plan JSON action annotations (create/update/delete visual diff)
-- [ ] Terragrunt cross-module dependency visualization
-- [ ] Variant detection (ALB vs NLB, Fargate vs EC2)
-- [ ] Node consolidation rules (merge Route53 records, IAM policies)
-- [ ] `stackgraph generate --format html` — self-contained interactive HTML
-- [ ] Optional server mode (`stackgraph serve --port 8080`)
+- Evidence-based flow edges (target-group attachments, SG rule pairs, IAM ARNs)
+- Global-services partition band in the layout (Route53/IAM/S3 cluster)
+- Node consolidation rules (merge Route53 records, S3 bucket sub-resources)
+- Region/zone containers for Azure/GCP
+- Optional server mode (`stackgraph serve --port 8080`)

@@ -6,10 +6,12 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/dop251/goja"
 	"github.com/michielvha/logger"
-	sgraph "github.com/michielvha/stackgraph/pkg/graph"
+	sgraph "github.com/vhco-pro/stackgraph/pkg/graph"
 )
 
 //go:embed elk.bundled.js
@@ -64,28 +66,29 @@ type ElkPoint struct {
 	Y float64 `json:"y"`
 }
 
-// RenderElkSVG produces an SVG using ELK.js for layout with orthogonal edge routing.
-func RenderElkSVG(g *sgraph.Graph) ([]byte, error) {
+// RenderSVG produces a self-contained SVG using ELK.js for layout with
+// orthogonal edge routing and base64-embedded icons.
+func RenderSVG(g *sgraph.Graph) ([]byte, error) {
 	if len(g.Nodes) == 0 {
 		return []byte(`<svg xmlns="http://www.w3.org/2000/svg" width="400" height="80">` +
 			`<text x="200" y="40" text-anchor="middle" font-family="Sans-Serif" font-size="14" fill="#6c757d">No resources found</text></svg>`), nil
 	}
 
 	// Build ELK graph JSON
-	elkGraph := buildElkGraph(g)
+	elkGraph, edgeMeta := buildElkGraph(g)
 
 	// Run ELK layout via goja
-	positions, edges, err := runElkLayout(elkGraph, g)
+	positions, edges, err := runElkLayout(elkGraph)
 	if err != nil {
 		return nil, fmt.Errorf("ELK layout failed: %w", err)
 	}
 
-	// Generate SVG (reuse dagre SVG generation with ELK positions)
-	svg := generateElkSVG(g, positions, edges)
+	// Assemble the SVG from the shared building blocks in svg.go
+	svg := generateElkSVG(g, positions, edges, edgeMeta)
 	return []byte(svg), nil
 }
 
-func buildElkGraph(g *sgraph.Graph) *ElkNode {
+func buildElkGraph(g *sgraph.Graph) (*ElkNode, map[string]*sgraph.Edge) {
 	nodeIdx := make(map[string]*sgraph.Node)
 	childMap := make(map[string][]string)
 	for _, n := range g.Nodes {
@@ -132,7 +135,7 @@ func buildElkGraph(g *sgraph.Graph) *ElkNode {
 			return nil
 		}
 
-		w, h := dagreNodeSize(n)
+		w, h := nodeSize(n)
 		elkNode := &ElkNode{
 			ID:     id,
 			Width:  float64(w),
@@ -142,11 +145,8 @@ func buildElkGraph(g *sgraph.Graph) *ElkNode {
 		kids := childMap[id]
 		if len(kids) > 0 || n.Type == sgraph.NodeTypeGroup {
 			// Container — ensure minimum width accommodates label text
-			label := n.Label
-			if n.Service != "" {
-				label = n.Service + " — " + n.Label
-			}
-			minLabelWidth := float64(len(label)*8 + 50) // rough char width + icon + padding
+			label := containerLabel(n)
+			minLabelWidth := float64(len([]rune(label))*8 + 50) // rough char width + icon + padding
 			if elkNode.Width < minLabelWidth {
 				elkNode.Width = minLabelWidth
 			}
@@ -206,8 +206,10 @@ func buildElkGraph(g *sgraph.Graph) *ElkNode {
 		}
 	}
 
-	// Add edges — reference node IDs directly (NOT port IDs)
-	// ELK auto-creates ports and chooses the best attachment side
+	// Add edges — reference node IDs directly (NOT port IDs).
+	// ELK auto-creates ports and chooses the best attachment side.
+	// edgeMeta lets the SVG stage recover each routed edge's type and label.
+	edgeMeta := make(map[string]*sgraph.Edge)
 	edgeIdx := 0
 	for _, e := range g.Edges {
 		if isAncestor(e.Source, e.Target) || isAncestor(e.Target, e.Source) {
@@ -218,42 +220,89 @@ func buildElkGraph(g *sgraph.Graph) *ElkNode {
 			continue
 		}
 
+		id := fmt.Sprintf("e%d", edgeIdx)
+		edgeMeta[id] = e
 		root.Edges = append(root.Edges, &ElkEdge{
-			ID:      fmt.Sprintf("e%d", edgeIdx),
+			ID:      id,
 			Sources: []string{e.Source},
 			Targets: []string{e.Target},
 		})
 		edgeIdx++
 	}
 
-	return root
+	return root, edgeMeta
 }
 
-func runElkLayout(elkGraph *ElkNode, _ *sgraph.Graph) (map[string]NodePosition, []*ElkEdge, error) {
+// layoutTimeout bounds a single ELK layout computation. A pathological graph
+// (or an ELK bug) must fail with an error, never hang the process.
+const layoutTimeout = 30 * time.Second
+
+// elkVM caches the goja VM with the 3.6MB ELK bundle already parsed, so
+// repeated renders in one process (library use, tests) skip the ~300ms parse.
+// goja VMs are not goroutine-safe; elkVMMu serializes layout runs.
+var (
+	elkVM   *goja.Runtime
+	elkVMMu sync.Mutex
+)
+
+func getElkVM() (*goja.Runtime, error) {
+	if elkVM != nil {
+		return elkVM, nil
+	}
+
 	vm := goja.New()
 
-	// Setup stubs — matches D2's approach for loading ELK in goja
-	_, err := vm.RunString(`
+	// Setup stubs — the ELK bundle expects a console and setTimeout.
+	// setTimeout must exist BEFORE the bundle initializes.
+	if _, err := vm.RunString(`
 		var console = { log: function(){}, warn: function(){}, error: function(){}, info: function(){} };
-	`)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to setup console stub: %w", err)
-	}
-
-	// Load ELK.js
-	_, err = vm.RunString(elkJS)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to load elk.js: %w", err)
-	}
-
-	// Initialize ELK — same as D2's setup.js
-	_, err = vm.RunString(`
 		var setTimeout = function(f) { f(); };
-		var elk = new ELK();
-	`)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to create ELK instance: %w", err)
+	`); err != nil {
+		return nil, fmt.Errorf("failed to setup JS stubs: %w", err)
 	}
+
+	if _, err := vm.RunString(elkJS); err != nil {
+		return nil, fmt.Errorf("failed to load elk.js: %w", err)
+	}
+
+	if _, err := vm.RunString(`var elk = new ELK();`); err != nil {
+		return nil, fmt.Errorf("failed to create ELK instance: %w", err)
+	}
+
+	elkVM = vm
+	return vm, nil
+}
+
+func runElkLayout(elkGraph *ElkNode) (positions map[string]NodePosition, elkEdges []*ElkEdge, retErr error) {
+	elkVMMu.Lock()
+	defer elkVMMu.Unlock()
+
+	vm, err := getElkVM()
+	if err != nil {
+		return nil, nil, err
+	}
+	// A previous run's timeout callback may have latched an interrupt after
+	// its ClearInterrupt (Stop returning false while the callback runs) —
+	// clear defensively before use.
+	vm.ClearInterrupt()
+
+	// A layout failure (timeout interrupt, ELK exception) can leave the cached
+	// VM with corrupted mid-layout state — discard it so the next render
+	// starts from a fresh bundle instead of inheriting the wreckage.
+	defer func() {
+		if retErr != nil {
+			elkVM = nil
+		}
+	}()
+
+	// Interrupt the VM if layout exceeds the timeout. Defers run LIFO: the
+	// timer must be stopped BEFORE the interrupt is cleared, or a timer firing
+	// in between would poison the cached VM for every later render.
+	timer := time.AfterFunc(layoutTimeout, func() {
+		vm.Interrupt(fmt.Sprintf("ELK layout exceeded %s", layoutTimeout))
+	})
+	defer vm.ClearInterrupt()
+	defer timer.Stop()
 
 	// Serialize graph to JSON
 	graphJSON, err := json.Marshal(elkGraph)
@@ -261,37 +310,36 @@ func runElkLayout(elkGraph *ElkNode, _ *sgraph.Graph) (map[string]NodePosition, 
 		return nil, nil, fmt.Errorf("failed to marshal ELK graph: %w", err)
 	}
 
-	// Set the graph and run layout
 	if err := vm.Set("graphJSON", string(graphJSON)); err != nil {
 		return nil, nil, fmt.Errorf("failed to set graphJSON in JS: %w", err)
 	}
-	_, err = vm.RunString(`var graph = JSON.parse(graphJSON);`)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to parse graph in JS: %w", err)
-	}
 
-	// Run layout — ELK returns a Promise
-	_, err = vm.RunString(`
+	// Run layout — ELK returns a Promise, which the bundled build resolves
+	// synchronously under our immediate setTimeout stub.
+	if _, err := vm.RunString(`
 		var layoutResult = null;
 		var layoutError = null;
-		elk.layout(graph).then(function(result) {
+		elk.layout(JSON.parse(graphJSON)).then(function(result) {
 			layoutResult = JSON.stringify(result);
 		}).catch(function(err) {
 			layoutError = err.toString();
 		});
-	`)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to start ELK layout: %w", err)
+	`); err != nil {
+		return nil, nil, fmt.Errorf("failed to run ELK layout: %w", err)
 	}
 
-	// ELK with the bundled version should resolve synchronously
-	// Check if promise resolved
-	errVal, _ := vm.RunString(`layoutError`)
+	errVal, err := vm.RunString(`layoutError`)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to read ELK error state: %w", err)
+	}
 	if errVal != nil && !goja.IsUndefined(errVal) && !goja.IsNull(errVal) {
 		return nil, nil, fmt.Errorf("ELK layout error: %s", errVal.String())
 	}
 
-	resultVal, _ := vm.RunString(`layoutResult`)
+	resultVal, err := vm.RunString(`layoutResult`)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to read ELK result: %w", err)
+	}
 	if resultVal == nil || goja.IsUndefined(resultVal) || goja.IsNull(resultVal) {
 		return nil, nil, fmt.Errorf("ELK layout returned no result (promise may not have resolved)")
 	}
@@ -302,14 +350,20 @@ func runElkLayout(elkGraph *ElkNode, _ *sgraph.Graph) (map[string]NodePosition, 
 		return nil, nil, fmt.Errorf("failed to parse ELK result: %w", err)
 	}
 
+	// Release the per-render strings held by the cached VM's globals so a
+	// large graph doesn't stay pinned in memory for the process lifetime.
+	if _, err := vm.RunString(`graphJSON = null; layoutResult = null;`); err != nil {
+		logger.Debugf("failed to clear ELK VM globals: %v", err)
+	}
+
 	// Extract positions recursively
-	positions := make(map[string]NodePosition)
+	positions = make(map[string]NodePosition)
 	var extractPositions func(node *ElkNode, offsetX, offsetY float64)
 	extractPositions = func(node *ElkNode, offsetX, offsetY float64) {
 		absX := offsetX + node.X
 		absY := offsetY + node.Y
 		positions[node.ID] = NodePosition{
-			X:      absX + node.Width/2, // dagre uses center, ELK uses top-left
+			X:      absX + node.Width/2, // NodePosition is center-based; ELK reports top-left
 			Y:      absY + node.Height/2,
 			Width:  node.Width,
 			Height: node.Height,
@@ -339,7 +393,7 @@ func runElkLayout(elkGraph *ElkNode, _ *sgraph.Graph) (map[string]NodePosition, 
 	}
 
 	// Extract edges from ALL containers and translate to absolute coordinates
-	var edges []*ElkEdge
+	edges := elkEdges
 	var collectEdges func(node *ElkNode)
 	collectEdges = func(node *ElkNode) {
 		for _, edge := range node.Edges {
@@ -370,7 +424,7 @@ func runElkLayout(elkGraph *ElkNode, _ *sgraph.Graph) (map[string]NodePosition, 
 	return positions, edges, nil
 }
 
-func generateElkSVG(g *sgraph.Graph, positions map[string]NodePosition, elkEdges []*ElkEdge) string {
+func generateElkSVG(g *sgraph.Graph, positions map[string]NodePosition, elkEdges []*ElkEdge, edgeMeta map[string]*sgraph.Edge) string {
 	// Find canvas bounds
 	var maxX, maxY float64
 	for _, pos := range positions {
@@ -391,37 +445,36 @@ func generateElkSVG(g *sgraph.Graph, positions map[string]NodePosition, elkEdges
 	fmt.Fprintf(&b, `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="%d" height="%d" font-family="Sans-Serif">`, canvasW, canvasH)
 	b.WriteString("\n")
 
-	// Dark mode CSS (same as dagre)
-	b.WriteString(`<style>
-  .sg-bg { fill: #FFFFFF; }
-  .sg-text { fill: #2D3436; }
-  .sg-edge { stroke: #7B8894; }
-  .sg-arrow { fill: #7B8894; }
-  .sg-node-box { fill: #FFFFFF; stroke: #DEE2E6; }
+	// Dark mode CSS — auto-detects prefers-color-scheme. Base colors come from
+	// the shared palette; container role rules are generated from the styles
+	// the graph's mappings actually declare.
+	fmt.Fprintf(&b, `<style>
+  .sg-bg { fill: %s; }
+  .sg-text { fill: %s; }
+  .sg-text-sm { fill: %s; }
+%s  .sg-node-box { fill: %s; stroke: %s; }
   @media (prefers-color-scheme: dark) {
-    .sg-bg { fill: #1a1a2e; }
-    .sg-text { fill: #E0E0E0; }
-    .sg-edge { stroke: #9CA3AF; }
-    .sg-arrow { fill: #9CA3AF; }
-    .sg-node-box { fill: #2a2a3e; stroke: #4A5568; }
-    .sg-container-cloud { fill: #1e1e32; stroke: #4A90D9; }
-    .sg-container-vpc { fill: #1e1530; stroke: #A855F7; }
-    .sg-container-subnet { fill: #1a2e1a; stroke: #8BC34A; }
-    .sg-container-sg { fill: #2e1a1a; stroke: #EF5350; }
-    .sg-container-default { fill: #1e1e2e; stroke: #6B7280; }
-    .sg-label-cloud { fill: #4A90D9; }
-    .sg-label-vpc { fill: #C084FC; }
-    .sg-label-subnet { fill: #8BC34A; }
-    .sg-label-sg { fill: #EF5350; }
-    .sg-label-default { fill: #9CA3AF; }
-  }
-</style>`)
+    .sg-bg { fill: %s; }
+    .sg-text { fill: %s; }
+    .sg-text-sm { fill: %s; }
+%s    .sg-node-box { fill: %s; stroke: %s; }
+%s  }
+</style>`,
+		paletteLightBG, paletteLightText, paletteLightText,
+		edgeClassCSS(false, "  "),
+		paletteLightBG, paletteLightBorder,
+		paletteDarkBG, paletteDarkText, paletteDarkTextSm,
+		edgeClassCSS(true, "    "),
+		paletteDarkBox, paletteDarkBorder,
+		roleDarkCSS(g))
 	b.WriteString("\n")
 
-	fmt.Fprintf(&b, `<rect class="sg-bg" width="%d" height="%d" fill="#FFFFFF"/>`, canvasW, canvasH)
+	fmt.Fprintf(&b, `<rect class="sg-bg" width="%d" height="%d" fill="%s"/>`, canvasW, canvasH, paletteLightBG)
 	b.WriteString("\n")
-	b.WriteString(`<defs><marker id="arrowhead" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto"><polygon class="sg-arrow" points="0 0, 10 3.5, 0 7" fill="#7B8894"/></marker></defs>`)
-	b.WriteString("\n")
+
+	// Defs: arrowhead marker plus one shared <image> per distinct icon —
+	// nodes reference them with <use> instead of re-embedding the data URI.
+	iconRefs := buildIconDefs(&b, g)
 
 	nodeIdx := make(map[string]*sgraph.Node)
 	for _, n := range g.Nodes {
@@ -463,18 +516,33 @@ func generateElkSVG(g *sgraph.Graph, positions map[string]NodePosition, elkEdges
 		renderContainerRect(&b, c.node, c.pos)
 	}
 
-	// Layer 2: Edges (on top of container backgrounds)
+	// Layer 2: Edges (on top of container backgrounds). Hierarchical edges can
+	// carry multiple sections — render every one, arrowhead on the last only.
+	// An edge ELK returned no sections for still draws as a straight line
+	// between node centers: a crude edge beats a silently missing one.
 	for _, edge := range elkEdges {
+		meta := edgeMeta[edge.ID]
 		if len(edge.Sections) == 0 {
+			if len(edge.Sources) > 0 && len(edge.Targets) > 0 {
+				src, sok := positions[edge.Sources[0]]
+				tgt, tok := positions[edge.Targets[0]]
+				if sok && tok {
+					renderElkEdge(&b, ElkSection{
+						StartPoint: ElkPoint{X: src.X, Y: src.Y},
+						EndPoint:   ElkPoint{X: tgt.X, Y: tgt.Y},
+					}, true, meta)
+				}
+			}
 			continue
 		}
-		section := edge.Sections[0]
-		renderElkEdge(&b, section)
+		for si, section := range edge.Sections {
+			renderElkEdge(&b, section, si == len(edge.Sections)-1, meta)
+		}
 	}
 
 	// Layer 3: Container labels + icons (on top of edges so labels are never obscured)
 	for _, c := range containers {
-		renderContainerLabel(&b, c.node, c.pos)
+		renderContainerLabel(&b, c.node, c.pos, iconRefs)
 	}
 
 	// Layer 4: Leaf nodes (on top of everything)
@@ -484,7 +552,7 @@ func generateElkSVG(g *sgraph.Graph, positions map[string]NodePosition, elkEdges
 			continue
 		}
 		if n.Type != sgraph.NodeTypeGroup && len(n.Children) == 0 {
-			renderDagreNode(&b, n, pos)
+			renderNode(&b, n, pos, iconRefs)
 		}
 	}
 
@@ -492,7 +560,7 @@ func generateElkSVG(g *sgraph.Graph, positions map[string]NodePosition, elkEdges
 	return b.String()
 }
 
-func renderElkEdge(b *strings.Builder, section ElkSection) {
+func renderElkEdge(b *strings.Builder, section ElkSection, arrowhead bool, meta *sgraph.Edge) {
 	var d strings.Builder
 
 	// Start point
@@ -506,6 +574,19 @@ func renderElkEdge(b *strings.Builder, section ElkSection) {
 	// End point
 	fmt.Fprintf(&d, " L %.1f,%.1f", section.EndPoint.X, section.EndPoint.Y)
 
-	fmt.Fprintf(b, `<path class="sg-edge" d="%s" fill="none" stroke="#7B8894" stroke-width="1.5" marker-end="url(#arrowhead)"/>`, d.String())
+	ec, title := edgeClassByType[""], ""
+	if meta != nil {
+		ec, title = edgeVisual(meta)
+	}
+	marker := ""
+	if arrowhead {
+		marker = ec.markerAttr
+	}
+	titleEl := ""
+	if title != "" {
+		titleEl = "<title>" + escapeXMLStr(title) + "</title>"
+	}
+	fmt.Fprintf(b, `<path class="%s" d="%s" fill="none" stroke="%s" stroke-width="1.5"%s%s>%s</path>`,
+		ec.cssClass, d.String(), ec.light, ec.dashAttr, marker, titleEl)
 	b.WriteString("\n")
 }

@@ -1,0 +1,56 @@
+{
+ "format_version": "1.0",
+ "terraform_version": "1.9.0",
+ "values": {
+  "root_module": {
+   "resources": [
+    {
+     "address": "aws_vpc.main",
+     "type": "aws_vpc",
+     "name": "main",
+     "mode": "managed",
+     "provider_name": "registry.terraform.io/hashicorp/aws",
+     "values": {
+      "id": "vpc-1"
+     }
+    }
+   ],
+   "child_modules": [
+    {
+     "address": "module.net",
+     "resources": [
+      {
+       "address": "module.net.aws_subnet.a",
+       "type": "aws_subnet",
+       "name": "a",
+       "mode": "managed",
+       "provider_name": "registry.terraform.io/hashicorp/aws",
+       "values": {
+        "id": "subnet-1",
+        "vpc_id": "vpc-1"
+       }
+      }
+     ],
+     "child_modules": [
+      {
+       "address": "module.net.module.inner",
+       "resources": [
+        {
+         "address": "module.net.module.inner.aws_instance.w",
+         "type": "aws_instance",
+         "name": "w",
+         "mode": "managed",
+         "provider_name": "registry.terraform.io/hashicorp/aws",
+         "values": {
+          "id": "i-1",
+          "subnet_id": "subnet-1"
+         }
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ }
+}
