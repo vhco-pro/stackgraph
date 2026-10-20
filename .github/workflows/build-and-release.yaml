@@ -24,11 +24,11 @@ jobs:
     steps:
       # ── Checkout ────────────────────────────────────────────
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
 
       # ── Go setup ────────────────────────────────────────────
       - name: Set up Go
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
         with:
           go-version: '1.26'
           cache: false
@@ -38,7 +38,7 @@ jobs:
 
       # ── Lint ────────────────────────────────────────────────
       - name: Run golangci-lint
-        uses: golangci/golangci-lint-action@v9.2.0
+        uses: golangci/golangci-lint-action@1e7e51e771db61008b38414a730f564565cf7c20 # v9.2.0
         with:
           version: latest
 
@@ -55,7 +55,7 @@ jobs:
 
       # ── Security scan ──────────────────────────────────────
       - name: Run Trivy security scan
-        uses: aquasecurity/trivy-action@v0.35.0
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0
         with:
           scan-type: 'fs'
           scan-ref: '.'
@@ -73,14 +73,14 @@ jobs:
     steps:
       # ── Checkout ────────────────────────────────────────────
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           fetch-depth: 0
           persist-credentials: true
 
       # ── Go setup ────────────────────────────────────────────
       - name: Set up Go
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
         with:
           go-version: '1.26'
           cache: false
@@ -91,13 +91,13 @@ jobs:
       # ── Tag ─────────────────────────────────────────────────
       - name: Tag with GitVersion
         id: gitversion
-        uses: michielvha/gitversion-tag-action@main
+        uses: michielvha/gitversion-tag-action@8cf5869816cf71437052ac97d086e00526bf2d89 # v7.0.4
         with:
           configFilePath: gitversion.yml
 
       # ── Release ─────────────────────────────────────────────
       - name: Build and Release Go Binary
-        uses: michielvha/goreleaser-action@main
+        uses: michielvha/goreleaser-action@a86fcdf453812a9d69b85208c0cb6a1e73f136b8 # v1
         with:
           github-token: ${{ github.token }}
           pgp-private-key: ${{ secrets.PGP_PRIVATE_KEY }}
@@ -123,11 +123,11 @@ jobs:
     steps:
       # ── Checkout ────────────────────────────────────────────
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
 
       # ── Build & push digest ────────────────────────────────
       - name: Build and push by digest
-        uses: michielvha/docker-release-action@v2
+        uses: michielvha/docker-release-action@c499e52a1a05e5bdd8cf03ba19a423d4c7ec25e3 # v2
         with:
           matrix-mode: build
           version: ${{ needs.release-binary.outputs.semVer }}
@@ -148,7 +148,7 @@ jobs:
     steps:
       # ── Merge ───────────────────────────────────────────────
       - name: Create multi-arch manifest
-        uses: michielvha/docker-release-action@v2
+        uses: michielvha/docker-release-action@c499e52a1a05e5bdd8cf03ba19a423d4c7ec25e3 # v2
         with:
           matrix-mode: merge
           version: ${{ needs.release-binary.outputs.semVer }}
